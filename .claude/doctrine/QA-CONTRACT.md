@@ -158,6 +158,12 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
 
 - **Keyboard** — tab order sensible, focus visible at every breakpoint, no trap.
 - **axe** — zero criticals. No axe run has ever happened on this project.
+
+  **A green axe result never overrides `DESIGN-SYSTEM.md`.** axe samples a flat computed background
+  and cannot see a hatch line, so it will pass fill-and-colour combinations that file forbids. That
+  is expected behaviour, not a disagreement to resolve, and it is never grounds for relaxing a locked
+  ratio. Contrast over a hachure is verified by the computed check in `design-tokens.test.ts`, which
+  measures the worst pixel; axe covers everything else.
 - **Handover** — reload with the network throttled. If the tier-1 to tier-2 swap announces itself, that
   is a finding.
 - **Stress** — `?stress=1` renders 500 frames.
