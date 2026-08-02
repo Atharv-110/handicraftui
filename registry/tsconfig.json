@@ -13,6 +13,8 @@
   "include": [
     "default/**/*.ts",
     "default/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
     "../packages/core/src/engine/roughjs-bundled.d.ts"
   ]
 }
