@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Next.js",
+  "extends": "./base.json",
+  "compilerOptions": {
+    // Next compiles JSX itself, so the type layer must leave it untouched.
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "incremental": true,
+    "allowJs": true,
+    // An app emits nothing, so declaration output is noise that only slows
+    // `tsc --noEmit` down.
+    "declaration": false,
+    "declarationMap": false
+  }
+}

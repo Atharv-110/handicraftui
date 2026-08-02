@@ -1,0 +1,9 @@
+{
+  "extends": "@handcraft/typescript-config/react-library.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["dist", "node_modules"]
+}

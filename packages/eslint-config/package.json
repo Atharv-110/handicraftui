@@ -1,0 +1,33 @@
+{
+  "name": "@handcraft/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared ESLint flat-config presets for the Handcraft UI workspace.",
+  "license": "MIT",
+  "exports": {
+    "./base": "./base.js",
+    "./react-library": "./react-library.js",
+    "./next": "./next.js"
+  },
+  "files": [
+    "base.js",
+    "react-library.js",
+    "next.js"
+  ],
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^15.5.22",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-turbo": "^2.10.8",
+    "globals": "^17.8.0",
+    "typescript-eslint": "^8.65.0"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.0"
+  }
+}

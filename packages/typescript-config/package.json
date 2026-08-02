@@ -1,0 +1,17 @@
+{
+  "name": "@handcraft/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared tsconfig presets for the Handcraft UI workspace.",
+  "license": "MIT",
+  "exports": {
+    "./base.json": "./base.json",
+    "./react-library.json": "./react-library.json",
+    "./nextjs.json": "./nextjs.json"
+  },
+  "files": [
+    "base.json",
+    "react-library.json",
+    "nextjs.json"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "handcraft-ui",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint && eslint scripts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "registry:build": "tsx scripts/build-registry.ts"
+  },
+  "devDependencies": {
+    "@handcraft/eslint-config": "workspace:*",
+    "@handcraft/typescript-config": "workspace:*",
+    "@types/node": "^22.10.2",
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

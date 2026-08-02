@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@handcraft/core/styles.css";
+
+/* Tailwind v4 only generates classes it can see. The registry components live
+   outside this app, so their class names have to be pointed at explicitly. */
+@source "../../../registry/default";
+
+/* Point the token at the font next/font actually loaded. This is exactly how a
+   consumer overrides the hand face — one custom property, no config file. */
+:root {
+  --hc-font-hand: var(--font-kalam), ui-rounded, cursive;
+}
+
+body {
+  background-color: var(--hc-paper);
+  color: var(--hc-ink);
+}

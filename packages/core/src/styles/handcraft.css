@@ -1,0 +1,505 @@
+/*
+ * Handcraft UI — design tokens and the tier-1 sketch frame.
+ *
+ * Two consumers must both work:
+ *   - Tailwind v4 projects, which read the `@theme inline` block below.
+ *   - Plain CSS / other frameworks, which read the `:root` custom properties.
+ * So the real values live in `:root` and `@theme inline` only maps them into
+ * Tailwind's utility namespace. Nothing is defined twice.
+ *
+ * Tier 1 (this file) draws the frame with two pseudo-elements and costs no
+ * JavaScript. Tier 2 replaces those strokes with rough.js geometry but keeps
+ * the identical box model — see SketchFrame.tsx.
+ */
+
+/*
+ * Layering, and why it is what it is:
+ *
+ *   base       — tokens. An app can override them from an unlayered rule.
+ *   components — the frame. Tailwind's `utilities` layer sorts *after*
+ *                `components`, so `className="hc-frame bg-hc-paper-raised"`
+ *                works: the utility wins over the frame's own background.
+ *                A private `handcraft.*` layer would sort after `utilities`
+ *                and silently beat every utility a consumer wrote.
+ *   unlayered  — focus, reduced motion, forced colors, print. Unlayered rules
+ *                outrank every layer, which is exactly what a fallback needs.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Tokens
+ * ------------------------------------------------------------------ */
+
+@layer base {
+  :root {
+    /* Surfaces. Deliberately a near-neutral paper rather than a warm cream —
+       a strongly tinted ground fights real product content. */
+    --hc-paper: oklch(97.8% 0.006 90);
+    --hc-paper-raised: oklch(99.2% 0.004 90);
+    --hc-paper-sunken: oklch(95.4% 0.008 90);
+
+    /* Ink is blue-black ballpoint, not grey. The slight blue is what reads as
+       "written with a pen" instead of "grey UI text". */
+    --hc-ink: oklch(24% 0.03 265);
+    --hc-ink-soft: oklch(46% 0.025 265);
+    --hc-ink-faint: oklch(66% 0.018 265);
+
+    /* Accents drawn from the subject: the exercise-book margin rule, a
+       highlighter, and blue biro. */
+    --hc-red: oklch(56% 0.19 25);
+    --hc-highlighter: oklch(92% 0.17 105);
+    --hc-biro: oklch(48% 0.13 255);
+
+    /* Focus is its own colour, never an accent. It must clear 3:1 against both
+       paper and ink, which neither the highlighter nor the margin red does. */
+    --hc-focus: oklch(52% 0.19 255);
+
+    /* Feedback */
+    --hc-danger: oklch(54% 0.2 27);
+    --hc-success: oklch(56% 0.14 150);
+
+    /* Type. Handwriting is the accent face, used for display, buttons and
+       labels. Body copy and form fields use a legible humanist stack — an
+       all-handwritten UI fails at 14px in a table, and shipping a webfont for
+       body text is a cost every consumer would pay whether they want it or
+       not. */
+    --hc-font-hand: "Excalifont", "Kalam", "Patrick Hand", ui-rounded, cursive;
+    --hc-font-body:
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif;
+    --hc-font-note: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+    /* Stroke + shadow. The shadow has no blur on purpose: it reads as paper
+       lifted off the page, not as a soft drop shadow. */
+    /* Matches BASE_STROKE_WIDTH in engine/generator.ts. The two tiers have to
+       agree on weight or the handover is visible as a sudden thickening. */
+    --hc-stroke-w: 2.4px;
+    --hc-stroke-w-strong: 3px;
+    --hc-shadow-offset: 3px;
+    --hc-shadow: var(--hc-shadow-offset) var(--hc-shadow-offset) 0 var(--hc-ink);
+    --hc-shadow-sm: 2px 2px 0 var(--hc-ink);
+
+    /* How far the second stroke pass diverges from the first. This is the
+       signature detail: real hand-drawn boxes overshoot at the corners. */
+    --hc-skew: 0.35deg;
+    --hc-drift-x: 0.5px;
+    --hc-drift-y: -0.5px;
+    --hc-second-pass-opacity: 0.5;
+
+    --hc-space-unit: 0.25rem;
+  }
+
+  /* Dark mode is a blackboard, not a dimmed version of the light theme:
+     chalk on slate, with the stroke weight raised because chalk on a dark
+     ground reads thinner than ink on paper. */
+  .dark {
+    --hc-paper: oklch(24% 0.014 255);
+    --hc-paper-raised: oklch(28% 0.016 255);
+    --hc-paper-sunken: oklch(20% 0.012 255);
+
+    --hc-ink: oklch(92% 0.012 85);
+    --hc-ink-soft: oklch(76% 0.014 85);
+    --hc-ink-faint: oklch(58% 0.014 85);
+
+    --hc-red: oklch(68% 0.17 25);
+    --hc-highlighter: oklch(84% 0.15 105);
+    --hc-biro: oklch(70% 0.12 255);
+    --hc-focus: oklch(74% 0.14 245);
+
+    --hc-danger: oklch(68% 0.18 27);
+    --hc-success: oklch(70% 0.13 150);
+
+    --hc-stroke-w: 2.6px;
+    --hc-stroke-w-strong: 3.2px;
+  }
+}
+
+/* Tailwind v4 utility namespace. `inline` means Tailwind references the vars
+   above rather than re-declaring them, so there is one source of truth. */
+@theme inline {
+  --color-hc-paper: var(--hc-paper);
+  --color-hc-paper-raised: var(--hc-paper-raised);
+  --color-hc-paper-sunken: var(--hc-paper-sunken);
+  --color-hc-ink: var(--hc-ink);
+  --color-hc-ink-soft: var(--hc-ink-soft);
+  --color-hc-ink-faint: var(--hc-ink-faint);
+  --color-hc-red: var(--hc-red);
+  --color-hc-highlighter: var(--hc-highlighter);
+  --color-hc-biro: var(--hc-biro);
+  --color-hc-focus: var(--hc-focus);
+  --color-hc-danger: var(--hc-danger);
+  --color-hc-success: var(--hc-success);
+
+  --font-hand: var(--hc-font-hand);
+  --font-body: var(--hc-font-body);
+  --font-note: var(--hc-font-note);
+
+  --shadow-sketch: var(--hc-shadow);
+  --shadow-sketch-sm: var(--hc-shadow-sm);
+}
+
+/* ------------------------------------------------------------------ *
+ * Tier-1 frame
+ * ------------------------------------------------------------------ */
+
+@layer components {
+  /*
+   * The frame owns no layout. Sizing and padding stay on the element itself,
+   * which is what allows tier 2 to swap the strokes for rough.js paths without
+   * shifting a single pixel.
+   */
+  .hc-frame {
+    position: relative;
+    border: 0;
+    background-color: transparent;
+    border-radius: var(--hc-r-a);
+    /* Creates a stacking context so the stroke layers below can sit at
+       z-index -1: painted after this element's own background but before its
+       content. Without it, absolutely-positioned strokes would paint on top of
+       the text, and a negative z-index would escape behind an ancestor. */
+    isolation: isolate;
+  }
+
+  .hc-frame::before,
+  .hc-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border: var(--hc-stroke-w) solid currentColor;
+    color: var(--hc-ink);
+    border-radius: var(--hc-r-a);
+    /* Inherited from any ancestor carrying [data-hc-texture="on"], which is how
+       the provider switches it on for a whole subtree. Matching on the frame
+       itself would only work if every component re-declared the attribute. */
+    filter: var(--hc-texture-filter, none);
+  }
+
+  /* Second pass. Offset and rotated a fraction of a degree so the corners
+     overshoot — the thing that makes it read as drawn rather than rendered. */
+  .hc-frame::after {
+    border-radius: var(--hc-r-b);
+    transform: rotate(var(--hc-skew)) translate(var(--hc-drift-x), var(--hc-drift-y));
+    opacity: var(--hc-second-pass-opacity);
+  }
+
+  /* Tier 2 mounts real geometry, so the CSS strokes and the CSS hachure must
+     both step aside. The element keeps its radius for background clipping and
+     for the focus outline. */
+  .hc-frame[data-hc-fidelity="high"]::before,
+  .hc-frame[data-hc-fidelity="high"]::after {
+    display: none;
+  }
+  .hc-frame[data-hc-fidelity="high"] {
+    background-image: none;
+  }
+
+  /*
+   * Tier-1 hachure.
+   *
+   * Not decoration — tier 1 is what paints before every hydration now that
+   * rough.js is the default, so any difference between the tiers becomes a
+   * visible flash on every page load. These gradients mirror the rough.js fill
+   * levels closely enough (same angle, comparable gap and density) that the
+   * swap does not announce itself.
+   *
+   * Gaps and weights track FILL_LEVELS in engine/generator.ts. Change one,
+   * change the other.
+   */
+  .hc-frame {
+    --hc-fill-color: var(--hc-ink-faint);
+    background-repeat: repeat;
+  }
+
+  .hc-frame[data-hc-fill="low"] {
+    background-image: repeating-linear-gradient(
+      45deg,
+      color-mix(in oklab, var(--hc-fill-color) 24%, transparent) 0 0.8px,
+      transparent 0.8px 9px
+    );
+  }
+
+  .hc-frame[data-hc-fill="med"] {
+    background-image: repeating-linear-gradient(
+      45deg,
+      color-mix(in oklab, var(--hc-fill-color) 50%, transparent) 0 1.2px,
+      transparent 1.2px 5.5px
+    );
+  }
+
+  /* `high` is cross-hatch in tier 2, so it is two gradients here as well. */
+  .hc-frame[data-hc-fill="high"] {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        color-mix(in oklab, var(--hc-fill-color) 70%, transparent) 0 1.3px,
+        transparent 1.3px 5px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        color-mix(in oklab, var(--hc-fill-color) 70%, transparent) 0 1.3px,
+        transparent 1.3px 5px
+      );
+  }
+
+  /*
+   * Eight hand-authored variants, selected deterministically from the
+   * component's id (see engine/seed.ts).
+   *
+   * Radii are now 1–5px, down from 11–14px. Tier 2 draws a *sharp* rect whose
+   * corners overshoot, so a visibly rounded tier-1 frame changed shape at the
+   * handover — the most obvious part of the flash. Near-square with a little
+   * per-corner asymmetry matches it, and the asymmetry is what carries the
+   * hand-drawn read anyway; magnitude never did.
+   *
+   * The skew on the second pass is correspondingly larger, since corner
+   * divergence is now the main thing selling the double stroke.
+   */
+  .hc-frame[data-hc-seed="0"] {
+    --hc-r-a: 4px 1px 5px 2px / 2px 5px 1px 4px;
+    --hc-r-b: 2px 5px 1px 4px / 5px 2px 4px 1px;
+    --hc-skew: 0.5deg;
+  }
+  .hc-frame[data-hc-seed="1"] {
+    --hc-r-a: 1px 5px 2px 4px / 5px 1px 4px 2px;
+    --hc-r-b: 5px 2px 4px 1px / 1px 4px 2px 5px;
+    --hc-skew: -0.45deg;
+  }
+  .hc-frame[data-hc-seed="2"] {
+    --hc-r-a: 5px 2px 3px 1px / 1px 5px 2px 4px;
+    --hc-r-b: 2px 4px 1px 5px / 4px 1px 5px 2px;
+    --hc-skew: 0.6deg;
+  }
+  .hc-frame[data-hc-seed="3"] {
+    --hc-r-a: 2px 5px 1px 4px / 4px 2px 5px 1px;
+    --hc-r-b: 5px 1px 4px 2px / 2px 5px 1px 4px;
+    --hc-skew: -0.55deg;
+  }
+  .hc-frame[data-hc-seed="4"] {
+    --hc-r-a: 4px 2px 5px 1px / 2px 4px 1px 5px;
+    --hc-r-b: 1px 5px 2px 4px / 5px 1px 4px 2px;
+    --hc-skew: 0.4deg;
+  }
+  .hc-frame[data-hc-seed="5"] {
+    --hc-r-a: 2px 4px 1px 5px / 4px 2px 5px 1px;
+    --hc-r-b: 5px 1px 4px 2px / 1px 5px 2px 4px;
+    --hc-skew: -0.65deg;
+  }
+  .hc-frame[data-hc-seed="6"] {
+    --hc-r-a: 5px 1px 4px 2px / 1px 5px 2px 4px;
+    --hc-r-b: 1px 4px 5px 2px / 5px 1px 4px 2px;
+    --hc-skew: 0.65deg;
+  }
+  .hc-frame[data-hc-seed="7"] {
+    --hc-r-a: 1px 4px 2px 5px / 5px 1px 4px 2px;
+    --hc-r-b: 4px 2px 1px 5px / 2px 4px 1px 5px;
+    --hc-skew: -0.35deg;
+  }
+
+  /* Fallback if a consumer forgets data-hc-seed. */
+  .hc-frame:not([data-hc-seed]) {
+    --hc-r-a: 4px 1px 5px 2px / 2px 5px 1px 4px;
+    --hc-r-b: 2px 5px 1px 4px / 5px 2px 4px 1px;
+  }
+
+  .hc-frame[data-hc-weight="strong"]::before,
+  .hc-frame[data-hc-weight="strong"]::after {
+    border-width: var(--hc-stroke-w-strong);
+  }
+
+  /*
+   * Turbulence, set on any ancestor so a provider can switch it on for a whole
+   * subtree. Declared as a custom property because custom properties inherit
+   * and `filter` does not — the earlier `.hc-frame[data-hc-texture="on"]` form
+   * silently did nothing, since the attribute lives on a wrapper rather than on
+   * every frame.
+   *
+   * Only the stroke pseudo-elements are filtered. Applying it to the element
+   * itself would blur the text and create a containing block.
+   */
+  [data-hc-texture="on"] {
+    --hc-texture-filter: url("#hc-wobble");
+  }
+
+  /*
+   * Draw-on entrance, opt-in via `<HandcraftProvider drawOn>`.
+   *
+   * Each pass is treated differently on purpose. Strokes reveal along their
+   * length; the hachure *fades*, because it is a single path containing ~100
+   * disjoint segments and revealing it reads as a loading wipe rather than as
+   * drawing; the pooling marks simply land at the end, where a pen would.
+   *
+   * `pathLength="1"` is set on the element so the dash maths is the same for a
+   * 40px checkbox and a 400px card — no measuring required.
+   */
+  @keyframes hc-draw-stroke {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes hc-draw-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /*
+   * `--hc-draw-duration` is the duration of the WHOLE sequence, not of any one
+   * pass. Every pass expresses its slice as a fraction of it, so the timeline
+   * stays ordered at any speed and finishes exactly on time.
+   *
+   * Getting this wrong is easy and was: when each pass carried its own full
+   * duration plus a delay, the pen marks landed at 546ms while the fill was
+   * still fading until 780ms — the sequence finished out of order.
+   *
+   *   under  0    → 0.42   pencil guideline goes down first
+   *   ink    0.26 → 0.82   inked over while the guideline is still going
+   *   fill   0.55 → 0.88   fades in; revealing it would wipe
+   *   pool   0.88 → 1.0    the pen lands last
+   */
+  .hc-sketch-svg[data-hc-draw] path {
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0.36, 1);
+  }
+
+  .hc-sketch-svg[data-hc-draw] path[data-hc-kind="under"],
+  .hc-sketch-svg[data-hc-draw] path[data-hc-kind="dust"] {
+    stroke-dasharray: 1;
+    animation-name: hc-draw-stroke;
+    animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.42);
+  }
+
+  .hc-sketch-svg[data-hc-draw] path[data-hc-kind="ink"] {
+    stroke-dasharray: 1;
+    animation-name: hc-draw-stroke;
+    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.26);
+    animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.56);
+  }
+
+  .hc-sketch-svg[data-hc-draw] path[data-hc-kind="fill"] {
+    animation-name: hc-draw-fade;
+    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.55);
+    animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.33);
+  }
+
+  .hc-sketch-svg[data-hc-draw] path[data-hc-kind="pool"] {
+    animation-name: hc-draw-fade;
+    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.88);
+    animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.12);
+  }
+
+  .hc-lift {
+    box-shadow: var(--hc-shadow);
+  }
+
+  /* Ruled-paper ground. */
+  .hc-ruled {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(1.5rem - 1px),
+      color-mix(in oklab, var(--hc-biro) 18%, transparent) calc(1.5rem - 1px),
+      color-mix(in oklab, var(--hc-biro) 18%, transparent) 1.5rem
+    );
+  }
+
+  /* Graph-paper ground. */
+  .hc-grid {
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        transparent 0,
+        transparent calc(1rem - 1px),
+        color-mix(in oklab, var(--hc-biro) 12%, transparent) calc(1rem - 1px),
+        color-mix(in oklab, var(--hc-biro) 12%, transparent) 1rem
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(1rem - 1px),
+        color-mix(in oklab, var(--hc-biro) 12%, transparent) calc(1rem - 1px),
+        color-mix(in oklab, var(--hc-biro) 12%, transparent) 1rem
+      );
+  }
+
+  /* Highlighter is a background behind text, never a text colour — which is
+     also what stops it being used to carry meaning on its own. */
+  .hc-marked {
+    background-image: linear-gradient(
+      to bottom,
+      transparent 55%,
+      color-mix(in oklab, var(--hc-highlighter) 70%, transparent) 55%
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Accessibility and degradation
+ * ------------------------------------------------------------------ */
+
+/* Intentionally unlayered — these must outrank both the frame and any utility
+   a consumer applies. A focus ring or a forced-colors fallback that can be
+   overridden by an ordinary class is not a fallback. */
+
+/* The outline follows the element's own border-radius, so the focus ring
+   inherits the wobble for free. Never remove it without a replacement. */
+.hc-frame:focus-visible,
+.hc-focusable:focus-visible {
+  outline: 2px solid var(--hc-focus);
+  outline-offset: 3px;
+}
+
+/* An entrance animation is exactly the kind of motion this setting exists to
+   suppress. Reset the dash as well as the animation, or the strokes would stay
+   frozen at their hidden start value and the frame would simply never appear. */
+@media (prefers-reduced-motion: reduce) {
+  .hc-sketch-svg[data-hc-draw] path {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    opacity: revert-layer !important;
+  }
+}
+
+/*
+ * Forced-colors and print both discard the sketch entirely. In forced-colors
+ * mode custom colours are overridden by the OS anyway, so a doubled
+ * pseudo-element border renders as two identical system-coloured boxes a
+ * fraction of a degree apart — visual noise that actively hurts. A plain
+ * border is the honest fallback.
+ */
+@media (forced-colors: active) {
+  .hc-frame::before,
+  .hc-frame::after,
+  .hc-sketch-svg {
+    display: none;
+  }
+  .hc-frame {
+    border: 1px solid ButtonBorder;
+    border-radius: 4px;
+  }
+  .hc-lift {
+    box-shadow: none;
+  }
+}
+
+@media print {
+  .hc-frame::after,
+  .hc-sketch-svg {
+    display: none;
+  }
+  .hc-frame::before {
+    border-color: #000;
+  }
+  .hc-lift {
+    box-shadow: none;
+  }
+  .hc-ruled,
+  .hc-grid {
+    background-image: none;
+  }
+}

@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "registry"
+allowBuilds:
+  esbuild: true
+  sharp: true

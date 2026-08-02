@@ -1,0 +1,38 @@
+node_modules/
+dist/
+.next/
+.next-dev/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+*-snapshots/*-actual.png
+*-snapshots/*-diff.png
+
+# env
+.env
+.env.local
+.env*.local
+
+# os
+.DS_Store
+Thumbs.db
+
+# agent tooling — see CLAUDE.md
+# Vendored third-party skills are NOT redistributed: 4 of the 6 installed skills
+# ship no licence file, so this repo has no grant to republish them. They are
+# reinstallable from skills-lock.json with `npx skills add`.
+.claude/skills/
+# Internal work logs. They churn on every cycle and would conflict on every PR.
+.claude/cycles/
+.claude/state/
+.claude/settings.local.json
+__pycache__/
+*.pyc
+
+# generated registry output
+registry/public/r/

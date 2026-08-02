@@ -1,0 +1,23 @@
+{
+  "extends": "@handcraft/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/ui/*": [
+        "../../registry/default/ui/*"
+      ],
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "next-env.d.ts",
+    ".next-dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

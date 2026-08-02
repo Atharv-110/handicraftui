@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# vendored agent skills — not our source
+.claude/
+
+.next/
+.turbo/
+coverage/
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# generated registry output
+registry/public/r/

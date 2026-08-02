@@ -1,0 +1,24 @@
+{
+  "name": "@handcraft/registry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Component source distributed via the shadcn registry. Not published to npm — these files are copied into consumer projects.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@handcraft/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@handcraft/eslint-config": "workspace:*",
+    "@handcraft/typescript-config": "workspace:*",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^10.8.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2"
+  }
+}
