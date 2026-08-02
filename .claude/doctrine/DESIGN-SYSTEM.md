@@ -54,18 +54,25 @@ Each role carries **an ink value and a fill value, per theme**. Role-tinted text
 role's own hachure **up to `fill: "low"`** and no further.
 
 ```
-role     theme  ink                       hex       fill                      hex
-danger   light  oklch(51% 0.177  27)      #B52A27   oklch(67% 0.185  27)      #F15D53
-danger   dark   oklch(68% 0.173  27)      #F2675C   oklch(55% 0.189  27)      #C62F2C
-warning  light  oklch(50% 0.090  75)      #815B1F   oklch(66% 0.117  75)      #BA8531
-warning  dark   oklch(68% 0.123  75)      #C68E35   oklch(52% 0.094  75)      #8A6222
-success  light  oklch(48% 0.112 150)      #226F39   oklch(64% 0.149 150)      #36A357
-success  dark   oklch(66% 0.155 150)      #39AC5C   oklch(51% 0.119 150)      #25783F
-info     light  oklch(50% 0.139 255)      #2061AE   oklch(65% 0.162 255)      #4290EF
-info     dark   oklch(68% 0.146 255)      #559AF0   oklch(52% 0.147 255)      #236ABC
-accent   light  oklch(51% 0.173  10)      #B2294F   oklch(68% 0.187  10)      #F25A7C
-accent   dark   oklch(69% 0.175  10)      #F26582   oklch(55% 0.187  10)      #C52E58
+role     theme  ink                            hex       fill                           hex
+danger   light  oklch(50.92% 0.1761  27.04)    #B52A27   oklch(66.92% 0.1843  27.05)    #F15D53
+danger   dark   oklch(68.48% 0.1735  27.11)    #F2675C   oklch(54.45% 0.1882  26.96)    #C62F2C
+warning  light  oklch(50.02% 0.0899  74.96)    #815B1F   oklch(65.44% 0.1175  75.07)    #BA8531
+warning  dark   oklch(68.60% 0.1230  75.17)    #C68E35   oklch(52.60% 0.0943  75.34)    #8A6222
+success  light  oklch(48.10% 0.1132 149.69)    #226F39   oklch(63.54% 0.1491 149.81)    #36A357
+success  dark   oklch(66.10% 0.1554 149.83)    #39AC5C   oklch(50.85% 0.1190 150.09)    #25783F
+info     light  oklch(49.41% 0.1388 255.26)    #2061AE   oklch(65.06% 0.1616 255.04)    #4290EF
+info     dark   oklch(68.00% 0.1459 254.99)    #559AF0   oklch(52.49% 0.1463 254.85)    #236ABC
+accent   light  oklch(51.02% 0.1731  10.02)    #B2294F   oklch(67.53% 0.1873  10.10)    #F25A7C
+accent   dark   oklch(69.01% 0.1744  10.23)    #F26582   oklch(54.98% 0.1871  10.04)    #C52E58
 ```
+
+**Full precision is load-bearing, not pedantry.** This table shipped once with the lightness rounded
+to whole percent, and the two columns were then different colours: 15 of 20 disagreed, and **5 of the
+10 fills dropped below the 1.4.11 3:1 floor** — `warning` light 2.97, `warning` dark 2.94, `success`
+light 2.96, `info` dark 2.96, `accent` light 2.96. Every value above round-trips byte-exact to its
+hex. Never re-round them, and never write a token from the hex and a comment from the oklch or the
+two will drift apart again.
 
 Every one of the ten cells satisfies all four constraints simultaneously: role ink ≥4.5:1 on paper ·
 role ink ≥4.5:1 over its own `low` fill · neutral ink ≥4.5:1 over that fill · fill ≥3:1 against paper
@@ -108,7 +115,24 @@ so any role-filled Card is already at `low` regardless of what it asks for.
 | `--hc-success` replaced | 4.10:1 light, fails AA. Unused today only because Badge deferred a `success` variant |
 | `--hc-focus` moved inside sRGB | `oklch(52% 0.19 255)` has red channel −0.0108 and is silently clipped to `#0065D2`. Its own comment claims 3:1 against ink; it measures 2.96:1 light, 1.80:1 dark |
 | Button `primary` drops `med` → `low` | Ink over highlighter at `med` is 3.64:1 in dark mode. Identical to the Badge `marked` defect |
-| Button `danger` stops tinting text | Tier 1 fixes the pseudo-element stroke to `--hc-ink`; tier 2 resolves `currentColor` against the tinted element, so the stroke colour flips at handover |
+| Button `danger` pins its tier-2 stroke to ink | Tier 1 fixes the pseudo-element stroke to `--hc-ink`; tier 2 resolves `currentColor` against the tinted element, so the stroke colour flips at handover. Fixed with `stroke`, **not** by dropping the tint — see the rule below |
+
+### Any component that tints its text passes `stroke`
+
+**A component using a role `ink` on its text must pass `stroke: "var(--hc-ink)"` to
+`useSketchFrame`.** Not optional, and not a per-component judgment call.
+
+Tier 1 pins the pseudo-element stroke to `--hc-ink` in CSS. Tier 2 resolves `currentColor` against
+the element, which a tinted component has changed. Without an explicit `stroke` the frame is one
+colour before hydration and another after, and the flip is visible at every page load.
+
+`useSketchFrame` already accepts `stroke?: string` and threads it to the generator, so this costs one
+line per component and no engine work.
+
+This rule is written here rather than in the components on purpose. Badge worked out the equivalent
+rule for its own `marked` variant in cycle 1, had nowhere to record it, and Button `primary` shipped
+the identical 3.64:1 defect as a result. A rule that lives in one component's comments is a rule that
+gets rediscovered.
 
 **`--hc-focus`'s "3:1 against ink" requirement is itself unresolved.** At `outline-offset: 3px` the
 ring sits on paper, where it measures 5.22:1 light and 7.21:1 dark. Whether the stated requirement is
@@ -145,8 +169,13 @@ at 14px and 7.6% at 30px.
 - **Display scale** — hand face, **18px and up**.
 - **UI scale** — body face, 12–18px.
 - **Exception list** — the hand face may appear below 18px in exactly three places: **badge text,
-  label text, button `sm` label.** Nothing else. Adding a fourth is a doctrine amendment, not a
-  component decision.
+  label text, and button labels at any control-ramp size.** Nothing else. Adding a fourth is a
+  doctrine amendment, not a component decision.
+
+  The button entry covers `sm` (14px) and `md` (16px); `lg` is 18px and needs no exception. An
+  earlier draft of this file said "button `sm` label", which was unsatisfiable — `button.tsx` carries
+  `font-hand` on the root for every size, and `PRINCIPLES.md` locks buttons as a hand-face surface.
+  Three locked statements, no two of which could all hold.
 
 The exception list exists because all three are *tokens* — short, unwrapped, scanned as a shape
 rather than tracked across a line. That is what "an all-handwritten UI fails at 14px in a table"
