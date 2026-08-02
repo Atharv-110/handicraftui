@@ -145,19 +145,34 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
   is a finding.
 - **Stress** — `?stress=1` renders 500 frames.
 
-  **Both budgets are currently UNSTATED, deliberately.** They used to read 60ms and 64ms. Cycle 000
-  measured 80–86ms handover and roughly 400ms stress settle, in *both* themes within about 2% of each
-  other — so this is not a chalk regression, and the numbers are not obviously wrong either. The old
-  figures were recorded without their measurement conditions, so there is no way to tell whether the
-  code got slower or the original was taken under `next build` while these were taken under `next dev`.
+  ### Budgets — production only, conditions attached
 
-  A budget nobody can reproduce is worse than no budget: it fails a cycle for unknown reasons and
-  trains people to wave it through. So rather than raising the numbers to match observation — which
-  would launder a possible regression into the baseline — they are withdrawn until re-measured under
-  both `next dev` and `next build`, with the conditions recorded alongside the figure.
+  | What | Budget | Conditions |
+  |---|---|---|
+  | Handover | **110ms** | `next build && next start`, Fast 4G throttled, median of 3 |
+  | Stress settle | **300ms** | `next build && next start`, unthrottled, `?stress=1`, median of 3 |
 
-  Until then, report the measurement and flag any *change* from the previous cycle rather than
-  comparing to an absolute.
+  Both are **1.4× the worst figure observed in cycle 000b**, and that multiplier is stated so the next
+  person knows the headroom is deliberate rather than inherited.
+
+  **`next dev` is explicitly unbudgeted.** It measured roughly 4× production — 270ms handover against
+  71ms — so a single number cannot serve both. Under `next dev`, report the measurement and flag
+  **change from the previous cycle**, treating more than +15% as an M finding. Never compare a `next dev`
+  figure to the table above.
+
+  **Never set a budget below ~64ms.** `apps/playground/app/perf-readout.tsx` ticks at 16ms and requires
+  three consecutive stable counts, so its earliest possible output is four ticks. That is an instrument
+  floor, not a measurement.
+
+  The history is worth keeping, because it is the reason this section is shaped like this. The budgets
+  previously read 60ms and 64ms with no conditions recorded. 60ms was **below the instrument floor and
+  therefore unreachable**, and 64ms *was* the floor — so both were artifacts rather than measurements,
+  and nobody could tell whether a miss meant a regression or a different `NODE_ENV`.
+
+  They were withdrawn rather than raised to match observation, because raising them would have
+  laundered a possible regression into the baseline. A budget nobody can reproduce is worse than no
+  budget: it fails cycles for unknown reasons and trains people to wave it through. Any future change
+  to these numbers records its conditions, or it is not a budget.
 - **No-JS** — tier 1 must render complete, hachured frames. Chrome's `--disable-javascript` is ignored
   in recent headless builds and `--dump-dom` returns nothing with scripting off, so the working method
   is to `curl` the SSR HTML and strip the `<script>` tags.
