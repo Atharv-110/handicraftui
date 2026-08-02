@@ -126,3 +126,51 @@ describe("tier 1 and tier 2 agree", () => {
     expect(css).toMatch(/filter:\s*var\(--hc-texture-filter/);
   });
 });
+
+/**
+ * T18 (cycle 000b). `focusWithin`'s ring lives in
+ * `.hc-frame[data-hc-focus-within]:has(> :focus-visible)`, deliberately
+ * unlayered and deliberately its own rule rather than a third selector on the
+ * `.hc-frame:focus-visible, .hc-focusable:focus-visible` block above it — one
+ * unsupported selector invalidates an entire comma-separated list, so folding
+ * it in would cost every browser without `:has()` its ordinary focus ring too.
+ * This file already owns exactly this class of invariant (structural facts
+ * about the stylesheet, read as text), which is why the assertion lives here
+ * rather than starting a third CSS-reading file.
+ */
+describe("the focus-within rule stays unlayered and separate", () => {
+  const focusWithinSelector = ".hc-frame[data-hc-focus-within]:has(> :focus-visible)";
+
+  it("appears exactly once", () => {
+    const occurrences = css.split(focusWithinSelector).length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it("sits at brace depth 0 — top level, unlayered, outranks every layer", () => {
+    const index = css.indexOf(focusWithinSelector);
+    expect(index, "focus-within rule not found").toBeGreaterThanOrEqual(0);
+
+    // Depth is the running count of `{` minus `}` from the top of the file to
+    // this selector. Depth 0 means nothing has opened a block this selector
+    // sits inside of — in particular, no @layer.
+    const before = css.slice(0, index);
+    const opens = before.match(/\{/g)?.length ?? 0;
+    const closes = before.match(/\}/g)?.length ?? 0;
+    expect(opens - closes).toBe(0);
+  });
+
+  it("is a rule of its own, not folded into the .hc-focusable:focus-visible list", () => {
+    const listSelector = ".hc-focusable:focus-visible";
+    const listIndex = css.indexOf(listSelector);
+    const focusWithinIndex = css.indexOf(focusWithinSelector);
+    expect(listIndex, "comma-separated focus block not found").toBeGreaterThanOrEqual(0);
+    expect(focusWithinIndex).toBeGreaterThan(listIndex);
+
+    // A `}` between the two selectors means the first rule's block already
+    // closed before the second selector opens — two rules, not one list.
+    // Merging them would remove this `}`, since a comma-separated list has no
+    // brace between its selectors.
+    const between = css.slice(listIndex, focusWithinIndex);
+    expect(between).toContain("}");
+  });
+});

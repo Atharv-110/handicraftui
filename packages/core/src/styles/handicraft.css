@@ -453,6 +453,20 @@
   outline-offset: 3px;
 }
 
+/* Wrapper-framed components — the frame sits on a <div> or <span> and the real
+   control lives inside it. Opt in with `useSketchFrame({ focusWithin: true })`;
+   matching every .hc-frame that merely contains a focused element would ring a
+   Card around a focused Button.
+
+   Its own rule, not a third selector on the block above: one unsupported
+   selector invalidates an entire comma-separated list, so a browser without
+   :has() would lose the ordinary focus ring as well. The declarations are
+   duplicated on purpose, and any change to one is a change to both. */
+.hc-frame[data-hc-focus-within]:has(> :focus-visible) {
+  outline: 2px solid var(--hc-focus);
+  outline-offset: 3px;
+}
+
 /* An entrance animation is exactly the kind of motion this setting exists to
    suppress. Reset the dash as well as the animation, or the strokes would stay
    frozen at their hidden start value and the frame would simply never appear. */

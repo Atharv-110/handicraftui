@@ -19,9 +19,20 @@ export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputE
 }
 
 /**
- * The native input stays in the DOM and keeps every behaviour that matters —
- * focus, keyboard, form participation, screen-reader semantics. It is made
- * transparent rather than replaced, and the drawn box and tick sit behind it.
+ * The native input stays in the DOM, so form participation, keyboard activation
+ * and screen-reader semantics are the platform's rather than reimplemented.
+ *
+ * What the input does not carry is the focus ring. It is `opacity-0` so the drawn
+ * box shows through, and opacity applies to an element's outline along with
+ * everything else — the browser draws a real ring, in the right place, fully
+ * transparent. The frame draws it instead: `focusWithin` marks the wrapper and
+ * one unlayered rule in the stylesheet rings it while a direct child has
+ * `:focus-visible`.
+ *
+ * The label is at least 44px tall so the whole row is the touch target, while the
+ * drawn box stays 20px. Growing the box instead would pull `taperForSize` out of
+ * the range these strokes were tuned for, and would leave a checkbox twice the
+ * height of the text beside it.
  *
  * The tick is a `SketchMark`, not an icon font: it shares the frame's seed pool,
  * hand and size taper, so tick and box look like one drawing. A geometric
@@ -53,6 +64,9 @@ export function Checkbox({
     fillColor: "var(--hc-ink)",
     // Both states share one seed, so ticking does not redraw the box.
     seedKey: inputId,
+    // The input's own ring is opacity-0 along with the rest of it, so the frame
+    // has to carry it.
+    focusWithin: true,
   });
   const { ref: frameRef, ...frameAttrs } = frameProps;
 
@@ -60,7 +74,8 @@ export function Checkbox({
     <label
       htmlFor={inputId}
       className={cn(
-        "font-hand text-hc-ink inline-flex cursor-pointer items-center gap-2.5 select-none",
+        "font-hand text-hc-ink inline-flex min-h-11 cursor-pointer items-center gap-2.5 select-none",
+        !label && "min-w-11 justify-center",
         disabled && "pointer-events-none opacity-50",
         className,
       )}

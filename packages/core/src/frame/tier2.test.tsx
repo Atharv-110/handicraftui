@@ -10,6 +10,17 @@ import { __resetSketchEngine } from "../engine/generator";
  * so tier 2 silently never activates and any test written against it would
  * pass without exercising a single line of rough.js. These stubs give the
  * measurement path something real to read.
+ *
+ * Cycle 000b moved both measurement sites (resize-bus.ts's flush and this
+ * hook's initial measurement) from getBoundingClientRect() to
+ * offsetWidth/offsetHeight (see measure.test.tsx's T10 for why: a bounding
+ * rect is measured after transforms, offsetWidth/Height is not). jsdom's
+ * offsetWidth/offsetHeight are always 0 and were not stubbed here before,
+ * which is exactly why this suite went red under that change. Stubbed to the
+ * SAME numbers as the getBoundingClientRect stub below on purpose — this
+ * suite doesn't care which measurement API is read, only that tier 2
+ * activates, so it stays neutral on that question and leaves T10 as the only
+ * test that can tell the two APIs apart.
  */
 const BOX = { width: 160, height: 44 };
 
@@ -24,6 +35,9 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(BOX.width);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(BOX.height);
 
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
     ...BOX,

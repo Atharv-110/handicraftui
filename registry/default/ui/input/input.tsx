@@ -25,8 +25,13 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
  * tier-2 SVG something to be positioned against without interfering with the
  * input's own box.
  *
- * Focus is forwarded from the input to the wrapper via :focus-within, so the
- * ring still tracks real keyboard focus rather than being faked.
+ * The ring is drawn by the frame rather than by the input: `focusWithin` puts
+ * `data-hc-focus-within` on the wrapper and one unlayered rule in the stylesheet
+ * rings it while a direct child has `:focus-visible`. This component used to
+ * hand-roll that with `focus-within:` utilities. It worked here and was silently
+ * forgotten on Checkbox, which shipped with no visible focus ring at all — the
+ * wrapper-framed shape repeats across most of what is left to build, so it
+ * belongs in the hook.
  */
 export function Input({ className, disabled, ref, ...props }: InputProps) {
   const { frameProps, sketchLayer } = useSketchFrame({
@@ -35,6 +40,7 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
     // content has to stay perfectly legible, and hachure behind an input value
     // is exactly the wrong trade.
     fill: "no",
+    focusWithin: true,
   });
 
   return (
@@ -42,7 +48,6 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
       {...frameProps}
       className={cn(
         "hc-frame bg-hc-paper-raised relative flex h-11 w-full items-center px-3",
-        "focus-within:outline-hc-focus focus-within:outline-2 focus-within:outline-offset-[3px]",
         disabled && "pointer-events-none opacity-50",
         className,
       )}
@@ -51,8 +56,12 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
       <input
         ref={ref}
         disabled={disabled}
+        // `ink-soft`, not `ink-faint`: measured against this field's own
+        // paper-raised surface, faint is 3.0:1 in light and 3.4:1 on the
+        // blackboard, both under the 4.5:1 AA floor for text. Faint stays the
+        // hachure colour, where the requirement is texture rather than reading.
         className={cn(
-          "font-body text-hc-ink placeholder:text-hc-ink-faint h-full w-full",
+          "font-body text-hc-ink placeholder:text-hc-ink-soft h-full w-full",
           "border-0 bg-transparent text-base outline-none",
           "disabled:cursor-not-allowed",
         )}

@@ -10,6 +10,13 @@ import { seedFrom } from "../engine/seed";
 
 const BOX = { width: 190, height: 52 };
 
+/**
+ * Cycle 000b moved measurement from getBoundingClientRect() to
+ * offsetWidth/offsetHeight (measure.test.tsx's T10 has the why). jsdom never
+ * implements layout, so both stubs are needed for tier 2 to activate here.
+ * Same numbers on both APIs so this suite stays neutral about which one the
+ * source reads — T10 is the only test meant to distinguish them.
+ */
 beforeEach(() => {
   __resetSketchEngine();
   vi.stubGlobal(
@@ -20,6 +27,8 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(BOX.width);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(BOX.height);
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
     ...BOX,
     x: 0,
