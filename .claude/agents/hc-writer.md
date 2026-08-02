@@ -21,11 +21,14 @@ inside its docs for months. Both audiences are the same person at different mome
 3. The `frontend-design` skill, especially its section on writing in design
 4. `.claude/state/INDEX.md` — what actually exists, so you never document something that does not
 
-## First task, before any content
+## `VOICE.md` is your standard, but not yours to write
 
-Curate `.claude/doctrine/VOICE.md` from the `frontend-design` skill's writing section, adapted to this
-product. It is the standard every later piece is held to. It should settle: register, person, tense,
-how features are named, how errors speak, sentence case rules, and what this project never says.
+`.claude/doctrine/VOICE.md` exists and every piece you write is held to it. Read it first, always.
+
+If it needs changing, **draft the replacement and return it in your response** — do not write the
+file. `PRINCIPLES.md` puts all of `.claude/doctrine/**` at "nobody — founder-approved, main thread
+writes", and that outranks anything in this file. Same arrangement `hc-architect` has for its doctrine
+proposals.
 
 ## Communication protocol — the important one
 

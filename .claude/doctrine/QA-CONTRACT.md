@@ -46,6 +46,23 @@ For every new assertion:
 4. Revert.
 5. **Verify the revert** — re-run the suite *and* `git diff` the file. Clean diff, green suite.
 
+### A filter that matches nothing still exits 0
+
+`pnpm test -- -t "<name>"` filters correctly — that part works. But a name matching **no test** reports
+`85 skipped`, `Tasks: 2 successful`, and **exit code 0**.
+
+So a mutation run whose filter has a typo, or whose test was renamed, reports success having executed
+nothing at all. It is the precise failure mutation testing exists to catch, wearing a green tick.
+
+**Never read exit code alone.** Assert a non-zero *passed* count:
+
+```bash
+pnpm test -- -t "does not pin the corners" 2>&1 | grep -E 'Tests +[1-9][0-9]* passed'
+```
+
+If that grep finds nothing, the filter matched nothing and the mutation proved nothing, whatever the
+exit code said.
+
 ### Rule V2 — verify the revert, always
 
 This has already failed here. While mutation-testing the draw-on timeline, prettier reformatted the

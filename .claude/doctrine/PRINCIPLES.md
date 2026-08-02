@@ -182,6 +182,45 @@ Always `DECISION-REQUIRED`, never a judgment call:
 
 ---
 
+## Merging — the founder merges, nobody else
+
+**No agent and no automation merges a pull request. Ever.** Not the main thread, not a subagent, not
+on a green CI run, not after an architect ACCEPT. The merge button belongs to the founder alone.
+
+This is not a formality. An architect ACCEPT means the work meets the cycle's Definition of Done. It
+does not mean the founder wants it in the product. Those are different questions and only one person
+answers the second.
+
+The sequence is fixed:
+
+1. Work is committed to a branch and pushed.
+2. A pull request is opened, and CI must be green before it is presented.
+3. The pull request is **presented to the founder for review**, who asks whatever they want about it.
+4. The founder merges. Or does not.
+
+Between steps 3 and 4 the work waits. There is no timeout, no default-to-merge, and no "it was green
+so it went in". A pull request sitting unmerged is the system working, not a stall to be cleared.
+
+### Pull request descriptions
+
+The description is what the review happens against, so it carries the weight. Requirements:
+
+- **Structured as pointers**, not prose paragraphs. A reviewer scans first and reads second.
+- **Every non-obvious claim carries its example** — the actual number, the actual measurement, the
+  before-and-after, the exact `file:line`. "Fixed the measurement bug" is not reviewable. "Measured
+  10% off at `scale(0.9)` and 50% at `scale(0.5)`; reads 0% at both after the fix, against two
+  independent instruments" is.
+- **State what was deliberately NOT done**, and why. Findings routed to a later cycle get named here
+  rather than discovered later.
+- **Name the risk you would ask about** if you were reviewing rather than writing it. Anything that
+  needed a judgment call belongs in the description, not buried in a commit body.
+- Show code or output where it settles the point faster than a sentence would.
+
+A description that would let a reviewer approve without understanding the change has failed, no
+matter how green the CI.
+
+---
+
 ## Single writer per file
 
 | Path | Sole owner |
