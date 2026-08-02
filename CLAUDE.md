@@ -10,6 +10,7 @@ Tier 2 is the default. Distributed shadcn-style so users own the source.
 | File                                | What                                                                                                    |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `.claude/doctrine/PRINCIPLES.md`    | Permanent law — mission, locked decisions, engine invariants, responsiveness, accessibility, escalation |
+| `ROADMAP.md`                        | The plan to 1.0 — phases, cycles, what blocks what. Amendable; doctrine outranks it                     |
 | `.claude/doctrine/CODE-CONTRACT.md` | How components are written, gates, traps                                                                |
 | `.claude/doctrine/QA-CONTRACT.md`   | What "verified" means                                                                                   |
 | `.claude/state/INDEX.md`            | What exists and where — read this instead of re-exploring                                               |
@@ -33,10 +34,22 @@ apps/playground    Next.js harness, port 4321, URL-addressable state
 
 ## Communication protocol
 
-All internal natural language is caveman (`.claude/skills/caveman/SKILL.md`), level `full`.
+All internal writing is caveman (`.claude/skills/caveman/SKILL.md`) at level **`lite`**: no filler, no
+hedging, **articles and full sentences kept**. The level was `full` until 2026-08-03; the founder
+changed it because compressed reports were not scannable, and a protocol the founder cannot read has
+failed at its job.
 
-**Four carve-outs stay normal prose**: shipped code comments, `hc-writer` output, project memory, and
-root-cause evidence chains. Full reasoning in `PRINCIPLES.md`.
+**Four things answer to a stricter standard**: shipped code comments (`CODE-CONTRACT.md`),
+`hc-writer` output (`VOICE.md`), project memory, and root-cause evidence chains. Full reasoning in
+`PRINCIPLES.md`.
+
+## Two approval gates — the founder holds both
+
+1. **Briefs.** No implementation starts on an unapproved brief. Architect writes it, founder reads
+   it, `hc-dev` runs after approval.
+2. **Merges.** No agent and no automation merges a pull request. Ever.
+
+Both are in `PRINCIPLES.md` with the incidents that caused them.
 
 ## Skills
 

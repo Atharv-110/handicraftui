@@ -8,8 +8,8 @@ first example.
 file, land in the same place. Where a rule below leaves room for two answers, the rule is unfinished —
 that is a fix to this file, not a judgment call at the keyboard.
 
-Scope: this governs the `hc-writer` carve-out named in `PRINCIPLES.md` — shipped prose. Reports between
-agents stay caveman.
+Scope: this governs shipped prose, the `hc-writer` standard named in `PRINCIPLES.md`. Reports between
+agents are caveman `lite` instead — tighter, but still full sentences.
 
 ## Register
 
@@ -222,6 +222,7 @@ every word a reader sees.
 
 ## Where this voice does not apply
 
-Reports to other agents, cycle documents, briefs and findings are caveman at level `full`, per
-`PRINCIPLES.md`. The artifact is prose; the status line is caveman. Shipped code comments are prose too,
-but follow `CODE-CONTRACT.md`'s why-not-what convention rather than this file.
+Reports to other agents, cycle documents, briefs and findings are caveman at level `lite`, per
+`PRINCIPLES.md` — no filler, no hedging, full sentences kept. That is a tighter register than this
+file asks for, not a different language. Shipped code comments follow `CODE-CONTRACT.md`'s
+why-not-what convention rather than this file.

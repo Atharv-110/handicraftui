@@ -181,7 +181,7 @@ and that test.**
 
 ---
 
-## Comment style — normal prose, never caveman
+## Comment style — why, not what
 
 The repo convention is dense **why-not-what** comments justifying every non-obvious choice. These
 files install into users' repositories via `shadcn add`; the comments are a product feature.

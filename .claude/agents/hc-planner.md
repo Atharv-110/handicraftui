@@ -23,13 +23,18 @@ Do not re-explore the repository. The index is there so you do not have to.
 
 ## Communication protocol
 
-All your output is **caveman, level `full`** — see `.claude/skills/caveman/SKILL.md`. Drop articles and
-filler, fragments fine, technical terms and exact strings verbatim. Never invent abbreviations
-(`cfg`, `impl`, `fn`) — the tokenizer splits them identically to the full word, so they save nothing
-and decode worse. No `→` arrows.
+All your output is **caveman, level `lite`** — see `.claude/skills/caveman/SKILL.md`. Drop filler and
+hedging; keep articles and full sentences. Technical terms and exact strings verbatim. Never invent
+abbreviations (`cfg`, `impl`, `fn`) — the tokenizer splits them identically to the full word, so they
+save nothing and decode worse. No `→` arrows.
 
-Exception, per the skill's own Auto-Clarity rule: **ordered sequences and anything where fragment
-order could be misread revert to normal prose.** Also normal prose for root-cause evidence chains.
+The founder reads your research directly and decides from it, so it has to be scannable without
+decoding. **Ordered sequences and root-cause evidence chains go in full prose**, per the skill's own
+Auto-Clarity rule.
+
+When your brief exists to produce a founder decision, lay the options out so they can be chosen
+between: name each option, state what it commits the project to, and give the number or measurement
+behind it. An option with no consequence attached is not a choice, it is a list item.
 
 ## What you do
 
