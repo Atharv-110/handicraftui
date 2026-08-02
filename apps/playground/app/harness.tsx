@@ -136,6 +136,7 @@ export function Harness({
                   <Checkbox label="Remember me" defaultChecked />
                   <Checkbox label="Send me updates" />
                   <Checkbox label="Disabled, checked" defaultChecked disabled />
+                  <Checkbox aria-label="No visible label" />
                 </div>
               </Group>
 

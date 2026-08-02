@@ -94,3 +94,64 @@ describe("observeResize", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 });
+
+describe("flush", () => {
+  it("reports the element's untransformed border box, not its bounding rect", async () => {
+    const { observeResize } = await import("./resize-bus");
+    const el = document.createElement("div");
+    // The isConnected guard (T12/T13) requires a real document attachment.
+    document.body.appendChild(el);
+
+    // offsetWidth/offsetHeight (the border box) disagree with
+    // getBoundingClientRect (which a transformed ancestor would skew) so a
+    // regression back to the bounding rect is visible as a value mismatch,
+    // not merely a missed call.
+    Object.defineProperty(el, "offsetWidth", { value: 200, configurable: true });
+    Object.defineProperty(el, "offsetHeight", { value: 50, configurable: true });
+    el.getBoundingClientRect = () =>
+      ({
+        width: 100,
+        height: 25,
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 25,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    const cb = vi.fn();
+    observeResize(el, cb);
+
+    const ro = StubResizeObserver.instances[0]!;
+    ro.callback(
+      [{ target: el } as unknown as ResizeObserverEntry],
+      ro as unknown as ResizeObserver,
+    );
+    drainRaf();
+
+    expect(cb).toHaveBeenCalledWith(200, 50);
+  });
+
+  it("drops a flush for an element detached from the document", async () => {
+    const { observeResize } = await import("./resize-bus");
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+
+    const cb = vi.fn();
+    observeResize(el, cb);
+    // Detach without tearing down the subscription — the bus's own guard is
+    // what has to protect this, not the consumer remembering to unobserve.
+    el.remove();
+
+    const ro = StubResizeObserver.instances[0]!;
+    ro.callback(
+      [{ target: el } as unknown as ResizeObserverEntry],
+      ro as unknown as ResizeObserver,
+    );
+    drainRaf();
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+});

@@ -411,12 +411,25 @@ function Case2cTransformEntrance({ dose, label }: { dose: number; label: string 
       svgWidth !== null && frameOffsetWidth
         ? ((frameOffsetWidth - svgWidth) / frameOffsetWidth) * 100
         : null;
+    // A second, independent reference. Once the hook measures `offsetWidth`,
+    // `svgWidth` and `frameOffsetWidth` are the same number by construction and
+    // `deltaPercent` is necessarily zero — that would grade the fix with the
+    // fix's own API. `getComputedStyle`'s resolved `width` is the used
+    // content-box width from layout, read through a different API entirely, so
+    // agreement between the two deltas is evidence rather than a tautology.
+    const computedWidth = el ? parseFloat(getComputedStyle(el).width) : null;
+    const computedDeltaPercent =
+      svgWidth !== null && computedWidth
+        ? ((computedWidth - svgWidth) / computedWidth) * 100
+        : null;
     record({
       case: label,
       dose,
       svgWidth,
       frameOffsetWidth,
       deltaPercent,
+      computedWidth,
+      computedDeltaPercent,
       mutationEntries: mutationsRef.current.length,
       mutationLog: mutationsRef.current,
     });
