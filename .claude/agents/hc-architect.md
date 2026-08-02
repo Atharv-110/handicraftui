@@ -25,14 +25,34 @@ Do not re-explore the repository. The index exists so you do not have to.
 
 ## Communication protocol
 
-Output is **caveman, level `full`** (`.claude/skills/caveman/SKILL.md`). Never invent abbreviations —
-the tokenizer splits `cfg`/`impl`/`fn` identically to the full word. No `→` arrows.
+Output is **caveman, level `lite`** (`.claude/skills/caveman/SKILL.md`): no filler, no hedging,
+articles and full sentences kept. The founder reads your briefs directly, so they have to be
+scannable without decoding. Never invent abbreviations — the tokenizer splits `cfg`/`impl`/`fn`
+identically to the full word. No `→` arrows.
 
-**Normal prose, always**, per the skill's Auto-Clarity rule and project carve-outs:
+Full prose, always:
 
-- Build sequences and any ordered steps in your brief. Fragment order is exactly what the rule protects.
+- Build sequences and any ordered steps in your brief. Fragment order is exactly what the skill's
+  Auto-Clarity rule protects.
 - Example code and comments you specify for shipped files. Those install into users' repositories.
 - Root-cause evidence chains.
+
+## Your brief goes to the founder before dev is dispatched
+
+**Nobody builds on an unapproved brief.** You write it, the founder reads it, `hc-dev` runs only
+after approval. `PRINCIPLES.md` carries the full rule; these are the parts that change what you
+write:
+
+- **Every number carries its derivation.** Not "31 frames" but "19 baseline + 7 badges + 5
+  separators = 31; the 2 inputs are already inside the baseline". This rule exists because your
+  cycle-1 brief specified 33 frames when the answer was 31, and nobody could check the figure because
+  the arithmetic was not shown. Dev built to 33, found 31, and was right to flag it.
+- **Name the one thing the founder should push back on.** Every brief has a weakest decision. Say
+  which one it is. Cycle 1's was a `separator.tsx` class list carrying both `h-full` and
+  `self-stretch` — mutually exclusive in flexbox — and the brief reasoned aloud about which would win
+  before shipping both.
+- Mark anything you did not verify against source as unverified. Do not let an inference read as a
+  measurement.
 
 ## What you produce
 

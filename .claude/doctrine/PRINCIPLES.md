@@ -17,32 +17,49 @@ and it is the tiebreaker on any aesthetic question.
 
 ---
 
-## Communication protocol — caveman
+## Communication protocol — caveman `lite`, everywhere
 
-All internal natural language is caveman, level `full`. Conversation, briefs, findings, cycle
-documents, manifests, agent-to-agent handoffs. Follow the skill at
-`.claude/skills/caveman/SKILL.md`, including its own `Boundaries` and `Auto-Clarity` sections.
+All internal writing is caveman at level **`lite`**: no filler, no hedging, **articles and full
+sentences kept**. Professional but tight. This covers conversation, briefs, findings, cycle
+documents, manifests, agent-to-agent handoffs and status lines. Follow the skill at
+`.claude/skills/caveman/SKILL.md`, including its `Boundaries` and `Auto-Clarity` sections.
 
-Two rules from the skill that are easy to get wrong:
+What `lite` reads like, from the skill's own example:
+
+> Your component re-renders because you create a new object reference each render. Wrap it in
+> `useMemo`.
+
+Not this, which is `full`:
+
+> New object ref each render. Inline object prop = new ref = re-render. Wrap in `useMemo`.
+
+**The level was `full` until 2026-08-03 and the founder changed it.** `full` drops articles and
+allows fragments. It saved tokens and cost readability, to the point where the founder could not scan
+a findings report without decoding it first. A communication protocol that the person everything
+reports to cannot read has failed at the only job it has. `lite` keeps the discipline — no filler,
+no hedging, no padding — and gives back the grammar.
+
+Two rules from the skill that are easy to get wrong and still bind at `lite`:
 
 - **Never invent abbreviations** (`cfg`, `impl`, `req`, `fn`). The tokenizer splits them identically
   to the full word: zero saving, worse decoding. Standard acronyms (DB, API, HTTP) are fine. No `→`
   arrows — they cost a token and save nothing.
 - Technical terms, code blocks, API names, CLI commands and exact error strings stay verbatim.
 
-### Four carve-outs — normal prose, no exceptions
+### Four things follow a stricter standard than `lite`
 
-Each exists because compression there destroys something unrecoverable.
+These are no longer escapes from compression — at `lite` there is little left to compress. Each one
+answers to a more specific standard instead.
 
-1. **Shipped code comments** in `registry/default/**` and `packages/core/**`. These files install into
-   users' repositories. The dense why-not-what comment style is a product feature. Caveman in shipped
-   source is a defect that stays invisible until a stranger reads it.
-2. **All `hc-writer` output** — docs, landing copy, component descriptions, error and empty states. It
-   is the product's voice. Writer reports to the team in caveman; writer output never is.
-3. **Project memory** at `~/.claude/projects/-Users-atharvvani-Developer-libararies-js-handcraft-ui/memory/`.
-   Memory holds verbatim statute, invariants and exact error strings.
-4. **Root-cause diagnosis and evidence chains.** The evidence is the value. Report the verdict in
-   caveman, keep the chain in prose.
+1. **Shipped code comments** in `registry/default/**` and `packages/core/**` follow
+   `CODE-CONTRACT.md`'s dense why-not-what style. These files install into users' repositories, so
+   the comments are a product feature rather than internal notes.
+2. **All `hc-writer` output** — docs, landing copy, component descriptions, error and empty states —
+   follows `VOICE.md`, which is far more prescriptive than `lite`.
+3. **Project memory** at `~/.claude/projects/-Users-atharvvani-Developer-libararies-js-handcraft-ui/memory/`
+   is normal prose. It holds verbatim statute, invariants and exact error strings.
+4. **Root-cause diagnosis and evidence chains** stay in full prose. The evidence is the value, and
+   the reasoning is what makes it checkable a month later.
 
 ---
 
@@ -179,6 +196,36 @@ Always `DECISION-REQUIRED`, never a judgment call:
   its user-facing `dependencies` from imports, so a stray import becomes an install requirement.
 - Any change to the engine invariants above.
 - Anything that would break a locked aesthetic decision.
+
+---
+
+## Briefs — the founder approves before anyone builds
+
+**No implementation starts on an unapproved brief.** The architect writes it, the founder reads it,
+and `hc-dev` is dispatched only after approval. This is the merge rule one step earlier in the cycle,
+and it exists for the same reason: an architect ACCEPT answers "is this correct", not "is this what
+the founder wants built".
+
+The reason is on the record. In cycle 1 the architect's brief carried a frame count that was wrong by
+two, and a `separator.tsx` class list holding both `h-full` and `self-stretch` — mutually exclusive
+in flexbox, because an explicit height suppresses `align-self: stretch`. Dev built both faithfully,
+which is exactly dev's job. Both were caught, but only after the code was written, tests were built
+on top of it and a full QA pass had run. That is the most expensive place to find a brief error.
+
+### What a brief must carry
+
+- **Every number carries its derivation.** Not "31 frames" but "19 baseline + 7 badges + 5
+  separators = 31; the 2 inputs are already inside the baseline". A number without its arithmetic is
+  not reviewable, and the wrong frame count survived review precisely because nobody could check it.
+- **Every file path exists or is marked NEW**, cited from `.claude/state/INDEX.md`.
+- **What is deliberately out of scope**, and which cycle takes it instead.
+- **The one thing the founder should push back on.** Every brief has a weakest decision. Name it
+  rather than letting the reviewer hunt for it.
+- **Ordered steps stay in plain prose.** Order-sensitive instructions are the case the caveman
+  skill's own Auto-Clarity rule flags, and a build sequence is exactly that case.
+
+The founder approves, amends, or rejects. A brief waiting for review is the system working, not a
+stall to be cleared.
 
 ---
 

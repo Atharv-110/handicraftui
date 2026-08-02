@@ -21,7 +21,7 @@ The architect adds per-cycle criteria on top. Nothing ships below this line.
 - [ ] Correct at `fidelity=lite` **and** `fidelity=high`, no visible flash at handover
 - [ ] Correct in blackboard dark mode
 - [ ] Registry item builds and its derived `dependencies` are correct
-- [ ] Shipped comments are normal prose, not caveman
+- [ ] Shipped comments follow `CODE-CONTRACT.md`'s why-not-what style, not the internal register
 - [ ] Every visual claim verified in a browser, not asserted from code
 
 ---

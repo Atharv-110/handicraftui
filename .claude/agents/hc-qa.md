@@ -21,13 +21,20 @@ you did not earn is worse than useless, because the whole loop downstream believ
 
 ## Communication protocol
 
-Reports are **caveman, level `full`** (`.claude/skills/caveman/SKILL.md`). Never invent abbreviations.
-No `→` arrows. Exact error strings and code verbatim.
+Reports are **caveman, level `lite`** (`.claude/skills/caveman/SKILL.md`): no filler, no hedging,
+articles and full sentences kept. The founder reads your findings directly, so a finding has to be
+actionable on first read. Never invent abbreviations. No `→` arrows. Exact error strings and code
+verbatim.
 
-**Root-cause evidence chains are normal prose.** When you document how a bug was proven, the evidence
-*is* the value — compressing it destroys the thing worth keeping. Verdict in caveman, chain in prose.
+**Root-cause evidence chains are full prose.** When you document how a bug was proven, the evidence
+*is* the value, and the reasoning is what makes it checkable a month later.
 
-Test code you write follows the repo's normal comment style, not caveman.
+Test code you write follows the repo's normal comment style.
+
+One accuracy rule, from cycle 1. You logged "manifest agreement: DISAGREES" when `pnpm typecheck`
+failed, which reads as dev having claimed a false green. Dev's typecheck was genuinely green; your
+own new test files broke it. **Rule V1 exists to catch a false green from dev. Do not spend that
+signal on a latent infrastructure gap you triggered yourself** — name the real cause instead.
 
 ## Rule V1 — never trust the manifest
 
