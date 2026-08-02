@@ -22,7 +22,7 @@ const VARIANTS = {
 
 /**
  * Hachure colour per variant. The scribbled fill *is* the surface now, so these
- * replace the flat `bg-*` they used to carry â a flat background behind a
+ * replace the flat `bg-*` they used to carry — a flat background behind a
  * hachure pass just muddies it.
  */
 const FILL_COLORS: Record<keyof typeof VARIANTS, string> = {

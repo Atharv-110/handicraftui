@@ -19,7 +19,7 @@ export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputE
 }
 
 /**
- * The native input stays in the DOM and keeps every behaviour that matters â
+ * The native input stays in the DOM and keeps every behaviour that matters —
  * focus, keyboard, form participation, screen-reader semantics. It is made
  * transparent rather than replaced, and the drawn box and tick sit behind it.
  *
@@ -46,8 +46,8 @@ export function Checkbox({
 
   const { frameProps, sketchLayer } = useSketchFrame({
     shape: "rect",
-    // Texture is affordable here precisely because a 20Ã20 box carries no text.
-    // `low` rather than `high` so the tick drawn on top still reads â a
+    // Texture is affordable here precisely because a 20×20 box carries no text.
+    // `low` rather than `high` so the tick drawn on top still reads — a
     // cross-hatched box competes with the mark it is supposed to be holding.
     fill: isChecked ? "low" : "no",
     fillColor: "var(--hc-ink)",
@@ -76,7 +76,7 @@ export function Checkbox({
             name="check"
             size={18}
             seedKey={inputId}
-            // Ink, not paper. Hachure is a scribble, not a solid â a
+            // Ink, not paper. Hachure is a scribble, not a solid — a
             // paper-coloured tick over it has almost nothing to contrast
             // against and simply disappears.
             color="var(--hc-ink)"
