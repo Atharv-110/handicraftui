@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * Handicraft UI — Card
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Atharv Vani
+ *
+ * https://github.com/Atharv-110/handicraftui
+ * The Handicraft UI name and logo are not covered by the MIT licence. Forks are
+ * welcome — give yours its own name. See TRADEMARK.md.
+ */
+
 import * as React from "react";
 import { cn, composeRefs, useSketchFrame } from "@handicraft/core";
 

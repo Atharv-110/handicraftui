@@ -3,6 +3,27 @@
   "version": "0.0.0",
   "description": "Sketch rendering engine, tokens and primitives for Handicraft UI — hand-drawn React components.",
   "license": "MIT",
+  "author": "Atharv Vani",
+  "homepage": "https://handicraftui.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Atharv-110/handicraftui.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/Atharv-110/handicraftui/issues"
+  },
+  "keywords": [
+    "react",
+    "ui",
+    "components",
+    "hand-drawn",
+    "sketchy",
+    "roughjs",
+    "tailwind",
+    "shadcn",
+    "design-system"
+  ],
   "type": "module",
   "sideEffects": [
     "*.css"

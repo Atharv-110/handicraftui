@@ -1,0 +1,40 @@
+Handicraft UI
+Copyright (c) 2026 Atharv Vani
+
+This product includes software developed for the Handicraft UI project.
+https://github.com/Atharv-110/handicraftui
+
+Licensed under the MIT License. See LICENSE for the full text.
+The Handicraft UI name, wordmark and logo are NOT covered by that licence.
+See TRADEMARK.md.
+
+--------------------------------------------------------------------------------
+A note on this file
+--------------------------------------------------------------------------------
+
+NOTICE files are an Apache-2.0 construct; the MIT License does not require one and
+attaches no obligation to it. It is kept here deliberately, as the single canonical
+statement of authorship and origin for this project, so that anyone redistributing
+the code has one unambiguous place to point at.
+
+The condition MIT does impose is in LICENSE: the copyright notice and permission
+notice must be included in all copies or substantial portions of the Software.
+Because components are distributed shadcn-style and copied directly into consuming
+codebases, each file under registry/default/ui/ carries that notice in its own
+header so it travels with the copy.
+
+--------------------------------------------------------------------------------
+Third-party dependencies
+--------------------------------------------------------------------------------
+
+This project depends on, but does not vendor, the following. Each is used under its
+own licence and remains the property of its respective authors.
+
+  roughjs          MIT   optional peer dependency; the tier-2 sketch engine
+  react            MIT   peer dependency
+  react-dom        MIT   peer dependency
+  clsx             MIT
+  tailwind-merge   MIT
+
+The hand-drawn geometry is generated at runtime by rough.js. No rough.js source is
+copied into this repository.

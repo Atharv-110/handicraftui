@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * Handicraft UI — Button
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Atharv Vani
+ *
+ * https://github.com/Atharv-110/handicraftui
+ * The Handicraft UI name and logo are not covered by the MIT licence. Forks are
+ * welcome — give yours its own name. See TRADEMARK.md.
+ */
+
 import * as React from "react";
 import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handicraft/core";
 
@@ -12,7 +22,7 @@ const VARIANTS = {
 
 /**
  * Hachure colour per variant. The scribbled fill *is* the surface now, so these
- * replace the flat `bg-*` they used to carry — a flat background behind a
+ * replace the flat `bg-*` they used to carry â a flat background behind a
  * hachure pass just muddies it.
  */
 const FILL_COLORS: Record<keyof typeof VARIANTS, string> = {

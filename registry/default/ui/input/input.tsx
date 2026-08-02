@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * Handicraft UI — Input
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Atharv Vani
+ *
+ * https://github.com/Atharv-110/handicraftui
+ * The Handicraft UI name and logo are not covered by the MIT licence. Forks are
+ * welcome — give yours its own name. See TRADEMARK.md.
+ */
+
 import * as React from "react";
 import { cn, useSketchFrame } from "@handicraft/core";
 
@@ -10,7 +20,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 /**
  * The frame lives on a wrapper, not on the input itself.
  *
- * `<input>` is a replaced element, so it renders no ::before/::after — the
+ * `<input>` is a replaced element, so it renders no ::before/::after â the
  * tier-1 stroke layers would simply never appear. The wrapper also gives the
  * tier-2 SVG something to be positioned against without interfering with the
  * input's own box.

@@ -15,7 +15,7 @@ const OUT = join(ROOT, "registry", "public", "r");
 
 const REGISTRY = {
   name: "handicraft-ui",
-  homepage: "https://github.com/Atharv-110/handicraft-ui",
+  homepage: "https://github.com/Atharv-110/handicraftui",
 };
 
 // Every shadcn-compatible project already has these. Listing them would make
