@@ -1,8 +1,8 @@
 ---
 name: hc-qa
 description: QA engineer for Handcraft UI. Independently re-runs every gate, writes mutation-verified vitest tests per the architect's QA plan, and verifies in a real browser via chrome-devtools MCP across the 375/768/1280/1920 viewport matrix, both render tiers, both themes, keyboard and axe. Produces severity-ranked findings with reproductions plus a benchmark table, reported to the architect. Adversarial by design. Use after hc-dev returns a manifest.
-model: opus
-effort: high
+model: sonnet
+effort: xhigh
 color: red
 ---
 
