@@ -120,19 +120,31 @@ POOL_SIZE         = 12        hard-coded seeds, not generated
   target.
 - **No horizontal overflow at any breakpoint.** Verified as `scrollWidth <= clientWidth` on the
   document element, not by eye.
-- **44px minimum touch target** on anything interactive. Button `md` and `lg` already clear it; `sm`
-  is explicitly for dense desktop toolbars only.
-- Strokes wander up to roughly 9px past the nominal box and the sketch SVG is `overflow: visible` by
-  design. Audit padding and grid gaps at every breakpoint, or frames collide with neighbours at tight
-  gaps.
+- **44px minimum touch target** on anything interactive. This is a **house rule, stricter than the
+  law.** WCAG 2.2 Level AA is 2.5.8 at 24×24 CSS px; the 44×44 figure is 2.5.5, Level **AAA**, and
+  matches Apple HIG. Button `md` and `lg` clear it. `sm` at 36px is AA-conformant and fails only this
+  rule, which is why it is dense-desktop-only rather than a compliance defect.
+- **Strokes wander up to 13.81px past the nominal box** and the sketch SVG is `overflow: visible` by
+  design. The gap floor between two drawn frames is **24px**, page padding **12px** — see
+  `DESIGN-SYSTEM.md` §3 for the measurement behind both.
+
+  The figure was recorded as "roughly 9px" until 2026-08-03 and was wrong twice over: it came from a
+  comment measuring bezier **control** points, which bound a curve without lying on it, and it
+  covered only the default hand in light mode. Re-measured across 4 hands × 2 chalk states × 60
+  seeds, 9px understates the global worst by 46%.
 
 ---
 
 ## Accessibility law
 
 - Keyboard reachable, in a sensible order, with **visible focus** at every breakpoint.
-- **WCAG AA contrast**, including ink over every hachure fill level. At `med` and `high`, body copy
-  over the texture is measurably harder to read — this is why per-component fill intent exists.
+- **WCAG AA contrast**, including ink over every hachure fill level, measured **worst-pixel** — the
+  glyph landing on a hatch line, not the area average. WCAG gives no rule for patterned backgrounds,
+  so this is a deliberate project choice; the area-average reading would have passed a combination
+  that is visibly hard to read. Every locked ratio is in `DESIGN-SYSTEM.md` §1.
+- **No automated tool enforces the worst-pixel rule.** axe samples a flat computed background and
+  never sees the hatch line. An axe pass going green on a combination `DESIGN-SYSTEM.md` forbids is
+  expected, and is never grounds for relaxing a number there.
 - **Zero axe criticals.** No axe run has ever happened on this project; the first QA cycle changes
   that.
 - `prefers-reduced-motion` honoured. For `drawOn` the dash must be reset alongside the animation, or

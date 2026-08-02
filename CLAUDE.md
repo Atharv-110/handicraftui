@@ -11,6 +11,7 @@ Tier 2 is the default. Distributed shadcn-style so users own the source.
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `.claude/doctrine/PRINCIPLES.md`    | Permanent law — mission, locked decisions, engine invariants, responsiveness, accessibility, escalation |
 | `ROADMAP.md`                        | The plan to 1.0 — phases, cycles, what blocks what. Amendable; doctrine outranks it                     |
+| `.claude/doctrine/DESIGN-SYSTEM.md` | Locked tokens — semantic colours, type scale, spacing floor, size ramps, elevation                      |
 | `.claude/doctrine/CODE-CONTRACT.md` | How components are written, gates, traps                                                                |
 | `.claude/doctrine/QA-CONTRACT.md`   | What "verified" means                                                                                   |
 | `.claude/state/INDEX.md`            | What exists and where — read this instead of re-exploring                                               |
