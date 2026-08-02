@@ -329,7 +329,21 @@ function drawShape(
   ih: number,
 ): RoughDrawable {
   if (geom.shape === "circle") return gen.circle(w / 2, h / 2, Math.min(iw, ih), options);
-  if (geom.shape === "underline") return gen.line(pad, h - pad, w - pad, h - pad, options);
+  if (geom.shape === "underline") {
+    // A rule runs along its box's long axis. Horizontal is the original
+    // underline: one stroke along the bottom edge, where a pen would put it
+    // under a word. On a box that is taller than it is wide there is no "under"
+    // to draw — that is a vertical divider — and the horizontal form does not
+    // merely look wrong there, it degenerates: once the stroke is wider than the
+    // box, `w - pad` lands left of `pad` and the line comes out backwards and
+    // effectively zero-length.
+    //
+    // Same edge convention on both axes: the far edge, so the two orientations
+    // are the same drawing rotated rather than two different decisions.
+    return h > w
+      ? gen.line(w - pad, pad, w - pad, h - pad, options)
+      : gen.line(pad, h - pad, w - pad, h - pad, options);
+  }
   return gen.path(shapePath(geom, pad, iw, ih)!, options);
 }
 

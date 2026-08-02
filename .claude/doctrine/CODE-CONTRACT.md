@@ -14,8 +14,13 @@ registry/default/ui/<name>/<name>.tsx     one directory per component, one same-
 registry/default/ui/<name>/meta.json      optional: { title?, description?, registryDependencies? }
 ```
 
-No `index.ts`, no stories. Co-located tests are supported (`registry/default/**/*.test.tsx` is in the
-vitest include glob) but none exist yet.
+No `index.ts`, no stories, and **no test files** — `registry/default/**` is component source only.
+
+Component tests live in `registry/tests/<name>.test.tsx`, flat. That keeps the directory a scannable
+inventory of which components have tests, and it keeps the rule about imports under
+`registry/default/**` literally true rather than true-with-an-exception. Component names are already
+globally unique, because `build-registry.ts` keys the registry on directory names, so a flat layout
+cannot collide.
 
 `packages/core` is the engine. Its public API is the **explicit barrel** at
 `packages/core/src/index.ts` — every export is listed by name, there are no `export *` statements. A
@@ -78,7 +83,11 @@ Rules embedded above, stated explicitly:
 - Use `composeRefs(frameRef, ref)` when the frame and the consumer ref land on the **same** element
   (Button). When they land on different elements (Checkbox: frame on the wrapper `<span>`, consumer
   ref on the real `<input>`), do not compose.
-- **Conditional-spread idiom** for optional props, because `exactOptionalPropertyTypes` is on:
+- **Conditional-spread idiom** for optional props. Note the compiler does **not** currently enforce
+  this: `packages/typescript-config/base.json` sets `exactOptionalPropertyTypes: false`. It is the
+  house pattern anyway, because passing an explicit `undefined` and omitting a prop are different
+  things to a component reading `x !== undefined`, and because turning the flag on later should not
+  require rewriting every call site. Follow it even though nothing will fail if you do not:
   `{...(rescribble !== undefined ? { rescribble } : {})}`. Never pass an explicit `undefined`.
 
 ---

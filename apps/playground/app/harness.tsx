@@ -9,6 +9,7 @@ import {
   type InkStyle,
   SketchMark,
 } from "@handicraft/core";
+import { Badge } from "@/ui/badge/badge";
 import { Button } from "@/ui/button/button";
 import {
   Card,
@@ -20,6 +21,8 @@ import {
 } from "@/ui/card/card";
 import { Input } from "@/ui/input/input";
 import { Checkbox } from "@/ui/checkbox/checkbox";
+import { Label } from "@/ui/label/label";
+import { Separator } from "@/ui/separator/separator";
 import { PerfReadout } from "./perf-readout";
 
 export interface HarnessProps {
@@ -140,10 +143,25 @@ export function Harness({
                 </div>
               </Group>
 
-              <Group title="Inputs">
-                <div className="w-full max-w-sm space-y-3">
-                  <Input placeholder="you@example.com" aria-label="Email" />
-                  <Input placeholder="Disabled" disabled aria-label="Disabled example" />
+              <Group title="Badge">
+                <Badge>Draft</Badge>
+                <Badge variant="marked">New</Badge>
+                <Badge variant="danger">Overdue</Badge>
+                <Badge variant="ghost">Archived</Badge>
+                <Badge>9</Badge>
+                <Badge>In review since Tuesday</Badge>
+              </Group>
+
+              <Group title="Label and Input">
+                <div className="w-full max-w-sm space-y-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="hc-email">Email</Label>
+                    <Input id="hc-email" placeholder="you@example.com" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="hc-note">Disabled</Label>
+                    <Input id="hc-note" placeholder="Disabled" disabled />
+                  </div>
                 </div>
               </Group>
 
@@ -160,6 +178,7 @@ export function Harness({
                     </CardContent>
                     <CardFooter>
                       <Button size="sm">Open</Button>
+                      <Badge variant="marked">New</Badge>
                     </CardFooter>
                   </Card>
 
@@ -188,6 +207,33 @@ export function Harness({
                   Highlighter is <span className="hc-marked">a background behind text</span>, never
                   a text colour — so it can never be the only thing carrying meaning.
                 </p>
+              </Group>
+
+              <Group title="Separator">
+                <div className="flex w-full max-w-md flex-col">
+                  <p className="font-body text-sm leading-relaxed">
+                    A rule between two sections, drawn like everything else in Handicraft rather
+                    than styled as a plain border.
+                  </p>
+                  <Separator className="my-4" />
+                  <p className="font-body text-sm leading-relaxed">
+                    Orientation only changes which axis the rule runs along — the taper, roughness
+                    and stroke weight stay identical either way.
+                  </p>
+                  <Separator className="my-4" />
+                  <p className="font-body text-sm leading-relaxed">
+                    This one is decorative and drops out of the accessibility tree, unlike the two
+                    rules above it.
+                  </p>
+                  <Separator decorative className="my-4" />
+                  <div className="flex items-stretch gap-3">
+                    <span className="font-hand text-sm">Docs</span>
+                    <Separator orientation="vertical" />
+                    <span className="font-hand text-sm">API</span>
+                    <Separator orientation="vertical" />
+                    <span className="font-hand text-sm">Changelog</span>
+                  </div>
+                </div>
               </Group>
 
               {stress ? (
