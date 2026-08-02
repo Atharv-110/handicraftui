@@ -14,8 +14,8 @@ const SRC = join(ROOT, "registry", "default", "ui");
 const OUT = join(ROOT, "registry", "public", "r");
 
 const REGISTRY = {
-  name: "handcraft-ui",
-  homepage: "https://github.com/Atharv-110/handcraft-ui",
+  name: "handicraft-ui",
+  homepage: "https://github.com/Atharv-110/handicraft-ui",
 };
 
 // Every shadcn-compatible project already has these. Listing them would make
@@ -93,7 +93,7 @@ function buildItem(name: string) {
     name,
     type: "registry:ui" as const,
     title: meta.title ?? toTitle(name),
-    description: meta.description ?? `${toTitle(name)} — a hand-drawn Handcraft UI component.`,
+    description: meta.description ?? `${toTitle(name)} — a hand-drawn Handicraft UI component.`,
     dependencies: [...dependencies].sort(),
     registryDependencies: meta.registryDependencies ?? [],
     files,

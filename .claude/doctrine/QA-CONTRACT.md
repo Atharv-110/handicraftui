@@ -1,4 +1,4 @@
-# Handcraft UI — QA Contract
+# Handicraft UI — QA Contract
 
 What "verified" means here. Read by `hc-architect` (writes the QA plan) and `hc-qa` (executes it).
 Caveman `lite`.
@@ -63,8 +63,8 @@ Each must fail exactly one named test:
 |---|---|
 | `preserveVertices: false → true` in `engine/generator.ts` | "does not pin the corners" |
 | `POOL_SEEDS` return replaced with `Math.random()` in `engine/seed.ts` | determinism |
-| `--hc-stroke-w: 2.4px → 1.6px` in `styles/handcraft.css` | "uses the same stroke weight" |
-| `--hc-r-a: 4px → 14px` in `styles/handcraft.css` | "keeps tier-1 corners near-square" |
+| `--hc-stroke-w: 2.4px → 1.6px` in `styles/handicraft.css` | "uses the same stroke weight" |
+| `--hc-r-a: 4px → 14px` in `styles/handicraft.css` | "keeps tier-1 corners near-square" |
 
 ### Rule V3 — a test can pass for the wrong reason
 
@@ -82,7 +82,7 @@ Other jsdom specifics:
 - `import.meta.url` is not a `file:` URL under jsdom; `fileURLToPath` throws. Read files with
   `resolve(process.cwd(), ...)`.
 - The registry glob must stay scoped to `registry/default/**`, or pnpm's symlink at
-  `registry/node_modules/@handcraft/core` makes vitest run the core suite a second time.
+  `registry/node_modules/@handicraft/core` makes vitest run the core suite a second time.
 
 ---
 
@@ -93,8 +93,8 @@ Mandatory. Skipping it means testing stale code and reporting phantom bugs.
 ```bash
 lsof -ti:4321 | xargs kill -9          # may be empty; that is fine
 rm -rf apps/playground/.next-dev
-pnpm --filter @handcraft/core build
-pnpm --filter @handcraft/playground dev    # background
+pnpm --filter @handicraft/core build
+pnpm --filter @handicraft/playground dev    # background
 curl -s http://localhost:4321 > /dev/null  # confirm it actually answers
 ```
 
@@ -164,7 +164,7 @@ Components share engine files. If the dev manifest touches any of:
 packages/core/src/engine/**
 packages/core/src/theme/context.tsx
 packages/core/src/frame/**
-packages/core/src/styles/handcraft.css
+packages/core/src/styles/handicraft.css
 ```
 
 then **every component listed against that touchpoint in `.claude/state/INDEX.md` is re-verified**, not

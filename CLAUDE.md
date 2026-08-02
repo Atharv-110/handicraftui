@@ -1,4 +1,4 @@
-# Handcraft UI
+# Handicraft UI
 
 Hand-drawn React component library. Two-tier render: tier 1 pure CSS, tier 2 rough.js SVG geometry.
 Tier 2 is the default. Distributed shadcn-style so users own the source.
@@ -24,7 +24,7 @@ pnpm test  pnpm typecheck  pnpm lint  pnpm build  pnpm registry:build
 ## Layout
 
 ```
-packages/core      @handcraft/core — engine, provider, hooks, tokens, stylesheet
+packages/core      @handicraft/core — engine, provider, hooks, tokens, stylesheet
 registry/          component source + scripts/build-registry.ts
 apps/playground    Next.js harness, port 4321, URL-addressable state
 .claude/agents/    the build team

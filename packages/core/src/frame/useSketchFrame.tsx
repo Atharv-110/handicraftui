@@ -20,7 +20,7 @@ import {
 } from "../engine/generator";
 import { observeResize } from "../engine/resize-bus";
 import { poolIndex, seedBucket, seedFrom } from "../engine/seed";
-import { useHandcraft, HANDS, type Fidelity } from "../theme/context";
+import { useHandicraft, HANDS, type Fidelity } from "../theme/context";
 
 /** `useLayoutEffect` warns during SSR; there is no layout to read on a server anyway. */
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -93,7 +93,7 @@ export interface UseSketchFrameResult {
  * every component after the first swap *before* paint instead of after it.
  */
 export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFrameResult {
-  const config = useHandcraft();
+  const config = useHandicraft();
   const autoId = useId();
   const seedKey = options.seedKey ?? autoId;
   const fidelity = options.fidelity ?? config.fidelity;
@@ -232,7 +232,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
 
 /** Exposed so components can key other artwork (marks, arrows) to the same hand. */
 export function useSketchSeed(seedKey: string, offset = 0): number {
-  const { handOffset } = useHandcraft();
+  const { handOffset } = useHandicraft();
   return poolIndex(seedKey, handOffset + offset);
 }
 

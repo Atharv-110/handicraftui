@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handcraft/core";
+import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handicraft/core";
 
 const VARIANTS = {
   default: "text-hc-ink hover:bg-hc-paper-sunken",

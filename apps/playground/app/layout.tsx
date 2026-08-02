@@ -16,7 +16,7 @@ const kalam = Kalam({
 });
 
 export const metadata: Metadata = {
-  title: "Handcraft UI — playground",
+  title: "Handicraft UI — playground",
   description: "Tier comparison harness for the hand-drawn component library.",
 };
 

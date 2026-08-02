@@ -16,7 +16,7 @@ import { SEED_BUCKETS } from "../engine/seed";
 
 // Resolved from the vitest root rather than `import.meta.url`: under the jsdom
 // environment that is not a file: URL and `fileURLToPath` throws.
-const css = readFileSync(resolve(process.cwd(), "src/styles/handcraft.css"), "utf8");
+const css = readFileSync(resolve(process.cwd(), "src/styles/handicraft.css"), "utf8");
 
 function cssNumber(pattern: RegExp): number {
   const match = css.match(pattern);

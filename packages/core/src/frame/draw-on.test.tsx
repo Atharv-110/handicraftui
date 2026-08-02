@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HandcraftProvider } from "../theme/context";
+import { HandicraftProvider } from "../theme/context";
 import { useSketchFrame } from "./useSketchFrame";
 import { __resetSketchEngine, generateSketch } from "../engine/generator";
 import { seedFrom } from "../engine/seed";
@@ -57,9 +57,9 @@ async function mount(drawOn: boolean) {
   await act(async () => {
     createRoot(container).render(
       <StrictMode>
-        <HandcraftProvider drawOn={drawOn}>
+        <HandicraftProvider drawOn={drawOn}>
           <Box />
-        </HandcraftProvider>
+        </HandicraftProvider>
       </StrictMode>,
     );
   });
@@ -99,7 +99,7 @@ describe("pass kinds", () => {
 });
 
 describe("draw-on timeline", () => {
-  const css = readFileSync(resolve(process.cwd(), "src/styles/handcraft.css"), "utf8");
+  const css = readFileSync(resolve(process.cwd(), "src/styles/handicraft.css"), "utf8");
 
   /** Delay and duration for a pass, as fractions of the whole sequence. */
   function slice(kind: string): { start: number; end: number } {

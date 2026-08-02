@@ -1,10 +1,10 @@
-import { cn } from "@handcraft/core/utils";
+import { cn } from "@handicraft/core/utils";
 import { Harness } from "./harness";
 
 /**
  * A Server Component on purpose.
  *
- * `cn` is imported from `@handcraft/core/utils`, the entry with no "use client"
+ * `cn` is imported from `@handicraft/core/utils`, the entry with no "use client"
  * directive — calling it here proves the split entry actually works. Importing
  * it from the default entry would throw at render time.
  */
@@ -33,7 +33,7 @@ export default async function Page({
     <main className={cn(dark && "dark")}>
       <header className="bg-hc-paper text-hc-ink px-6 pt-10">
         <div className="mx-auto max-w-3xl">
-          <h1 className="font-hand text-3xl">Handcraft UI</h1>
+          <h1 className="font-hand text-3xl">Handicraft UI</h1>
           <p className="font-body text-hc-ink-soft mt-1 text-sm">
             Server-rendered above the fold. Tier 1 paints first, rough.js replaces it before paint.
           </p>

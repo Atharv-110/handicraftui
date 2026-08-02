@@ -33,7 +33,7 @@ export default defineConfig([
     entry: { index: "src/index.ts" },
     clean: true,
     onSuccess: async () => {
-      copyFileSync("src/styles/handcraft.css", "dist/handcraft.css");
+      copyFileSync("src/styles/handicraft.css", "dist/handicraft.css");
       prependUseClient(["dist/index.js", "dist/index.cjs"]);
     },
   },

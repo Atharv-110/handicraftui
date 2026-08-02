@@ -1,5 +1,5 @@
 {
-  "name": "handcraft-ui",
+  "name": "handicraft-ui",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.18.0",
@@ -17,8 +17,8 @@
     "registry:build": "tsx scripts/build-registry.ts"
   },
   "devDependencies": {
-    "@handcraft/eslint-config": "workspace:*",
-    "@handcraft/typescript-config": "workspace:*",
+    "@handicraft/eslint-config": "workspace:*",
+    "@handicraft/typescript-config": "workspace:*",
     "@types/node": "^22.10.2",
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",

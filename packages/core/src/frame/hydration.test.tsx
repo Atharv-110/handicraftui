@@ -3,7 +3,7 @@ import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HandcraftProvider, type Fidelity } from "../theme/context";
+import { HandicraftProvider, type Fidelity } from "../theme/context";
 import { useSketchFrame } from "./useSketchFrame";
 
 function Box({ label }: { label: string }) {
@@ -18,11 +18,11 @@ function Box({ label }: { label: string }) {
 
 function App({ fidelity }: { fidelity: Fidelity }) {
   return (
-    <HandcraftProvider fidelity={fidelity}>
+    <HandicraftProvider fidelity={fidelity}>
       <Box label="one" />
       <Box label="two" />
       <Box label="three" />
-    </HandcraftProvider>
+    </HandicraftProvider>
   );
 }
 

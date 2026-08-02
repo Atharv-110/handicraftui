@@ -1,5 +1,5 @@
 {
-  "extends": "@handcraft/typescript-config/nextjs.json",
+  "extends": "@handicraft/typescript-config/nextjs.json",
   "compilerOptions": {
     "paths": {
       "@/ui/*": ["../../registry/default/ui/*"],

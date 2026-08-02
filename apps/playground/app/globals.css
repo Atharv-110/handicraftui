@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@handcraft/core/styles.css";
+@import "@handicraft/core/styles.css";
 
 /* Tailwind v4 only generates classes it can see. The registry components live
    outside this app, so their class names have to be pointed at explicitly. */

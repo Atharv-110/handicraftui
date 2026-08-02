@@ -1,5 +1,5 @@
 /**
- * Isomorphic entry point — `@handcraft/core/utils`.
+ * Isomorphic entry point — `@handicraft/core/utils`.
  *
  * Nothing here touches React, so it is safe to call from a React Server
  * Component, a build script or a Node process. The default entry carries a

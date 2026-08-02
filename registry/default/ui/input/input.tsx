@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn, useSketchFrame } from "@handcraft/core";
+import { cn, useSketchFrame } from "@handicraft/core";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   ref?: React.Ref<HTMLInputElement>;

@@ -190,7 +190,7 @@ async function getGenerator(): Promise<RoughGeneratorLike | null> {
       if (!warnedMissing) {
         warnedMissing = true;
         console.warn(
-          '[handcraft] fidelity="high" needs the optional peer dependency `roughjs`. ' +
+          '[handicraft] fidelity="high" needs the optional peer dependency `roughjs`. ' +
             "Run `npm install roughjs`. Falling back to the CSS sketch frame.",
         );
       }
@@ -266,7 +266,7 @@ export async function generateSketch(
  * Synchronous variant. Returns `null` when roughjs has not finished loading —
  * the caller falls back to the async path.
  *
- * Exists so `HandcraftProvider` can warm the module on mount and every
+ * Exists so `HandicraftProvider` can warm the module on mount and every
  * component after the first can generate inside `useLayoutEffect`, swapping the
  * CSS frame for real geometry *before* paint. Without it, every page load shows
  * tier 1 for a frame and then visibly changes.

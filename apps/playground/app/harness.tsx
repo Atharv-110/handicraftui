@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import {
-  HandcraftProvider,
+  HandicraftProvider,
   type Fidelity,
   type FillLevel,
   type Hand,
   type InkStyle,
   SketchMark,
-} from "@handcraft/core";
+} from "@handicraft/core";
 import { Button } from "@/ui/button/button";
 import {
   Card,
@@ -82,7 +82,7 @@ export function Harness({
             onDrawMs={setDrawMs}
           />
 
-          <HandcraftProvider
+          <HandicraftProvider
             fidelity={fidelity}
             texture={texture}
             hand={hand}
@@ -200,7 +200,7 @@ export function Harness({
                 </Group>
               ) : null}
             </section>
-          </HandcraftProvider>
+          </HandicraftProvider>
         </div>
       </div>
     </div>
@@ -240,7 +240,7 @@ interface ControlsProps {
 }
 
 /**
- * Deliberately plain HTML controls. If the harness used Handcraft components
+ * Deliberately plain HTML controls. If the harness used Handicraft components
  * to drive the harness, a rendering bug would take the controls down with it.
  */
 function Controls(props: ControlsProps) {

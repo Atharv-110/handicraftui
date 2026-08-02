@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn, SketchMark, useSketchFrame } from "@handcraft/core";
+import { cn, SketchMark, useSketchFrame } from "@handicraft/core";
 
 export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: React.ReactNode;

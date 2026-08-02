@@ -2,15 +2,15 @@ export { cn } from "./lib/cn";
 export { composeRefs } from "./lib/compose-refs";
 
 export {
-  HandcraftProvider,
-  useHandcraft,
+  HandicraftProvider,
+  useHandicraft,
   useHandProfile,
   HANDS,
   type Fidelity,
   type Hand,
   type HandProfile,
-  type HandcraftConfig,
-  type HandcraftProviderProps,
+  type HandicraftConfig,
+  type HandicraftProviderProps,
 } from "./theme/context";
 
 export {

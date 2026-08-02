@@ -1,5 +1,5 @@
 {
-  "extends": "@handcraft/typescript-config/react-library.json",
+  "extends": "@handicraft/typescript-config/react-library.json",
   "compilerOptions": {
     "rootDir": "src",
     "types": ["vitest/globals"]

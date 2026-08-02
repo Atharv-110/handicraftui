@@ -1,7 +1,7 @@
 import { act, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HandcraftProvider } from "../theme/context";
+import { HandicraftProvider } from "../theme/context";
 import { useSketchFrame } from "./useSketchFrame";
 import { __resetSketchEngine } from "../engine/generator";
 
@@ -63,9 +63,9 @@ async function mount(fidelity: "lite" | "high", seedKey = "«r1»") {
   await act(async () => {
     createRoot(container).render(
       <StrictMode>
-        <HandcraftProvider fidelity={fidelity}>
+        <HandicraftProvider fidelity={fidelity}>
           <Box seedKey={seedKey} />
-        </HandcraftProvider>
+        </HandicraftProvider>
       </StrictMode>,
     );
   });

@@ -1,4 +1,4 @@
-# Handcraft UI — Principles
+# Handicraft UI — Principles
 
 Permanent law. Every agent reads this first. Written at caveman `lite`: no filler, full sentences.
 
@@ -175,7 +175,7 @@ with "decide it".
 Always `DECISION-REQUIRED`, never a judgment call:
 
 - Any new dependency, or any version change to an existing one. Base UI is locked at v1.6.0.
-- Any new import in `registry/default/**` beyond `react` and `@handcraft/core` — the registry derives
+- Any new import in `registry/default/**` beyond `react` and `@handicraft/core` — the registry derives
   its user-facing `dependencies` from imports, so a stray import becomes an install requirement.
 - Any change to the engine invariants above.
 - Anything that would break a locked aesthetic decision.

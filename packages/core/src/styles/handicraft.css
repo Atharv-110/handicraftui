@@ -1,5 +1,5 @@
 /*
- * Handcraft UI — design tokens and the tier-1 sketch frame.
+ * Handicraft UI — design tokens and the tier-1 sketch frame.
  *
  * Two consumers must both work:
  *   - Tailwind v4 projects, which read the `@theme inline` block below.
@@ -19,7 +19,7 @@
  *   components — the frame. Tailwind's `utilities` layer sorts *after*
  *                `components`, so `className="hc-frame bg-hc-paper-raised"`
  *                works: the utility wins over the frame's own background.
- *                A private `handcraft.*` layer would sort after `utilities`
+ *                A private `handicraft.*` layer would sort after `utilities`
  *                and silently beat every utility a consumer wrote.
  *   unlayered  — focus, reduced motion, forced colors, print. Unlayered rules
  *                outrank every layer, which is exactly what a fallback needs.
@@ -322,7 +322,7 @@
   }
 
   /*
-   * Draw-on entrance, opt-in via `<HandcraftProvider drawOn>`.
+   * Draw-on entrance, opt-in via `<HandicraftProvider drawOn>`.
    *
    * Each pass is treated differently on purpose. Strokes reveal along their
    * length; the hachure *fades*, because it is a single path containing ~100

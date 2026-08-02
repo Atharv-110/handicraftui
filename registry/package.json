@@ -1,5 +1,5 @@
 {
-  "name": "@handcraft/registry",
+  "name": "@handicraft/registry",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,11 +9,11 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@handcraft/core": "workspace:*"
+    "@handicraft/core": "workspace:*"
   },
   "devDependencies": {
-    "@handcraft/eslint-config": "workspace:*",
-    "@handcraft/typescript-config": "workspace:*",
+    "@handicraft/eslint-config": "workspace:*",
+    "@handicraft/typescript-config": "workspace:*",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "eslint": "^10.8.0",

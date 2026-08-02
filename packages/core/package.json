@@ -1,7 +1,7 @@
 {
-  "name": "@handcraft/core",
+  "name": "@handicraft/core",
   "version": "0.0.0",
-  "description": "Sketch rendering engine, tokens and primitives for Handcraft UI — hand-drawn React components.",
+  "description": "Sketch rendering engine, tokens and primitives for Handicraft UI — hand-drawn React components.",
   "license": "MIT",
   "type": "module",
   "sideEffects": [
@@ -21,7 +21,7 @@
       "import": "./dist/utils.js",
       "require": "./dist/utils.cjs"
     },
-    "./styles.css": "./dist/handcraft.css",
+    "./styles.css": "./dist/handicraft.css",
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
@@ -49,8 +49,8 @@
     }
   },
   "devDependencies": {
-    "@handcraft/eslint-config": "workspace:*",
-    "@handcraft/typescript-config": "workspace:*",
+    "@handicraft/eslint-config": "workspace:*",
+    "@handicraft/typescript-config": "workspace:*",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

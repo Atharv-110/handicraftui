@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useState } from "react";
 import { generateMark, generateMarkSync, type SketchPath } from "../engine/generator";
 import { markRotation, type MarkDirection, type MarkName } from "../engine/marks";
 import { seedFrom } from "../engine/seed";
-import { HANDS, useHandcraft } from "../theme/context";
+import { HANDS, useHandicraft } from "../theme/context";
 
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
@@ -45,7 +45,7 @@ export function SketchMark({
   label,
   seedKey,
 }: SketchMarkProps) {
-  const config = useHandcraft();
+  const config = useHandicraft();
   const autoId = useId();
   const key = seedKey ?? autoId;
   const profile = HANDS[config.hand];

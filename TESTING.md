@@ -1,4 +1,4 @@
-# Testing Handcraft UI
+# Testing Handicraft UI
 
 Run these in order. Each step assumes the previous one passed — later steps are
 much harder to interpret if an earlier one is red.
@@ -13,10 +13,10 @@ tiers. Steps 8–10 are manual for now.
 ```bash
 corepack enable pnpm          # only needed once per machine
 pnpm install
-pnpm --filter @handcraft/core build
+pnpm --filter @handicraft/core build
 ```
 
-**The playground consumes `@handcraft/core` as a built package, not as source.**
+**The playground consumes `@handicraft/core` as a built package, not as source.**
 After any core rebuild you must restart the dev server and clear its cache:
 
 ```bash
@@ -60,7 +60,7 @@ preserveVertices: false   →   true            # fails "does not pin the corner
 # engine/seed.ts — geometry stops being deterministic
 return POOL_SEEDS[...]    →   Math.floor(Math.random() * 1000) + 1
 
-# styles/handcraft.css — the tiers drift
+# styles/handicraft.css — the tiers drift
 --hc-stroke-w: 2.4px      →   1.6px           # fails "uses the same stroke weight"
 --hc-r-a: 4px …           →   14px …          # fails "keeps tier-1 corners near-square"
 ```
@@ -86,7 +86,7 @@ someone's project after they run `shadcn add`.
 ## 3. Start the playground
 
 ```bash
-pnpm --filter @handcraft/playground dev
+pnpm --filter @handicraft/playground dev
 ```
 
 <http://localhost:4321>. Every control is URL-addressable, so you can deep-link

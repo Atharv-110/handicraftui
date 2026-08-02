@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn, composeRefs, useSketchFrame } from "@handcraft/core";
+import { cn, composeRefs, useSketchFrame } from "@handicraft/core";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   /**

@@ -1,4 +1,4 @@
-# Handcraft UI — Code Contract
+# Handicraft UI — Code Contract
 
 How components are written here. Read by `hc-architect`, `hc-dev`, `hc-qa`. Caveman `lite`.
 
@@ -21,7 +21,7 @@ vitest include glob) but none exist yet.
 `packages/core/src/index.ts` — every export is listed by name, there are no `export *` statements. A
 new primitive is not usable until it is added there.
 
-Second entry point `@handcraft/core/utils` maps to `src/utils.ts` and deliberately carries **no**
+Second entry point `@handicraft/core/utils` maps to `src/utils.ts` and deliberately carries **no**
 `"use client"`, so `cn()` and the engine stay callable during a server render.
 
 ---
@@ -32,7 +32,7 @@ Second entry point `@handcraft/core/utils` maps to `src/utils.ts` and deliberate
 "use client";                                    // line 1, before imports
 
 import * as React from "react";                  // namespace import, always
-import { cn, useSketchFrame, type FillLevel } from "@handcraft/core";
+import { cn, useSketchFrame, type FillLevel } from "@handicraft/core";
 
 const VARIANTS = { ... } as const;               // plain object, NOT cva
 const SIZES = { ... } as const;
@@ -65,7 +65,7 @@ Rules embedded above, stated explicitly:
 
 - **`"use client"` is line 1.** Without it the App Router treats the component as a Server Component
   and throws on the first hook.
-- **Named imports from the bare specifier `@handcraft/core` only.** Never a relative path into
+- **Named imports from the bare specifier `@handicraft/core` only.** Never a relative path into
   `packages/core`, never a subpath. Types come in with an inline `type` modifier on the same line.
 - **No `cva`, no `tailwind-variants`.** Neither is a dependency and neither may become one. Variants
   are `as const` objects; prop types derive via `keyof typeof`.
@@ -176,7 +176,7 @@ index, and **derives each item's user-facing `dependencies` by regexing the impo
 relative and `@/` specifiers, dropping `react` and `react-dom`.
 
 Consequence: **any stray import becomes an install requirement for every user of that component.**
-Any new import beyond `react` and `@handcraft/core` is a `DECISION-REQUIRED`, never a judgment call.
+Any new import beyond `react` and `@handicraft/core` is a `DECISION-REQUIRED`, never a judgment call.
 
 `registry/public/r/` is generated, gitignored and prettier-ignored. Never hand-edit it.
 
@@ -194,7 +194,7 @@ pnpm build           # turbo
 pnpm registry:build  # tsx scripts/build-registry.ts
 ```
 
-`test` and `typecheck` both depend on `^build`, so `@handcraft/core` is built by tsup first.
+`test` and `typecheck` both depend on `^build`, so `@handicraft/core` is built by tsup first.
 
 Formatting: `pnpm format` writes, `pnpm format:check` verifies. Prettier is `semi: true`,
 `singleQuote: false`, `trailingComma: "all"`, `printWidth: 100`, `tabWidth: 2`.
@@ -204,7 +204,7 @@ Formatting: `pnpm format` writes, `pnpm format:check` verifies. Prettier is `sem
 ## Traps that have already cost this project time
 
 - **Rebuilding core under a live dev server serves stale JS.** The playground consumes
-  `@handcraft/core` as built `dist`, not source. CSS hot-reloads while the JS stays stale, so it
+  `@handicraft/core` as built `dist`, not source. CSS hot-reloads while the JS stays stale, so it
   presents as "tier 2 renders nothing" rather than as a cache error. After any core rebuild:
   `lsof -ti:4321 | xargs kill -9`, `rm -rf apps/playground/.next-dev`, restart.
 - **`tsup` strips `"use client"`.** esbuild drops directives; the `banner` option did not survive

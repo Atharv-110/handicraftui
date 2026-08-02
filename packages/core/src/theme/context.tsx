@@ -36,7 +36,7 @@ export const HANDS: Record<Hand, HandProfile> = {
   hurried: { roughness: 2.6, bowing: 2.0, strokeWidth: 1.8 },
 };
 
-export interface HandcraftConfig {
+export interface HandicraftConfig {
   fidelity: Fidelity;
   hand: Hand;
   ink: InkStyle;
@@ -67,7 +67,7 @@ export interface HandcraftConfig {
   drawOnDuration: number;
 }
 
-const DEFAULTS: HandcraftConfig = {
+const DEFAULTS: HandicraftConfig = {
   fidelity: "high",
   hand: "natural",
   ink: "layered",
@@ -83,22 +83,22 @@ const DEFAULTS: HandcraftConfig = {
   drawOnDuration: 1100,
 };
 
-const HandcraftContext = createContext<HandcraftConfig>(DEFAULTS);
+const HandicraftContext = createContext<HandicraftConfig>(DEFAULTS);
 
-export function useHandcraft(): HandcraftConfig {
-  return use(HandcraftContext);
+export function useHandicraft(): HandicraftConfig {
+  return use(HandicraftContext);
 }
 
 /** Resolved rough.js parameters for the active hand. */
 export function useHandProfile(): HandProfile {
-  return HANDS[useHandcraft().hand];
+  return HANDS[useHandicraft().hand];
 }
 
-export interface HandcraftProviderProps extends Partial<HandcraftConfig> {
+export interface HandicraftProviderProps extends Partial<HandicraftConfig> {
   children: ReactNode;
 }
 
-export function HandcraftProvider({
+export function HandicraftProvider({
   children,
   fidelity = DEFAULTS.fidelity,
   hand = DEFAULTS.hand,
@@ -108,7 +108,7 @@ export function HandcraftProvider({
   texture = DEFAULTS.texture,
   drawOn = DEFAULTS.drawOn,
   drawOnDuration = DEFAULTS.drawOnDuration,
-}: HandcraftProviderProps) {
+}: HandicraftProviderProps) {
   // Start fetching roughjs immediately rather than waiting for the first
   // component to ask for it. Combined with the sync generate path, this is what
   // stops every page load showing the CSS frame for a beat and then visibly
@@ -117,22 +117,22 @@ export function HandcraftProvider({
     if (fidelity === "high") preloadSketchEngine();
   }, [fidelity]);
 
-  const value = useMemo<HandcraftConfig>(
+  const value = useMemo<HandicraftConfig>(
     () => ({ fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration }),
     [fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration],
   );
 
   return (
-    <HandcraftContext.Provider value={value}>
+    <HandicraftContext.Provider value={value}>
       {texture ? <TextureDefs /> : null}
       {children}
-    </HandcraftContext.Provider>
+    </HandicraftContext.Provider>
   );
 }
 
 /**
  * One turbulence filter for the whole document, referenced by
- * `filter: url(#hc-wobble)` in handcraft.css. Rendered once by the provider
+ * `filter: url(#hc-wobble)` in handicraft.css. Rendered once by the provider
  * rather than per component.
  *
  * `scale` is 5, not the 2 this started at. At 2 the effect is invisible; at 5

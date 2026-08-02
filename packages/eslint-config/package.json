@@ -1,9 +1,9 @@
 {
-  "name": "@handcraft/eslint-config",
+  "name": "@handicraft/eslint-config",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared ESLint flat-config presets for the Handcraft UI workspace.",
+  "description": "Shared ESLint flat-config presets for the Handicraft UI workspace.",
   "license": "MIT",
   "exports": {
     "./base": "./base.js",

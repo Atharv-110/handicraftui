@@ -1,5 +1,5 @@
 {
-  "extends": "@handcraft/typescript-config/react-library.json",
+  "extends": "@handicraft/typescript-config/react-library.json",
   "compilerOptions": {
     // No baseUrl: it is deprecated in TS 6+, and since TS 4.1 these values
     // already resolve relative to this file's directory anyway.
@@ -7,7 +7,7 @@
       // Registry source is authored against the published package name, but
       // typechecked against the local source so a breaking change to the core
       // API fails CI here rather than in a consumer's project.
-      "@handcraft/core": ["../packages/core/src/index.ts"]
+      "@handicraft/core": ["../packages/core/src/index.ts"]
     }
   },
   "include": [

@@ -8,10 +8,10 @@ importers:
 
   .:
     devDependencies:
-      '@handcraft/eslint-config':
+      '@handicraft/eslint-config':
         specifier: workspace:*
         version: link:packages/eslint-config
-      '@handcraft/typescript-config':
+      '@handicraft/typescript-config':
         specifier: workspace:*
         version: link:packages/typescript-config
       '@types/node':
@@ -35,7 +35,7 @@ importers:
 
   apps/playground:
     dependencies:
-      '@handcraft/core':
+      '@handicraft/core':
         specifier: workspace:*
         version: link:../../packages/core
       next:
@@ -51,10 +51,10 @@ importers:
         specifier: ^4.6.6
         version: 4.6.6
     devDependencies:
-      '@handcraft/eslint-config':
+      '@handicraft/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@handcraft/typescript-config':
+      '@handicraft/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@tailwindcss/postcss':
@@ -88,10 +88,10 @@ importers:
         specifier: ^3.0.1
         version: 3.6.0
     devDependencies:
-      '@handcraft/eslint-config':
+      '@handicraft/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@handcraft/typescript-config':
+      '@handicraft/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@testing-library/react':
@@ -160,14 +160,14 @@ importers:
 
   registry:
     dependencies:
-      '@handcraft/core':
+      '@handicraft/core':
         specifier: workspace:*
         version: link:../packages/core
     devDependencies:
-      '@handcraft/eslint-config':
+      '@handicraft/eslint-config':
         specifier: workspace:*
         version: link:../packages/eslint-config
-      '@handcraft/typescript-config':
+      '@handicraft/typescript-config':
         specifier: workspace:*
         version: link:../packages/typescript-config
       '@types/react':

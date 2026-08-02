@@ -6,11 +6,11 @@
  * fatal for a server-rendered component (React would report a hydration
  * mismatch on the `d` attribute of every path).
  *
- * Every sketch in Handcraft derives its seed from a stable string (normally
+ * Every sketch in Handicraft derives its seed from a stable string (normally
  * `React.useId()`), so server and client generate byte-identical geometry.
  */
 
-/** Number of pre-authored tier-1 radius variants in handcraft.css. */
+/** Number of pre-authored tier-1 radius variants in handicraft.css. */
 export const SEED_BUCKETS = 8;
 
 /**
