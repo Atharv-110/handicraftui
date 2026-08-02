@@ -114,7 +114,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     strokeWidth = profile.strokeWidth,
     stroke,
     hachureAngle,
-    chalk,
+    chalk = config.chalk,
     rescribble = false,
   } = options;
 

@@ -65,6 +65,17 @@ export interface HandicraftConfig {
    * down the entire drawing without reordering it.
    */
   drawOnDuration: number;
+  /**
+   * Draw as chalk on slate rather than ink on paper: a wide faint dust pass under
+   * a heavier, softer stroke, and a wider hachure gap.
+   *
+   * The application sets this alongside whatever puts `.dark` on the tree, because
+   * React cannot see a CSS class. Detecting it instead — matchMedia, or observing
+   * an ancestor — would give the server no way to agree with the client, and the
+   * mismatch would land as a visible flash on the one code path whose whole design
+   * goal is that the handover never announces itself.
+   */
+  chalk: boolean;
 }
 
 const DEFAULTS: HandicraftConfig = {
@@ -81,6 +92,7 @@ const DEFAULTS: HandicraftConfig = {
   // Long enough to read as a hand moving rather than as a flicker. The first
   // pass at 520ms was over before the eye could follow it.
   drawOnDuration: 1100,
+  chalk: false,
 };
 
 const HandicraftContext = createContext<HandicraftConfig>(DEFAULTS);
@@ -108,6 +120,7 @@ export function HandicraftProvider({
   texture = DEFAULTS.texture,
   drawOn = DEFAULTS.drawOn,
   drawOnDuration = DEFAULTS.drawOnDuration,
+  chalk = DEFAULTS.chalk,
 }: HandicraftProviderProps) {
   // Start fetching roughjs immediately rather than waiting for the first
   // component to ask for it. Combined with the sync generate path, this is what
@@ -118,8 +131,8 @@ export function HandicraftProvider({
   }, [fidelity]);
 
   const value = useMemo<HandicraftConfig>(
-    () => ({ fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration }),
-    [fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration],
+    () => ({ fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration, chalk }),
+    [fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration, chalk],
   );
 
   return (

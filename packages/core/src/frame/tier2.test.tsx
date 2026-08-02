@@ -144,6 +144,49 @@ describe("tier 2 activation", () => {
   });
 });
 
+describe("chalk", () => {
+  // drawOn is what puts data-hc-kind on each <path> (useSketchFrame.tsx) —
+  // chosen over comparing raw path counts between the two mounts because it
+  // is a direct, unambiguous read of which pass produced which path, rather
+  // than an inference from a count that could shift for unrelated reasons.
+  // drawOn itself adds no extra passes, so turning it on doesn't skew what
+  // this test is measuring.
+  async function mountChalk(chalk: boolean, seedKey: string) {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      createRoot(container).render(
+        <StrictMode>
+          <HandicraftProvider fidelity="high" chalk={chalk} drawOn>
+            <Box seedKey={seedKey} />
+          </HandicraftProvider>
+        </StrictMode>,
+      );
+    });
+    for (let i = 0; i < 50 && !container.querySelector(".hc-sketch-svg"); i++) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+    }
+    return container;
+  }
+
+  it("reaches generated geometry from the provider, end to end", async () => {
+    const withChalk = await mountChalk(true, "«r9»");
+    const svgChalk = withChalk.querySelector(".hc-sketch-svg");
+    expect(svgChalk, "tier 2 did not activate — chalk mount").not.toBeNull();
+    expect(svgChalk!.querySelectorAll("path").length).toBeGreaterThan(0);
+    expect(svgChalk!.querySelectorAll('path[data-hc-kind="dust"]').length).toBeGreaterThan(0);
+
+    const withoutChalk = await mountChalk(false, "«r10»");
+    const svgPlain = withoutChalk.querySelector(".hc-sketch-svg");
+    expect(svgPlain, "tier 2 did not activate — plain mount").not.toBeNull();
+    expect(svgPlain!.querySelectorAll("path").length).toBeGreaterThan(0);
+    expect(svgPlain!.querySelectorAll('path[data-hc-kind="dust"]').length).toBe(0);
+  });
+});
+
 describe("tier parity", () => {
   it("leaves the framed element's own attributes unchanged between tiers", async () => {
     const lite = (await mount("lite", "«r5»")).querySelector(".hc-frame")!;

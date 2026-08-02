@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BASE_STROKE_WIDTH, FILL_LEVELS, type FillLevel } from "../engine/generator";
+import {
+  BASE_STROKE_WIDTH,
+  CHALK_STROKE_WIDTH,
+  FILL_LEVELS,
+  type FillLevel,
+} from "../engine/generator";
 import { SEED_BUCKETS } from "../engine/seed";
 
 /**
@@ -18,17 +23,58 @@ import { SEED_BUCKETS } from "../engine/seed";
 // environment that is not a file: URL and `fileURLToPath` throws.
 const css = readFileSync(resolve(process.cwd(), "src/styles/handicraft.css"), "utf8");
 
-function cssNumber(pattern: RegExp): number {
-  const match = css.match(pattern);
-  expect(match, `no match for ${pattern}`).not.toBeNull();
+/**
+ * Reads a number out of one selector's block, not the whole stylesheet.
+ *
+ * `--hc-stroke-w` is declared twice — once in `:root`, once in `.dark` — and a
+ * plain `css.match(pattern)` has no global flag, so it silently returns only
+ * the first occurrence. That made the old unscoped `cssNumber(pattern)` blind
+ * to `.dark` no matter which selector a caller had in mind: it always read
+ * `:root`, whichever block the test's comment claimed to be guarding. That
+ * blindness is why a stroke-width drift in `.dark` could survive unguarded —
+ * fixing the drifted value without also fixing this would leave the test that
+ * is supposed to catch the next one just as blind as it caught this one.
+ *
+ * The slice from the selector to its next closing brace is naive — it does not
+ * track nested braces — but neither `:root` nor `.dark` (nor any other
+ * top-level block in this file) declares one, so a flat slice is sufficient
+ * today. A future token block that did nest braces would need a real parser
+ * here instead.
+ */
+function cssNumberInBlock(selector: string, pattern: RegExp): number {
+  const start = css.indexOf(selector);
+  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+  const braceOpen = css.indexOf("{", start);
+  const braceClose = css.indexOf("}", braceOpen);
+  const block = css.slice(braceOpen, braceClose);
+  const match = block.match(pattern);
+  expect(match, `no match for ${pattern} inside ${selector}`).not.toBeNull();
   return Number(match![1]);
 }
 
 describe("tier 1 and tier 2 agree", () => {
   it("uses the same stroke weight", () => {
     // A 1.6px CSS border swapping to a 2.4px rough.js stroke reads as the frame
-    // suddenly thickening — the most noticeable part of the handover.
-    expect(cssNumber(/--hc-stroke-w:\s*([\d.]+)px/)).toBe(BASE_STROKE_WIDTH);
+    // suddenly thickening — the most noticeable part of the handover. Scoped to
+    // `:root` explicitly now rather than by accident of match order — `.dark`
+    // carries its own stroke width and its own guard alongside it.
+    expect(cssNumberInBlock(":root", /--hc-stroke-w:\s*([\d.]+)px/)).toBe(BASE_STROKE_WIDTH);
+  });
+
+  it("matches the dark stroke weight to CHALK_STROKE_WIDTH", () => {
+    // `.dark` deliberately carries a heavier stroke than `:root` — chalk on
+    // slate reads thinner than ink on paper at the same weight, so the
+    // blackboard theme compensates rather than merely recolouring. Tier 2
+    // has to land on the same number via CHALK_STROKE_WIDTH, or the
+    // tier-1-to-tier-2 handover in dark mode visibly thickens or thins.
+    //
+    // This is the assertion the old unscoped `cssNumber` helper could never
+    // have made correctly: `css.match(pattern)` with no global flag returns
+    // only the first occurrence in the file, and `:root` comes first, so a
+    // caller asking for `.dark`'s value always silently got `:root`'s
+    // instead. `cssNumberInBlock` fixes that by slicing to one selector's
+    // block before matching.
+    expect(cssNumberInBlock(".dark", /--hc-stroke-w:\s*([\d.]+)px/)).toBe(CHALK_STROKE_WIDTH);
   });
 
   it("declares a CSS hachure level for every fill level that has one", () => {

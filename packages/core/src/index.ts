@@ -39,6 +39,7 @@ export {
   BASE_ROUGHNESS,
   BASE_BOWING,
   BASE_STROKE_WIDTH,
+  CHALK_STROKE_WIDTH,
   FILL_LEVELS,
   capFill,
   type FillLevel,
