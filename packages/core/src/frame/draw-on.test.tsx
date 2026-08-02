@@ -103,8 +103,7 @@ describe("draw-on timeline", () => {
 
   /** Delay and duration for a pass, as fractions of the whole sequence. */
   function slice(kind: string): { start: number; end: number } {
-    const block =
-      css.split(`path[data-hc-kind="${kind}"]`)[1]?.split("}")[0] ?? "";
+    const block = css.split(`path[data-hc-kind="${kind}"]`)[1]?.split("}")[0] ?? "";
     const delay = block.match(/animation-delay:[^;]*\*\s*([\d.]+)\)/);
     const duration = block.match(/animation-duration:[^;]*\*\s*([\d.]+)\)/);
     const start = delay ? Number(delay[1]) : 0;

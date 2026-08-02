@@ -25,7 +25,7 @@ rm -rf apps/playground/.next
 ```
 
 Skip this and Next serves the previous `dist`. CSS changes hot-reload, so the
-page *looks* updated while the JS is stale — which presents as "tier 2 renders
+page _looks_ updated while the JS is stale — which presents as "tier 2 renders
 nothing" rather than as a cache problem. This cost real debugging time once.
 
 ---
@@ -39,16 +39,16 @@ pnpm test
 Expect **62 passed**. What they guard, in order of how badly it hurts when they
 fail:
 
-| File | Guards against |
-|---|---|
-| `engine/aesthetic.test.ts` | The look silently regressing — corners getting pinned, roughness dialled back, fill levels collapsing, the seed pool breaking |
-| `styles/tier-agreement.test.ts` | Tier 1 and tier 2 drifting apart across the `.ts`/`.css` boundary |
-| `engine/seed.test.ts` | Seed clustering. React's `useId` emits stride-8 tree positions that collapse onto a few variants without a mixed hash |
-| `engine/marks.test.ts` | Drawn icons breaking at small sizes or losing determinism |
-| `engine/generator.test.ts` | Non-deterministic geometry, cache misses on sub-pixel resize |
-| `frame/hydration.test.tsx` | Server/client markup divergence |
-| `frame/tier2.test.tsx` | rough.js failing to mount; the sketch layer entering layout or the a11y tree |
-| `frame/draw-on.test.tsx` | Pass ordering, the entrance timeline running out of sequence, and the animation costing anything when off |
+| File                            | Guards against                                                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `engine/aesthetic.test.ts`      | The look silently regressing — corners getting pinned, roughness dialled back, fill levels collapsing, the seed pool breaking |
+| `styles/tier-agreement.test.ts` | Tier 1 and tier 2 drifting apart across the `.ts`/`.css` boundary                                                             |
+| `engine/seed.test.ts`           | Seed clustering. React's `useId` emits stride-8 tree positions that collapse onto a few variants without a mixed hash         |
+| `engine/marks.test.ts`          | Drawn icons breaking at small sizes or losing determinism                                                                     |
+| `engine/generator.test.ts`      | Non-deterministic geometry, cache misses on sub-pixel resize                                                                  |
+| `frame/hydration.test.tsx`      | Server/client markup divergence                                                                                               |
+| `frame/tier2.test.tsx`          | rough.js failing to mount; the sketch layer entering layout or the a11y tree                                                  |
+| `frame/draw-on.test.tsx`        | Pass ordering, the entrance timeline running out of sequence, and the animation costing anything when off                     |
 
 **Confirm the suite is load-bearing.** Each of these should fail exactly one
 test, then revert:
@@ -92,18 +92,18 @@ pnpm --filter @handcraft/playground dev
 <http://localhost:4321>. Every control is URL-addressable, so you can deep-link
 a state and Playwright can pin one later:
 
-| URL | State |
-|---|---|
-| `/` | tier 2 (rough.js), natural hand, `fill=med`, layered ink |
-| `?fidelity=lite` | tier 1 — CSS only, no JS |
-| `?hand=steady\|natural\|loose\|hurried` | drawing personality |
-| `?fill=no\|low\|med\|high` | page-wide texture ceiling |
-| `?ink=plain` | drop the under-drawing and pen marks |
-| `?drawOn=1` | entrance animation |
-| `?drawOn=1&drawMs=2500` | slower entrance (default 1100ms, slider in the toolbar) |
-| `?dark=1` | blackboard theme |
-| `?texture=0` | turbulence off |
-| `?stress=1` | 500 frames, for the perf check |
+| URL                                     | State                                                    |
+| --------------------------------------- | -------------------------------------------------------- |
+| `/`                                     | tier 2 (rough.js), natural hand, `fill=med`, layered ink |
+| `?fidelity=lite`                        | tier 1 — CSS only, no JS                                 |
+| `?hand=steady\|natural\|loose\|hurried` | drawing personality                                      |
+| `?fill=no\|low\|med\|high`              | page-wide texture ceiling                                |
+| `?ink=plain`                            | drop the under-drawing and pen marks                     |
+| `?drawOn=1`                             | entrance animation                                       |
+| `?drawOn=1&drawMs=2500`                 | slower entrance (default 1100ms, slider in the toolbar)  |
+| `?dark=1`                               | blackboard theme                                         |
+| `?texture=0`                            | turbulence off                                           |
+| `?stress=1`                             | 500 frames, for the perf check                           |
 
 The readout under the controls reports settle time, frame count and path count.
 
@@ -177,7 +177,7 @@ rough.js and components generate synchronously in `useLayoutEffect`.
 
 Tab through the page. Every interactive element needs a visible focus ring that
 follows the wobbly corner radius. Check both themes: the ring uses a dedicated
-`--hc-focus` token precisely so it clears 3:1 against paper *and* ink, which
+`--hc-focus` token precisely so it clears 3:1 against paper _and_ ink, which
 neither accent colour does.
 
 Press and hold a button — it should shift onto its own shadow, like a pen being
@@ -188,7 +188,7 @@ and press.
 
 ## 8. Degraded modes — not automated yet
 
-**Forced colors.** DevTools → Rendering → *Emulate CSS forced-colors: active*.
+**Forced colors.** DevTools → Rendering → _Emulate CSS forced-colors: active_.
 Both stroke layers must vanish, replaced by a single plain system-coloured
 border. Two near-identical borders a fraction of a degree apart is noise in this
 mode, not charm.
@@ -196,7 +196,7 @@ mode, not charm.
 **Print.** Cmd-P. Second stroke pass, SVG, offset shadows and paper textures all
 drop out.
 
-**Reduced motion.** DevTools → Rendering → *prefers-reduced-motion: reduce*, then
+**Reduced motion.** DevTools → Rendering → _prefers-reduced-motion: reduce_, then
 load `?drawOn=1`. Frames must appear **immediately and fully** — the dash is
 reset along with the animation, so a partial reset would leave them invisible
 rather than merely unanimated.

@@ -64,9 +64,7 @@ function cornerMiss(paths: SketchPath[], w: number, h: number, strokeWidth: numb
   ];
   const pts = points(paths);
   return Math.max(
-    ...corners.map(([cx, cy]) =>
-      Math.min(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy))),
-    ),
+    ...corners.map(([cx, cy]) => Math.min(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy)))),
   );
 }
 

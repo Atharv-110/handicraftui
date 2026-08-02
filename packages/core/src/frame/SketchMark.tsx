@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useState } from "react";
-import {
-  generateMark,
-  generateMarkSync,
-  type SketchPath,
-} from "../engine/generator";
+import { generateMark, generateMarkSync, type SketchPath } from "../engine/generator";
 import { markRotation, type MarkDirection, type MarkName } from "../engine/marks";
 import { seedFrom } from "../engine/seed";
 import { HANDS, useHandcraft } from "../theme/context";
@@ -79,16 +75,7 @@ export function SketchMark({
     return () => {
       cancelled = true;
     };
-  }, [
-    name,
-    size,
-    key,
-    config.handOffset,
-    profile.roughness,
-    profile.bowing,
-    strokeWidth,
-    color,
-  ]);
+  }, [name, size, key, config.handOffset, profile.roughness, profile.bowing, strokeWidth, color]);
 
   const rotation = markRotation(direction);
 

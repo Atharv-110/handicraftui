@@ -52,9 +52,7 @@ describe("tier 1 and tier 2 agree", () => {
 
   it("hides the CSS hachure once real geometry mounts", () => {
     // Otherwise the gradient sits underneath the rough.js fill and doubles it.
-    expect(css).toMatch(
-      /\.hc-frame\[data-hc-fidelity="high"\]\s*\{[^}]*background-image:\s*none/,
-    );
+    expect(css).toMatch(/\.hc-frame\[data-hc-fidelity="high"\]\s*\{[^}]*background-image:\s*none/);
   });
 
   it("authors a radius variant for every seed bucket", () => {

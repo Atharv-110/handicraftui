@@ -21,9 +21,7 @@ export default async function Page({
   const dark = params.dark === "1";
   const texture = params.texture !== "0";
   const stress = params.stress === "1";
-  const hand = (["steady", "natural", "loose", "hurried"] as const).find(
-    (h) => h === params.hand,
-  );
+  const hand = (["steady", "natural", "loose", "hurried"] as const).find((h) => h === params.hand);
   const ink = params.ink === "plain" ? "plain" : "layered";
   const drawOn = params.drawOn === "1";
   const drawMs = Number(params.drawMs) || undefined;

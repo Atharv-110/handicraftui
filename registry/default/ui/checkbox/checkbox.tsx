@@ -3,8 +3,7 @@
 import * as React from "react";
 import { cn, SketchMark, useSketchFrame } from "@handcraft/core";
 
-export interface CheckboxProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
+export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: React.ReactNode;
   ref?: React.Ref<HTMLInputElement>;
 }

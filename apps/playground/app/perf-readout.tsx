@@ -54,10 +54,7 @@ export function PerfReadout() {
   }, []);
 
   return (
-    <div
-      data-testid="perf-readout"
-      className="font-note text-hc-ink-faint mt-2 text-xs"
-    >
+    <div data-testid="perf-readout" className="font-note text-hc-ink-faint mt-2 text-xs">
       {stats
         ? stats.svgs === 0
           ? "tier 1 — CSS frame only, no geometry mounted"

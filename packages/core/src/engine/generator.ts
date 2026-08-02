@@ -125,10 +125,7 @@ interface RoughGeneratorLike {
     y2: number,
     options?: Record<string, unknown>,
   ): RoughDrawable;
-  linearPath(
-    points: Array<[number, number]>,
-    options?: Record<string, unknown>,
-  ): RoughDrawable;
+  linearPath(points: Array<[number, number]>, options?: Record<string, unknown>): RoughDrawable;
   toPaths(drawable: RoughDrawable): RoughPathInfo[];
 }
 interface RoughModule {
@@ -274,10 +271,7 @@ export async function generateSketch(
  * CSS frame for real geometry *before* paint. Without it, every page load shows
  * tier 1 for a frame and then visibly changes.
  */
-export function generateSketchSync(
-  geom: SketchGeometry,
-  style: SketchStyle,
-): SketchPath[] | null {
+export function generateSketchSync(geom: SketchGeometry, style: SketchStyle): SketchPath[] | null {
   const w = quantize(geom.width);
   const h = quantize(geom.height);
   if (w <= 0 || h <= 0) return [];
@@ -298,12 +292,7 @@ export function preloadSketchEngine(): void {
   void getGenerator();
 }
 
-function shapePath(
-  geom: SketchGeometry,
-  pad: number,
-  iw: number,
-  ih: number,
-): string | null {
+function shapePath(geom: SketchGeometry, pad: number, iw: number, ih: number): string | null {
   switch (geom.shape) {
     case "pill":
       return roundedRectPath(pad, pad, iw, ih, ih / 2);
@@ -391,16 +380,7 @@ function compose(
   if (style.chalk) {
     push(
       gen.toPaths(
-        drawShape(
-          gen,
-          geom,
-          { ...base, strokeWidth: strokeWidth + 2.6 },
-          w,
-          h,
-          pad,
-          iw,
-          ih,
-        ),
+        drawShape(gen, geom, { ...base, strokeWidth: strokeWidth + 2.6 }, w, h, pad, iw, ih),
       ),
       "dust",
       0.13,
@@ -515,10 +495,7 @@ const markCache = createCache<SketchPath[]>();
  * Marks are far smaller than frames, so the taper is doing most of the work
  * here: at 16px the effective roughness lands near 0.8.
  */
-export function generateMarkSync(
-  name: MarkName,
-  style: MarkStyle,
-): SketchPath[] | null {
+export function generateMarkSync(name: MarkName, style: MarkStyle): SketchPath[] | null {
   const size = Math.max(1, Math.round(style.size));
   const key = [name, size, style.seed, style.stroke ?? "", style.strokeWidth ?? ""].join("|");
   const cached = markCache.get(key);
