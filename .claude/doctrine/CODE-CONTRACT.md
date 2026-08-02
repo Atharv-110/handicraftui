@@ -89,8 +89,24 @@ Rules embedded above, stated explicitly:
 
 ```
 shape  radius  fidelity  fill  fillColor  ink  roughness  bowing
-strokeWidth  stroke  hachureAngle  chalk  rescribble  seedKey
+strokeWidth  stroke  hachureAngle  chalk  rescribble  seedKey  focusWithin
 ```
+
+- **`focusWithin` is required whenever the frame sits on a non-focusable wrapper.** The global rule in
+  the stylesheet is `.hc-frame:focus-visible`, which matches only when the frame element *is itself*
+  the focusable one — true for Button, false for anything wrapping a real control in a `<span>` or
+  `<div>`. Radio, Switch, Select and most Base UI components have that shape.
+
+  Passing `focusWithin: true` emits `data-hc-focus-within`, which one unlayered rule matches as
+  `.hc-frame[data-hc-focus-within]:has(> :focus-visible)`. **Direct child, deliberately.** A bare
+  `:has(:focus-visible)` would draw a second outline on a Card containing a focused Button.
+
+  This is opt-in rather than automatic because the direct-child form still cannot tell a wrapper
+  around its own control from a container that happens to hold one. Opting in states the intent.
+
+  The failure it prevents is silent. Checkbox shipped with no visible focus at all: its frame was a
+  `<span>` around an `opacity-0` input, and **`opacity` applies to an outline too**, so the native ring
+  was drawn correctly and perfectly transparent. Nothing looked broken in the DOM.
 
 - **`shape` defaults to `rect` (sharp).** Sharp tested visibly more drawn than rounded, because the
   stroke overshoots past the corner instead of easing around an arc. `rounded`, `pill`, `circle` and
