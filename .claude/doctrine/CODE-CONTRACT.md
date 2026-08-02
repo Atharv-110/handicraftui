@@ -98,6 +98,11 @@ strokeWidth  stroke  hachureAngle  chalk  rescribble  seedKey
 - **`seedKey` pins geometry across state changes.** Checkbox passes `inputId` so checked and unchecked
   share one seed and ticking does not redraw the box. Any component whose state changes its `fill`
   needs this, or it will visibly re-scribble on interaction.
+- **`seedKey` is MANDATORY on every portal component** — Dialog, Popover, Tooltip, DropdownMenu,
+  Select. Not a recommendation. A portaled frame unmounts on close and remounts on open, so without
+  an explicit key it draws different geometry every time it opens. Measured in the cycle-000 spike,
+  case 4c: geometry did not match across open/close cycles. The key must be stable for the life of
+  the component, so derive it from an id rather than from open state.
 - **`fillColor` replaces the flat `bg-*` it used to carry.** The scribbled fill *is* the surface now;
   a flat background behind a hachure pass just muddies it.
 - **`rescribble` is opt-in per component**, never a page default. Twenty things redrawing as a cursor

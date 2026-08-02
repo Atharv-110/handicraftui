@@ -142,9 +142,22 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
 - **Keyboard** — tab order sensible, focus visible at every breakpoint, no trap.
 - **axe** — zero criticals. No axe run has ever happened on this project.
 - **Handover** — reload with the network throttled. If the tier-1 to tier-2 swap announces itself, that
-  is a finding. Budget: 60ms, previously measured across 18 frames.
-- **Stress** — `?stress=1` renders 500 frames. Budget: 64ms to settle, previously measured identical
-  to an 18-frame page thanks to the seed pool.
+  is a finding.
+- **Stress** — `?stress=1` renders 500 frames.
+
+  **Both budgets are currently UNSTATED, deliberately.** They used to read 60ms and 64ms. Cycle 000
+  measured 80–86ms handover and roughly 400ms stress settle, in *both* themes within about 2% of each
+  other — so this is not a chalk regression, and the numbers are not obviously wrong either. The old
+  figures were recorded without their measurement conditions, so there is no way to tell whether the
+  code got slower or the original was taken under `next build` while these were taken under `next dev`.
+
+  A budget nobody can reproduce is worse than no budget: it fails a cycle for unknown reasons and
+  trains people to wave it through. So rather than raising the numbers to match observation — which
+  would launder a possible regression into the baseline — they are withdrawn until re-measured under
+  both `next dev` and `next build`, with the conditions recorded alongside the figure.
+
+  Until then, report the measurement and flag any *change* from the previous cycle rather than
+  comparing to an absolute.
 - **No-JS** — tier 1 must render complete, hachured frames. Chrome's `--disable-javascript` is ignored
   in recent headless builds and `--dump-dom` returns nothing with scripting off, so the working method
   is to `curl` the SSR HTML and strip the `<script>` tags.
