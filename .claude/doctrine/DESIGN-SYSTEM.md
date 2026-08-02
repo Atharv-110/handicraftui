@@ -115,7 +115,24 @@ so any role-filled Card is already at `low` regardless of what it asks for.
 | `--hc-success` replaced | 4.10:1 light, fails AA. Unused today only because Badge deferred a `success` variant |
 | `--hc-focus` moved inside sRGB | `oklch(52% 0.19 255)` has red channel −0.0108 and is silently clipped to `#0065D2`. Its own comment claims 3:1 against ink; it measures 2.96:1 light, 1.80:1 dark |
 | Button `primary` drops `med` → `low` | Ink over highlighter at `med` is 3.64:1 in dark mode. Identical to the Badge `marked` defect |
-| Button `danger` stops tinting text | Tier 1 fixes the pseudo-element stroke to `--hc-ink`; tier 2 resolves `currentColor` against the tinted element, so the stroke colour flips at handover |
+| Button `danger` pins its tier-2 stroke to ink | Tier 1 fixes the pseudo-element stroke to `--hc-ink`; tier 2 resolves `currentColor` against the tinted element, so the stroke colour flips at handover. Fixed with `stroke`, **not** by dropping the tint — see the rule below |
+
+### Any component that tints its text passes `stroke`
+
+**A component using a role `ink` on its text must pass `stroke: "var(--hc-ink)"` to
+`useSketchFrame`.** Not optional, and not a per-component judgment call.
+
+Tier 1 pins the pseudo-element stroke to `--hc-ink` in CSS. Tier 2 resolves `currentColor` against
+the element, which a tinted component has changed. Without an explicit `stroke` the frame is one
+colour before hydration and another after, and the flip is visible at every page load.
+
+`useSketchFrame` already accepts `stroke?: string` and threads it to the generator, so this costs one
+line per component and no engine work.
+
+This rule is written here rather than in the components on purpose. Badge worked out the equivalent
+rule for its own `marked` variant in cycle 1, had nowhere to record it, and Button `primary` shipped
+the identical 3.64:1 defect as a result. A rule that lives in one component's comments is a rule that
+gets rediscovered.
 
 **`--hc-focus`'s "3:1 against ink" requirement is itself unresolved.** At `outline-offset: 3px` the
 ring sits on paper, where it measures 5.22:1 light and 7.21:1 dark. Whether the stated requirement is
