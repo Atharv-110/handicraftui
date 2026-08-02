@@ -36,3 +36,6 @@ __pycache__/
 
 # generated registry output
 registry/public/r/
+
+# QA evidence, local only
+.qa-screenshots/

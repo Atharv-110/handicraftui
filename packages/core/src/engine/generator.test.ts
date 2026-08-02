@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { __resetSketchEngine, generateSketch } from "./generator";
+import {
+  __resetSketchEngine,
+  generateSketch,
+  generateSketchSync,
+  generateMarkSync,
+  BASE_STROKE_WIDTH,
+  CHALK_STROKE_WIDTH,
+} from "./generator";
 import { quantize, QUANT } from "./cache";
 import { seedFrom } from "./seed";
 
@@ -63,6 +70,123 @@ describe("generateSketch", () => {
       expect(paths.length, shape).toBeGreaterThan(0);
       expect(paths[0]?.d, shape).toMatch(/^M/);
     }
+  });
+});
+
+describe("chalk", () => {
+  beforeEach(() => {
+    __resetSketchEngine();
+  });
+
+  // Big enough to sit at or above TAPER_PIVOT (44), so the taper factor k is 1
+  // and the stroke-width arithmetic is exactly the ratio, not a tapered
+  // fraction of it.
+  const bigGeom = { shape: "rect", width: 160, height: 64 } as const;
+
+  it("keeps chalk geometry from colliding with non-chalk geometry in the frame cache", async () => {
+    // generateSketchSync needs roughjs already loaded (it returns null
+    // otherwise) — warm it with one async call before touching the sync path,
+    // the same way useSketchFrame's own fast path assumes it has been warmed
+    // by the provider.
+    await generateSketch(bigGeom, { seed: 800 });
+
+    const plain = generateSketchSync(bigGeom, { seed: 801, chalk: false });
+    const chalk = generateSketchSync(bigGeom, { seed: 801, chalk: true });
+
+    expect(plain, "tier 2 did not activate for the plain call").not.toBeNull();
+    expect(chalk, "tier 2 did not activate for the chalk call").not.toBeNull();
+    expect(plain!.length).toBeGreaterThan(0);
+    expect(chalk!.length).toBeGreaterThan(0);
+
+    // Reference inequality, not deep equality: the defect this guards against
+    // is the second call literally hitting the first call's cache entry, in
+    // which case it would come back as the exact same array object, not
+    // merely one that happens to contain equal values.
+    expect(chalk).not.toBe(plain);
+  });
+
+  it("adds a dust pass only under chalk, painted before every ink path", async () => {
+    await generateSketch(bigGeom, { seed: 810 });
+
+    const chalk = generateSketchSync(bigGeom, { seed: 811, chalk: true });
+    const plain = generateSketchSync(bigGeom, { seed: 812, chalk: false });
+
+    expect(chalk, "tier 2 did not activate for the chalk call").not.toBeNull();
+    expect(plain, "tier 2 did not activate for the plain call").not.toBeNull();
+    expect(chalk!.length).toBeGreaterThan(0);
+    expect(plain!.length).toBeGreaterThan(0);
+
+    const kinds = chalk!.map((p) => p.kind);
+    const firstInk = kinds.indexOf("ink");
+    const lastDust = kinds.lastIndexOf("dust");
+    expect(lastDust, "no dust pass under chalk").toBeGreaterThanOrEqual(0);
+    expect(firstInk, "no ink pass at all").toBeGreaterThanOrEqual(0);
+    expect(lastDust, "a dust path paints after an ink path").toBeLessThan(firstInk);
+
+    expect(plain!.some((p) => p.kind === "dust")).toBe(false);
+  });
+
+  it("raises the frame's ink stroke by exactly the CHALK_STROKE_WIDTH ratio", async () => {
+    await generateSketch(bigGeom, { seed: 820 });
+
+    // Different seeds on purpose: strokeWidth does not depend on seed (only
+    // style.strokeWidth, style.chalk and the size-driven taper feed it), so
+    // using distinct seeds here keeps this test's cache entries independent
+    // of the cache-key test above — a cache-key regression there should not
+    // also make this ratio assertion fail for an unrelated reason.
+    const plain = generateSketchSync(bigGeom, { seed: 821, chalk: false });
+    const chalk = generateSketchSync(bigGeom, { seed: 822, chalk: true });
+
+    expect(plain).not.toBeNull();
+    expect(chalk).not.toBeNull();
+
+    // The dust pass also carries strokeWidth (base + 2.6) and pool paths carry
+    // 0 — filtering to "ink" is what makes this comparison mean anything.
+    const plainInk = plain!.filter((p) => p.kind === "ink");
+    const chalkInk = chalk!.filter((p) => p.kind === "ink");
+    expect(plainInk.length).toBeGreaterThan(0);
+    expect(chalkInk.length).toBeGreaterThan(0);
+
+    const ratio = chalkInk[0]!.strokeWidth / plainInk[0]!.strokeWidth;
+    expect(ratio).toBeCloseTo(CHALK_STROKE_WIDTH / BASE_STROKE_WIDTH, 5);
+  });
+
+  it("keeps chalk marks from colliding with non-chalk marks in the mark cache", async () => {
+    await generateSketch(bigGeom, { seed: 830 });
+
+    const plain = generateMarkSync("check", { seed: 831, size: 24, chalk: false });
+    const chalk = generateMarkSync("check", { seed: 831, size: 24, chalk: true });
+
+    expect(plain, "generateMarkSync returned null — roughjs not loaded").not.toBeNull();
+    expect(chalk, "generateMarkSync returned null — roughjs not loaded").not.toBeNull();
+    expect(plain!.length).toBeGreaterThan(0);
+    expect(chalk!.length).toBeGreaterThan(0);
+
+    // Reference inequality — see the frame cache-key test above for why.
+    expect(chalk).not.toBe(plain);
+  });
+
+  it("raises the mark's stroke by the same CHALK_STROKE_WIDTH ratio", async () => {
+    await generateSketch(bigGeom, { seed: 840 });
+
+    // "check" is a stroked mark (MARK_STROKES), not a filled one — a filled
+    // mark would emit strokeWidth: 0 on every path and assert nothing.
+    //
+    // Different seeds, same reasoning as the frame version above: strokeWidth
+    // does not depend on seed, so this stays independent of the mark
+    // cache-key test's own mutation.
+    const plain = generateMarkSync("check", { seed: 841, size: 24, chalk: false });
+    const chalk = generateMarkSync("check", { seed: 842, size: 24, chalk: true });
+
+    expect(plain).not.toBeNull();
+    expect(chalk).not.toBeNull();
+    expect(plain!.length).toBeGreaterThan(0);
+    expect(chalk!.length).toBeGreaterThan(0);
+
+    // The mark's base stroke is BASE_STROKE_WIDTH * 0.8, not BASE_STROKE_WIDTH
+    // itself, so the ratio is the invariant here, not the absolute width.
+    const ratio = chalk![0]!.strokeWidth / plain![0]!.strokeWidth;
+    expect(ratio).toBeCloseTo(CHALK_STROKE_WIDTH / BASE_STROKE_WIDTH, 5);
   });
 });
 

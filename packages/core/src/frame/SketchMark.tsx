@@ -58,6 +58,11 @@ export function SketchMark({
       size,
       roughness: profile.roughness,
       bowing: profile.bowing,
+      // Same pattern as `hand` and `handOffset` above: the mark reads chalk
+      // straight off context rather than exposing another prop. A checkbox's
+      // tick has to be drawn by the same hand as its box, so the two cannot
+      // diverge on whether that hand is holding chalk.
+      chalk: config.chalk,
       ...(strokeWidth !== undefined ? { strokeWidth } : {}),
       ...(color !== undefined ? { stroke: color } : {}),
     };
@@ -75,7 +80,17 @@ export function SketchMark({
     return () => {
       cancelled = true;
     };
-  }, [name, size, key, config.handOffset, profile.roughness, profile.bowing, strokeWidth, color]);
+  }, [
+    name,
+    size,
+    key,
+    config.handOffset,
+    config.chalk,
+    profile.roughness,
+    profile.bowing,
+    strokeWidth,
+    color,
+  ]);
 
   const rotation = markRotation(direction);
 

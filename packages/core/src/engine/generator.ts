@@ -141,6 +141,18 @@ export const BASE_ROUGHNESS = 2.2;
 export const BASE_BOWING = 1.4;
 export const BASE_STROKE_WIDTH = 2.4;
 
+/**
+ * Chalk on slate is drawn heavier than ink on paper. A thin light line on a dark
+ * ground reads weaker than the same line inverted, so the blackboard theme
+ * thickens the stroke rather than merely recolouring it.
+ *
+ * Matches `--hc-stroke-w` inside the `.dark` block of handicraft.css. The two
+ * tiers have to agree on weight in dark mode for exactly the reason they do in
+ * light: tier 1 is what paints before hydration, and a mismatch shows up as the
+ * frame thickening or thinning at the handover.
+ */
+export const CHALK_STROKE_WIDTH = 2.6;
+
 /** Below this, the taper starts pulling the parameters back. */
 const TAPER_PIVOT = 44;
 
@@ -333,7 +345,24 @@ function compose(
   h: number,
 ): SketchPath[] {
   const taper = taperForSize(w, h);
-  const strokeWidth = taper.scaleStroke(style.strokeWidth ?? BASE_STROKE_WIDTH);
+  // Chalk raises the *input* to the taper, not its output. `scaleStroke` floors
+  // its result at 1.1px so a hairline never reads as unfinished — multiplying
+  // after the taper would lift an already-floored value back above its own
+  // floor and defeat it on anything near the taper pivot. Multiplying before
+  // means the chalk boost passes through the taper like any other stroke
+  // request, so a 20×20 checkbox gets a proportionally smaller boost than a
+  // 190×52 button, exactly the way the taper already treats every other size.
+  //
+  // The ratio, not an assignment to CHALK_STROKE_WIDTH outright, preserves each
+  // hand's relative weight — HANDS ranges from steady's 2.0 to loose's 2.6, and
+  // assigning a flat constant would flatten every one of them to the same
+  // weight in dark mode. `natural`, the hand equal to BASE_STROKE_WIDTH and
+  // therefore to tier 1, lands on exactly CHALK_STROKE_WIDTH: the one pairing
+  // that has to agree.
+  const strokeWidth = taper.scaleStroke(
+    (style.strokeWidth ?? BASE_STROKE_WIDTH) *
+      (style.chalk ? CHALK_STROKE_WIDTH / BASE_STROKE_WIDTH : 1),
+  );
   const roughness = taper.scaleRoughness(style.roughness ?? BASE_ROUGHNESS);
   const bowing = taper.scaleBowing(style.bowing ?? BASE_BOWING);
   const stroke = style.stroke ?? "currentColor";
@@ -483,6 +512,8 @@ export interface MarkStyle {
   bowing?: number;
   strokeWidth?: number;
   stroke?: string;
+  /** Same boost as the frame's own chalk stroke — see `chalk` on `SketchStyle`. */
+  chalk?: boolean;
 }
 
 const markCache = createCache<SketchPath[]>();
@@ -497,14 +528,32 @@ const markCache = createCache<SketchPath[]>();
  */
 export function generateMarkSync(name: MarkName, style: MarkStyle): SketchPath[] | null {
   const size = Math.max(1, Math.round(style.size));
-  const key = [name, size, style.seed, style.stroke ?? "", style.strokeWidth ?? ""].join("|");
+  // `chalk` has to participate here for the same reason it does in the frame's
+  // cache key: without it, a theme toggle that keeps every other style field
+  // identical would hit the light mark's cache entry and serve it under dark,
+  // stroke weight and all.
+  const key = [
+    name,
+    size,
+    style.seed,
+    style.stroke ?? "",
+    style.strokeWidth ?? "",
+    style.chalk ? "chalk" : "",
+  ].join("|");
   const cached = markCache.get(key);
   if (cached) return cached;
   if (!loadedGenerator) return null;
 
   const gen = loadedGenerator;
   const taper = taperForSize(size, size);
-  const strokeWidth = taper.scaleStroke(style.strokeWidth ?? BASE_STROKE_WIDTH * 0.8);
+  // Same before-the-taper ratio as the frame stroke above. The mark's base is
+  // BASE_STROKE_WIDTH * 0.8, not BASE_STROKE_WIDTH itself, so the invariant
+  // that has to hold here is the *ratio* between chalk and non-chalk, not the
+  // absolute width — the mark was never going to land on CHALK_STROKE_WIDTH.
+  const strokeWidth = taper.scaleStroke(
+    (style.strokeWidth ?? BASE_STROKE_WIDTH * 0.8) *
+      (style.chalk ? CHALK_STROKE_WIDTH / BASE_STROKE_WIDTH : 1),
+  );
   const options: Record<string, unknown> = {
     seed: style.seed,
     roughness: taper.scaleRoughness(style.roughness ?? BASE_ROUGHNESS),

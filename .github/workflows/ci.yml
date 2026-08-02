@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel a superseded PR run — the newest push is the only one worth finishing.
+# Never cancel a `main` run: that run is the permanent record for its commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# This workflow only reads code and never touches secrets, but default token
+# scope depends on repo settings — stating it explicitly beats inheriting it.
+permissions:
+  contents: read
+
+env:
+  # Corepack prompts before downloading a pinned package manager on some
+  # versions. On a non-interactive runner that prompt either hangs the job or
+  # fails with a message that gives no hint it was ever asked.
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `cache: pnpm` input here on purpose. setup-node resolves the pnpm
+      # store by shelling out to `pnpm store path`, which needs pnpm to
+      # already exist. pnpm cannot exist before `corepack enable`, which
+      # cannot run before this step finishes putting its own Node on PATH.
+      # Circular — the store is cached explicitly, later, once pnpm is real.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Must run after actions/setup-node, never before. `corepack enable`
+      # writes shims into the bin directory of whichever `node` is on PATH at
+      # that moment, and setup-node prepends its own Node onto PATH. Running
+      # this first would point the shims at the runner's preinstalled Node,
+      # which then falls off PATH the moment setup-node runs.
+      - run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      # Caches the pnpm content-addressable store only — not turbo's cache.
+      # Caching turbo would let `build` replay instead of run, which makes CI
+      # green because a task replayed a stale result rather than because it
+      # passed: the exact false-green this workflow exists to prevent. Turbo
+      # still caches *within* this job regardless, since `test` and
+      # `typecheck` both `dependsOn: ["^build"]` (turbo.json), so core is
+      # built once here and reused by every later step for free.
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # Explicit even though pnpm infers --frozen-lockfile under CI=true. A
+      # contributor who edits package.json without regenerating
+      # pnpm-lock.yaml must fail loudly here, not get a silently re-resolved
+      # tree that differs from every other machine.
+      - run: pnpm install --frozen-lockfile
+
+      # The same six commands CONTRIBUTING.md tells a contributor to run,
+      # in the same order, each one blocking. A faster order exists — running
+      # `build` first would let turbo's in-job cache serve the rest — but
+      # turbo already dedupes `^build` inside this job regardless, so the
+      # saving is seconds. Having CI run literally the command list a
+      # contributor was told to run is worth more than seconds: when this
+      # goes red, the fix instruction is "run the same six commands".
+      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm registry:build
+
+      # scripts/build-registry.ts writes registry/public/r/<name>.json per
+      # component plus registry.json as the index, into a directory that is
+      # gitignored. A script that exits 0 having silently written nothing
+      # would pass the step above with nothing actually checked. This turns
+      # that no-op possibility into a real assertion.
+      - name: Verify registry output was written
+        run: test -f registry/public/r/registry.json
+
+      - run: pnpm format:check

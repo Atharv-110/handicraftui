@@ -90,6 +90,7 @@ export function Harness({
             fill={fill}
             drawOn={drawOn}
             drawOnDuration={drawMs}
+            chalk={dark}
           >
             <section className="mt-10 space-y-10" data-hc-texture={texture ? "on" : undefined}>
               <Group title="Buttons — variants">
