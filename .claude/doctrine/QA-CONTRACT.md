@@ -74,14 +74,38 @@ Never assume a revert worked. `git diff` is now the baseline — that is what th
 
 ### Known-good mutations (from `TESTING.md`)
 
-Each must fail exactly one named test:
+**Each must fail its stated count. Two of the four fail more than one test, and
+that is correct** — a mutation crossing a genuine shared invariant *should* light
+up every guard that covers it. What matters is that the count is known in advance
+and does not change.
 
-| Mutation | Must fail |
-|---|---|
-| `preserveVertices: false → true` in `engine/generator.ts` | "does not pin the corners" |
-| `POOL_SEEDS` return replaced with `Math.random()` in `engine/seed.ts` | determinism |
-| `--hc-stroke-w: 2.4px → 1.6px` in `styles/handicraft.css` | "uses the same stroke weight" |
-| `--hc-r-a: 4px → 14px` in `styles/handicraft.css` | "keeps tier-1 corners near-square" |
+Measured 2026-08-03 against 108 tests in 16 files:
+
+| Mutation | Fails | Which |
+|---|---|---|
+| `preserveVertices: false → true` in `engine/generator.ts` | **5 tests, 2 files** | `aesthetic.test.ts` "does not pin the corners", plus `golden-shapes.test.ts` for `rect`, `rect-small`, `rounded`, `pill` |
+| `POOL_SEEDS` return replaced with `Math.random()` in `engine/seed.ts` | **4 tests, 4 files** | `seed.test.ts` ×2, `generator.test.ts` "derives a usable seed from a React id", `tier2.test.tsx` "renders identical geometry across two independent mounts" |
+| `--hc-stroke-w: 2.4px → 1.6px` in `styles/handicraft.css` | **1 test** | `tier-agreement.test.ts` "uses the same stroke weight" |
+| `--hc-r-a: 4px → 14px` in `styles/handicraft.css` | **1 test** | `tier-agreement.test.ts` "keeps tier-1 corners near-square" |
+
+This table previously read "each must fail exactly one named test", which had
+become false and was never noticed, because nobody counts the failures when the
+suite goes red as expected. **A stale expectation in a mutation table is
+invisible in exactly the way mutation testing exists to prevent.** Re-measure it
+whenever a test file is added that covers one of these invariants.
+
+Two results that look like defects and are not. Both were measured:
+
+- **`circle` survives the `preserveVertices` mutation.** A circle path has no
+  polygon vertices to pin, so the flag has nothing to act on. Four goldens of
+  five is the correct answer, not a gap.
+- **`golden-shapes.test.ts` survives the seed mutation.** It passes an explicit
+  `seed: 42` to `generateSketch` rather than deriving one from an id, so it never
+  reaches `seedFrom`.
+
+The separate rule in "Mutation testing" above — that a *new* assertion's mutation
+should isolate that assertion — still stands. It governs tests being written now,
+not these four whole-invariant probes.
 
 ### Rule V3 — a test can pass for the wrong reason
 

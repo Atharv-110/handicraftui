@@ -2,10 +2,10 @@
 
 Hand-drawn React components. Real sketched geometry, not a rounded border and a wobble filter.
 
-> **Pre-release.** Four components exist of a planned 21. `@handicraft/core` is version 0.0.0 and
-> unpublished, the registry is not hosted, and there is no docs site — so there is no install command
-> that works today, and this file does not invent one. Everything below is what runs in this
-> repository right now.
+> **Pre-release.** Of a planned 21 components, 7 exist and 14 do not. `@handicraft/core` is version
+> 0.0.0 and unpublished, the registry is not hosted, and there is no docs site — so there is no
+> install command that works today, and this file does not invent one. Everything below is what runs
+> in this repository right now.
 
 ## What it is
 
@@ -33,10 +33,12 @@ This runs today in `apps/playground`. It is not installable yet.
       <CardTitle>Field notes</CardTitle>
     </CardHeader>
     <CardContent>
-      <Input placeholder="Where were you?" />
+      <Label htmlFor="place">Where were you?</Label>
+      <Input id="place" placeholder="Second bench, north side" />
       <Checkbox label="Draft" />
     </CardContent>
     <CardFooter>
+      <Badge variant="marked">New</Badge>
       <Button variant="primary" rescribble>
         Save
       </Button>
@@ -73,23 +75,26 @@ paragraphs need to stay readable is never forced denser.
 
 ## What exists
 
-| Component  | What it does that a plain one does not                                                                                                                      |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Button`   | Four variants. `primary` carries its emphasis as highlighter hachure instead of a flat fill; `rescribble` redraws the frame on hover and press.             |
-| `Card`     | `ruled` draws the exercise-book margin rule down the left edge. Fill is capped at `low`: measured against body copy, denser hachure costs legibility.       |
-| `Checkbox` | Keeps a real `<input type="checkbox">` in the DOM under the drawn box. The tick is a `SketchMark`, sharing the box's seed, hand and size taper.             |
-| `Input`    | No fill, ever. A text field is the one surface where the reader's own content has to stay perfectly legible, and hachure behind a value is the wrong trade. |
+| Component   | What it does that a plain one does not                                                                                                                      |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Badge`     | Four variants, told apart by hachure colour only. No variant tints its text, so nothing competes with the scribbled fill behind it.                         |
+| `Button`    | Four variants. `primary` carries its emphasis as highlighter hachure instead of a flat fill; `rescribble` redraws the frame on hover and press.             |
+| `Card`      | `ruled` draws the exercise-book margin rule down the left edge. Fill is capped at `low`: measured against body copy, denser hachure costs legibility.       |
+| `Checkbox`  | Keeps a real `<input type="checkbox">` in the DOM under the drawn box. The tick is a `SketchMark`, sharing the box's seed, hand and size taper.             |
+| `Input`     | No fill, ever. A text field is the one surface where the reader's own content has to stay perfectly legible, and hachure behind a value is the wrong trade. |
+| `Label`     | Draws nothing. It imports `cn` and no engine code, because a label that framed itself would compete with the field under it.                                |
+| `Separator` | A `<div role="separator">`, not an `<hr>`: a void element cannot hold the sketch layer. `decorative` takes the rule out of the accessibility tree.          |
 
-**Not built yet — 17.** Badge, Avatar, Alert, Skeleton, Separator, Textarea and Label are plain
-semantics. Radio, Switch, Select, Slider, Tabs, Accordion, Dialog, Popover, Tooltip and DropdownMenu are
-built on Base UI. No charts in v1 — the engine stays chart-agnostic so a chart layer can reuse it later.
+**Not built yet — 14.** Avatar, Alert, Skeleton and Textarea are plain semantics. Radio, Switch,
+Select, Slider, Tabs, Accordion, Dialog, Popover, Tooltip and DropdownMenu are built on Base UI. No
+charts in v1 — the engine stays chart-agnostic so a chart layer can reuse it later.
 
 ## How it is verified
 
-85 tests. Every one of them is mutation-verified: break the invariant it guards, confirm that test and
-only that test fails, revert, confirm green again, and check the revert with `git diff` rather than
-assuming it landed — prettier reformatting a mutated value has silently defeated a revert here before.
-A test that cannot fail is decoration.
+The suite is 108 tests across 16 files. Every one of them is mutation-verified: break the invariant
+it guards, confirm the named test fails and nothing unrelated goes with it, revert, confirm green
+again, and check the revert with `git diff` rather than assuming it landed — prettier reformatting a
+mutated value has silently defeated a revert here before. A test that cannot fail is decoration.
 
 The look is under test the same way the logic is. Corner overshoot is measured as the distance from each
 nominal corner to the nearest point the pen visits: 0.6 to 2.0px when corners run free, exactly 0.00
@@ -109,7 +114,7 @@ pnpm format:check
 
 ## Not done yet
 
-Beyond the 17 components:
+Beyond the components that are not built:
 
 - **Nothing is published.** `@handicraft/core` is 0.0.0 and the registry is not hosted, so no
   `shadcn add` URL resolves.
