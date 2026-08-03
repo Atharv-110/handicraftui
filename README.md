@@ -77,7 +77,7 @@ paragraphs need to stay readable is never forced denser.
 
 | Component   | What it does that a plain one does not                                                                                                                      |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Badge`     | Four variants, told apart by hachure colour only. No variant tints its text, so nothing competes with the scribbled fill behind it.                         |
+| `Badge`     | Four variants. Colour is emphasis, never the signal — the meaning is in the text, so a badge still reads correctly with the fill invisible.                 |
 | `Button`    | Four variants. `primary` carries its emphasis as highlighter hachure instead of a flat fill; `rescribble` redraws the frame on hover and press.             |
 | `Card`      | `ruled` draws the exercise-book margin rule down the left edge. Fill is capped at `low`: measured against body copy, denser hachure costs legibility.       |
 | `Checkbox`  | Keeps a real `<input type="checkbox">` in the DOM under the drawn box. The tick is a `SketchMark`, sharing the box's seed, hand and size taper.             |
