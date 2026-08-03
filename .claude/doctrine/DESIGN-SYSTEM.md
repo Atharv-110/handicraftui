@@ -36,10 +36,69 @@ gamma-encoded sRGB. Calibrated against the three filed measurements and reproduc
 | Surface | Rule | Floor |
 |---|---|---|
 | Label text on a hachure | 1.4.3 | 4.5:1, or 3:1 if large (≥24px, or ≥18.5px bold) |
-| The hachure itself, when decorative | 1.4.11 exempt | none |
-| The hachure itself, **when it distinguishes a state** (checked, selected, disabled) | 1.4.11 | 3:1 |
+| **A role fill's hachure** | **1.4.11 exempt** | none — see the decision below |
+| The hachure itself, **when it distinguishes a state** (checked, selected, disabled) | 1.4.11 | 3:1 — and see the impossibility result below before relying on this |
 | Button's frame stroke | 1.4.11, optional | none — the label identifies the control |
 | **Input's frame stroke** | 1.4.11 | 3:1 — an empty field has no other visible content. Currently 15.46:1 light, 12.98:1 dark |
+
+### Founder decision, 2026-08-03: a role colour is emphasis, never the sole signal
+
+A red Badge is a Badge that *looks* urgent. The meaning lives in its text. Colour sits on top as
+emphasis and never carries information by itself.
+
+This is the component-level form of the rule `PRINCIPLES.md` already locks — colour never carries
+meaning alone — and it makes every role hachure **decorative, and therefore exempt from 1.4.11**.
+
+**It is binding on every component, not a description of current behaviour.** Any component using a
+role colour must carry the same information in text or a drawn mark. A variant distinguished by
+colour alone is a defect, whatever its contrast ratio.
+
+### Why the decision was forced: 3:1 is unreachable on a rendered hachure
+
+The 3:1 figure in the fill table below is measured on the fill **token** — the colour as it would
+look painted solid. That surface never renders. What renders is a hatch line at
+`FILL_LEVELS.low.opacity`, which is 0.24.
+
+Measured, rendered `low` hatch line against paper: **1.19:1 to 1.31:1** across all ten cells.
+
+And it cannot be fixed with a better colour. At 0.24 opacity the theoretical maximum is:
+
+| | best possible | needs opacity |
+|---|---|---|
+| pure black on light paper | **1.78:1** | 0.42 |
+| pure white on blackboard | **2.20:1** | 0.34 |
+
+**No colour reaches 3:1 at `low`.** Not black, not white, not any palette. So if 1.4.11 genuinely
+applied to the rendered hachure, `low` fill would be permanently illegal for any state-carrying
+purpose — an arithmetic result, not a palette problem. The decision above is what makes `low` usable
+at all.
+
+If a future component genuinely needs its hachure to carry state, it needs `med` (0.5) or higher, or
+a non-colour signal. That is a real constraint and it is why this section exists.
+
+### So what is the 3:1 fill figure now?
+
+**A house design guideline, not a compliance floor.** It keeps a fill token strong enough to read as
+a real colour rather than a wash. Useful, arbitrary, and not WCAG.
+
+The genuinely binding numbers in §1 are the **4.5:1 text ratios** — role ink on paper, role ink over
+its own `low` fill, neutral ink over that fill. Those are 1.4.3 and they are not negotiable.
+
+**All ratios are measured at the rasterised hex, not the float value.** Colours quantise to 8 bits
+before reaching a screen, and the difference decides cases: `success` dark reads 3.0044 as a float
+and **2.9949** at the hex it actually renders.
+
+### `success` dark sits at 2.9949 and is deliberately not adjusted
+
+It misses the design guideline by 0.005. Correcting it costs a real requirement:
+
+| `success` dark | fill vs paper (guideline 3.0) | role ink on its fill (**1.4.3, 4.5**) |
+|---|---|---|
+| shipped `#25783F` | 2.994881 | **4.515016 — passes** |
+| adjusted `#267940` | 3.037317 | **4.499640 — fails** |
+
+Trading a real text-contrast failure for a cosmetic guideline pass is the wrong direction. The
+palette stays as locked. This is recorded rather than fixed so nobody "corrects" it later.
 
 **Touch targets: 44px is AAA, not AA.** WCAG 2.2 Level AA is 2.5.8 at **24×24 CSS px**. The 44×44
 figure is 2.5.5, Level **AAA**, and matches Apple HIG. This project holds itself to 44px by choice.
