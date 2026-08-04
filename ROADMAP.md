@@ -282,6 +282,10 @@ A Base UI import without `focusWithin: true` fails the build — that kills the 
 class structurally. The registry dependencies-match-imports assert. Plus, once 6.0 lands, the
 off-scale spacing and type class check. Into the existing workflows. _(dev)_
 
+Plus the `text-hc-ink-faint` source scan: move it out of `design-tokens.test.ts` D7 and into the lint
+task of each package that owns the files, so the check runs where the hash already covers what it
+reads. Closes `QA-CONTRACT.md` Rule V1b's one open escape. _(dev)_
+
 ### 6.7 Re-verify the built seven
 
 All seven components against the new design system and the §5.1 state pairs. This replaces v3's "QA

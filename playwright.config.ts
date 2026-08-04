@@ -45,17 +45,19 @@ export default defineConfig({
    *     the 12.34s measured locally, and the timeout should never be the thing
    *     that fails.
    *
-   * One gap this does not close, named rather than implied. `pnpm build`
-   * guarantees `@handicraft/core`'s `dist` is current — `@handicraft/core#build`
-   * hashes every file under `packages/core`, so a core edit always misses the
-   * turbo cache and really rebuilds. It does **not** guarantee `.next` reflects
-   * `registry/default/**`: `@handicraft/playground#build` reaches those files
-   * only through the `@/ui/*` tsconfig path alias, and turbo's package-graph
-   * hashing cannot see through a path alias, so a registry-only edit can leave
-   * `.next` stale under an unchanged cache hash. Cycle 003a owns the fix
-   * (`.claude/cycles/003-playwright.md` §17.9); until it lands, the interim
-   * measure is `rm -rf .turbo` or `--force` before trusting a served page
-   * against fresh registry source.
+   * One gap this used to leave open, named because a past reader hit it.
+   * `pnpm build` guarantees `@handicraft/core`'s `dist` is current —
+   * `@handicraft/core#build` hashes every file under `packages/core`, so a
+   * core edit always misses the turbo cache and really rebuilds. It used to
+   * read as if that same guarantee covered `.next` as a whole, and it did
+   * not: `@handicraft/playground#build` reaches `registry/default/**` only
+   * through the `@/ui/*` tsconfig path alias, and turbo's package-graph
+   * hashing cannot see through a path alias, so a registry-only edit could
+   * leave `.next` stale under an unchanged cache hash. Cycle 003a closed
+   * this — `turbo.json` now names `registry/default/**` as an explicit
+   * `inputs` entry on `@handicraft/playground#build`, so a registry edit
+   * busts that task's hash directly and `.next` tracks registry source like
+   * every other input.
    */
   webServer: {
     command: "pnpm build && pnpm --filter @handicraft/playground exec next start --port 4322",

@@ -31,43 +31,51 @@ The architect adds per-cycle criteria on top. Nothing ships below this line.
 `hc-dev` reports gate results. **Re-run all five yourself.** A dev agent claiming green is the single
 most likely false report in this system, and every downstream check inherits the error.
 
-## Rule V1a — bypass the turbo cache when the manifest touches `registry/default/**`
+## Rule V1b — a cached task must hash everything it reads
 
 Rule V1 says never trust the dev manifest. This one says the build tool can produce the same false
-green, and re-running the gate does not catch it.
+green, and re-running the gate does not catch it, because the gate never runs.
 
-`turbo.json` declares no `inputs` on any task, so every task hashes only its own package directory.
-`registry/default/**` reaches `apps/playground` through the `@/ui/*` tsconfig path alias and reaches
-the vitest run through `packages/core/vitest.config.ts`'s `include` glob. Turbo's package-graph
-hashing sees through neither, because `registry` is not a declared dependency of either package.
+**This rule supersedes Rule V1a**, which required `--force` on any cycle whose manifest touched
+`registry/default/**`. Cycle 003a replaced that procedure once `turbo.json` closed the gap
+structurally. Any document written before 2026-08-04 that cites "Rule V1a" means the superseded
+procedure, not this rule — the number changed precisely so those citations cannot silently repoint.
 
-Measured with `turbo run <task> --dry=json` on 2026-08-04: `@handicraft/playground#build` hashes 13
-inputs, `@handicraft/core#test` hashes 33, and **none of those 46 sits under `registry/`**. A
-registry-only edit therefore leaves both tasks at an unchanged hash. Reproduced live: with
-`useSketchFrame` wired into `label.tsx`, a plain `pnpm test` replayed `108 passed` in 30ms while the
-same source, run for real, fails `label.test.tsx`'s A15.
+Turbo hashes a task's declared inputs. Anything a task reads outside that set can go stale at an
+unchanged hash. `turbo.json` carries three overrides that close the escapes found so far, each one
+restating a dependency already declared in a config file — `apps/playground/tsconfig.json`'s `@/ui/*`
+alias, and `packages/core/vitest.config.ts`'s `include` glob. Cycle 003a added them and proved them: a
+one-line edit under `registry/default/**` now fails `label.test.tsx` A16 under a plain warm
+`pnpm test`, where it previously replayed `127 passed` in 35ms.
 
-**Two of the four cached gates are affected and two are not.** `build` and `test` are blind.
-`typecheck` and `lint` are not — `@handicraft/registry` is a real workspace package with its own
-`typecheck` and `lint` scripts, each hashing 7 files under `registry/default/ui` directly. A type
-error or a lint error in a registry component was never at risk. A behavioural regression and a stale
-served bundle were.
+**One escape is open, which is why this rule survives its own fix.**
+`packages/core/src/styles/design-tokens.test.ts`'s D7 walks `apps/playground/app` with `readFileSync`
+at runtime. Measured 2026-08-04 on turbo 2.10.8: `@handicraft/core#test` hashes **45 inputs, zero
+under `apps/playground`**. A warm local `pnpm test` therefore replays green after a
+`text-hc-ink-faint` regression in the harness.
 
-**The rule.** Until cycle 003a closes this, any cycle whose manifest touches `registry/default/**`
-runs `pnpm test` and `pnpm build` with `--force`, or after `rm -rf .turbo`. `--force` is the precise
-form; under turbo 2.x the cache lives at `.turbo/cache` in the repository root.
+Containment, measured rather than assumed. **CI is not exposed** — neither `ci.yml` nor `e2e.yml`
+caches `.turbo`; all four `actions/cache@v6` steps cache the pnpm store path alone, so a fresh runner
+really executes every task. `pnpm test:e2e` runs `playwright test` directly rather than through turbo,
+so it never replays either, and `tests/e2e/a11y.spec.ts`'s A2 asserts zero serious-or-moderate
+violations across the three harness pages — which covers 4 of the 6 files D7 walks.
+`apps/playground/app/spike-portal/**` is the residue: A1 visits that route but filters to criticals,
+and `color-contrast` is serious. The exposure is a warm local cache only.
+
+**The fix is not a fourth glob.** A glob would encode a runtime `readFileSync` as though it were a
+config-declared dependency, and that is the one seam shape no reader can verify from any config file.
+The check belongs in the lint task of the package that owns the files: `@handicraft/playground#lint`
+already hashes `apps/playground/**` and `@handicraft/registry#lint` already hashes
+`registry/default/**`. `ROADMAP.md` §6.6 owns it.
+
+**Before adding a filesystem read to a test, run `turbo run <task> --dry=json` and confirm the file
+appears in that task's hashed inputs.** If it does not, either do not read it, or record the instance
+here with its measurement.
 
 **Filtered runs are already real runs, which is what keeps the mutation record trustworthy.**
-Passthrough arguments are part of the hash: `@handicraft/core#test` hashes `04471ed58aaf1b02` bare and
+Passthrough arguments are part of the hash: `@handicraft/core#test` hashed `04471ed58aaf1b02` bare and
 `347fadaff300cb85` with `-- -t "A15"`. Every mutation run in this project's history used a `-t` or
 `-g` filter, so none of them was a replay and no past cycle's conclusions are in doubt.
-
-**CI was never exposed.** Neither `ci.yml` nor `e2e.yml` caches `.turbo` — every `actions/cache@v6`
-step caches the pnpm store path alone — so a fresh runner starts with no cache and every task really
-executes. The exposure is local-cache only.
-
-**This rule expires rather than evolves.** Cycle 003a deletes it in the same pull request that fixes
-the hashing, and that deletion is a line in 003a's own Definition of Done.
 
 ---
 
