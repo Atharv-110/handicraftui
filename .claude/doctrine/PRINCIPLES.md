@@ -145,8 +145,8 @@ POOL_SIZE         = 12        hard-coded seeds, not generated
 - **No automated tool enforces the worst-pixel rule.** axe samples a flat computed background and
   never sees the hatch line. An axe pass going green on a combination `DESIGN-SYSTEM.md` forbids is
   expected, and is never grounds for relaxing a number there.
-- **Zero axe criticals.** No axe run has ever happened on this project; the first QA cycle changes
-  that.
+- **Zero axe criticals.** axe has run once by hand — cycle 000b, `@axe-core/cli` 4.12.1 — and found
+  real violations. What is still missing is axe running automatically in CI across the matrix.
 - `prefers-reduced-motion` honoured. For `drawOn` the dash must be reset alongside the animation, or
   strokes freeze at their hidden start value and the frame never appears at all.
 - `forced-colors` honoured. Fallback rules live **unlayered** in the stylesheet on purpose, because

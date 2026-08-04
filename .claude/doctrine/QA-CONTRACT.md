@@ -181,7 +181,13 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
 ### Also every cycle
 
 - **Keyboard** — tab order sensible, focus visible at every breakpoint, no trap.
-- **axe** — zero criticals. No axe run has ever happened on this project.
+- **axe** — zero criticals. **axe has run once, manually**, in cycle 000b: `@axe-core/cli` 4.12.1
+  against a version-matched Chrome and chromedriver pair, covering the harness in both themes and the
+  spike route. It found real violations, including the `ink-faint` serious findings that
+  `DESIGN-SYSTEM.md` now traces to one token doing two jobs.
+
+  What has never happened is **axe in CI, automated, across the matrix.** That is the gap, and it is
+  narrower than "no axe run has ever happened", which this file claimed until 2026-08-04.
 
   **A green axe result never overrides `DESIGN-SYSTEM.md`.** axe samples a flat computed background
   and cannot see a hatch line, so it will pass fill-and-colour combinations that file forbids. That

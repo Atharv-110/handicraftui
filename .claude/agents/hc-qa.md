@@ -103,9 +103,12 @@ Every cycle:
   blackboard. Full param surface: `fidelity dark texture stress hand ink fill drawOn drawMs`.
 - **Keyboard** — tab order, visible focus at every breakpoint, no trap.
 - **44px touch targets** on interactive elements.
-- **axe** — zero criticals. No axe run has ever happened on this project.
+- **axe** — zero criticals. axe has run once by hand, in cycle 000b via `@axe-core/cli` 4.12.1, and
+  found real violations. It has never run automatically in CI.
 - **Handover** — reload throttled. If the tier-1 to tier-2 swap announces itself, that is a finding.
-  Budget 60ms.
+  **Budget 110ms**, under `next build && next start` with Fast 4G throttling, median of 3. `next dev`
+  is explicitly unbudgeted at roughly 4× that. Never assert below ~64ms — that is the perf-readout
+  instrument floor, not a measurement. Full conditions in `QA-CONTRACT.md`.
 - **Stress** — `?stress=1`, 500 frames. Budget 64ms to settle.
 
 **Rule A2 — one component per browser pass.** Four viewports × two tiers × two themes is sixteen states
