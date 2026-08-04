@@ -4,7 +4,9 @@ Run these in order. Each step assumes the previous one passed — later steps ar
 much harder to interpret if an earlier one is red.
 
 Covers Badge, Button, Card, Checkbox, Input, Label and Separator, plus the
-engine, marks and both render tiers. Steps 8–10 are manual for now.
+engine, marks and both render tiers. Steps 3 to 9 are done by hand. Where a
+Playwright spec now covers the same ground, the step names it; step 10 is not
+runnable yet.
 
 ---
 
@@ -32,6 +34,18 @@ Skip this and Next serves the previous `dist`. CSS changes hot-reload, so the
 page _looks_ updated while the JS is stale — which presents as "tier 2 renders
 nothing" rather than as a cache problem. This cost real debugging time once.
 
+The Playwright specs named in later steps need Chromium, once per machine:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Screenshot assertions are the exception: they skip unless
+`HC_SNAPSHOT_ENV=docker`, because macOS and the pinned
+`mcr.microsoft.com/playwright:v1.62.1-noble` image were measured to disagree — 6
+to 14% of pixels across three components, two of them differing in dimensions
+outright. `pnpm test:e2e:docker` reproduces CI.
+
 ---
 
 ## 1. Unit and integration tests
@@ -40,7 +54,7 @@ nothing" rather than as a cache problem. This cost real debugging time once.
 pnpm test
 ```
 
-Expect **108 passed** across **16 files**. What they guard, in order of how
+Expect **127 passed** across **18 files**. What they guard, in order of how
 badly it hurts when they fail. Paths sit under `packages/core/src/` unless the
 row says otherwise:
 
@@ -49,6 +63,7 @@ row says otherwise:
 | `engine/aesthetic.test.ts`          | The look silently regressing — corners getting pinned, roughness dialled back, fill levels collapsing, the seed pool breaking |
 | `engine/golden-shapes.test.ts`      | Path data drifting on a shape the change was not aimed at. Five goldens from baseline `e9eda22`, compared byte for byte       |
 | `styles/tier-agreement.test.ts`     | Tier 1 and tier 2 drifting apart across the `.ts`/`.css` boundary                                                             |
+| `styles/design-tokens.test.ts`      | A semantic role's contrast falling under its floor in either theme, or `text-hc-ink-faint` reappearing as text                |
 | `engine/seed.test.ts`               | Seed clustering. React's `useId` emits stride-8 tree positions that collapse onto a few variants without a mixed hash         |
 | `engine/marks.test.ts`              | Drawn icons breaking at small sizes or losing determinism                                                                     |
 | `engine/generator.test.ts`          | Non-deterministic geometry, cache misses on sub-pixel resize                                                                  |
@@ -56,6 +71,7 @@ row says otherwise:
 | `frame/measure.test.tsx`            | A frame measuring zero: a transformed ancestor, a detached node flushing over it, or a ref swap losing the subscription       |
 | `frame/hydration.test.tsx`          | Server/client markup divergence                                                                                               |
 | `frame/tier2.test.tsx`              | rough.js failing to mount; the sketch layer entering layout or the a11y tree                                                  |
+| `frame/mark-fallback.test.tsx`      | A `danger` Badge falling back to colour alone with JavaScript off, when the drawn mark has not mounted                        |
 | `engine/resize-bus.test.ts`         | The shared `ResizeObserver` batching more than once a frame, or flushing against an element that has left the document        |
 | `frame/draw-on.test.tsx`            | Pass ordering, the entrance timeline running out of sequence, and the animation costing anything when off                     |
 | `frame/focus-within.test.tsx`       | `data-hc-focus-within` going missing from either tier, which takes the visible focus ring with it                             |
@@ -65,7 +81,10 @@ row says otherwise:
 
 **Confirm the suite is load-bearing.** Each mutation below must turn the listed
 tests red, then revert cleanly. The counts were measured, not estimated — a
-mutation that fails a different number than stated means the suite has drifted:
+mutation that fails a different number than stated means the suite has drifted.
+They were measured against the suite as it stood on 2026-08-03, and
+`styles/design-tokens.test.ts` and `frame/mark-fallback.test.tsx` landed after
+that, so re-measure before reading a difference as drift:
 
 ```bash
 # engine/generator.ts — corners get pinned, the original regression
@@ -150,9 +169,9 @@ curl -s http://localhost:4321/ | grep -c "hc-sketch-svg"                    # 0
 ```
 
 The first number is whatever the harness renders today. It moves every time a
-component is added, so it is not written down here; step 6 compares against it.
-The second should spread across the seed buckets rather than piling onto one or
-two.
+component is added, so it is not written down here — `degraded.spec.ts` reads it
+live rather than hard-coding it. The second should spread across the seed buckets
+rather than piling onto one or two.
 
 The last one is the point: **the server sends no geometry even though tier 2 is
 the default.** rough.js needs a measured element and a server has no layout
@@ -194,19 +213,31 @@ them that way. Compare directly:
 /?fidelity=lite    vs    /?fidelity=high
 ```
 
-To measure how fast the handover completes:
+That eyeball pass is the half no instrument covers: H1 and H2 below measure how
+long the handover takes and cannot see a flash.
+
+**Handover is not measurable on port 4321.** That server is `next dev`, which
+sends every chunk under `.next-dev/static/chunks/` with
+`cache-control: no-store, must-revalidate`, so no navigation is ever cache-warm
+and every reload re-fetches the whole unminified bundle. Measured on 2026-08-04,
+a cold `next dev` navigation and a warm one differ by 6.4ms — 0.2% — which
+disproves any explanation resting on compile time. A `next dev` handover figure
+measures the dev server's transport, not the library, and compares to nothing.
+
+The number comes from a production build instead:
 
 ```bash
-for t in 60 150 400; do
-  echo -n "${t}ms: "
-  google-chrome --headless --disable-gpu --virtual-time-budget=$t \
-    --dump-dom http://localhost:4321/ 2>/dev/null \
-    | grep -c 'data-hc-fidelity="high"'
-done
+pnpm test:e2e:perf        # playwright test --project=perf
 ```
 
-The count at 60ms should already match step 4's frame count — the provider
-preloads rough.js and components generate synchronously in `useLayoutEffect`.
+H1 and H2 time the handover with a DOM `MutationObserver` from document start,
+against `next build && next start` with Fast 4G throttling, median of 3 warm
+reloads. Measured on 2026-08-04: **33.7ms** in light mode and 31.1ms on the
+blackboard. The provider preloads rough.js and components generate synchronously
+in `useLayoutEffect`, so the handover is one paint rather than a fetch.
+
+Both assert against a 110ms budget. That budget was derived against a different
+instrument — see step 9 — and a like-for-like re-derivation is still owed.
 
 ---
 
@@ -223,7 +254,11 @@ and press.
 
 ---
 
-## 8. Degraded modes — not automated yet
+## 8. Degraded modes
+
+`degraded.spec.ts` covers all three against a production build — D-FC, D-RM and
+D-PR — plus D-NJS for step 5. The passes below are still the fastest way to see
+what those specs assert.
 
 **Forced colors.** DevTools → Rendering → _Emulate CSS forced-colors: active_.
 Both stroke layers must vanish, replaced by a single plain system-coloured
@@ -243,13 +278,22 @@ rather than merely unanimated.
 ## 9. Performance
 
 `?stress=1` adds 500 buttons. The readout reports settle time, frame count and
-path count.
+path count. Step 6's `next dev` prohibition does not reach this step: settle time
+is computation-bound and the transport leaves the loop once the page has loaded,
+so reading it on port 4321 is valid. Handover is the one figure that needs a
+production build.
 
 Read the settle time with the instrument's floor in mind. The readout polls on a
 16ms timer and waits for three consecutive stable counts, so **it cannot report
 anything below 64ms** — four ticks. A stress run and a default run both reading
 64ms means both settled at or under that floor, not that they took the same
-measured time.
+measured time. That floor is also why the readout is the right instrument for
+stress, which lands in the hundreds of milliseconds, and the wrong one for
+handover, which lands in the tens.
+
+S1 and S2 in `pnpm test:e2e:perf` automate this reading against a production
+build, unthrottled, median of 3, asserted against a 300ms budget. Measured on
+2026-08-04: 141ms in light mode and 145ms on the blackboard.
 
 The number that carries the argument is generation, measured on its own: 500
 components cost **1.6ms** from the 12-seed pool and **110ms** with unique seeds,
@@ -279,14 +323,22 @@ This is the only check that exercises what users actually do.
 
 ## Known gaps
 
-- **Pixel parity between tiers is not machine-verified.** jsdom proves the DOM
-  contract and the constants are guarded by `tier-agreement.test.ts`, but
-  neither measures. Real `getBoundingClientRect()` comparison needs Playwright.
+- **Ink parity between tiers is not measured.** Layout parity is:
+  `tier-parity.spec.ts` asserts exact `getBoundingClientRect()` and
+  `scrollHeight` equality between the tiers, no tolerance, and it passes.
+  Whether the two strokes look alike enough that the swap does not announce
+  itself is still step 6's eyeball pass. A pixel diff cannot answer it, because
+  `preserveVertices: false` lets tier 2's stroke wander up to 13.81px past the
+  box tier 1 draws at.
 - **Excalifont is not self-hosted.** The playground loads Kalam (OFL) via
   `next/font` as a stand-in. Without a real hand face the stack falls through to
   the generic `cursive` keyword, which macOS renders as a formal serif italic.
-- **No axe run yet**, so accessibility rests on the contract in the CSS rather
-  than on a tool.
+- **axe cannot see a hatch line.** It runs on every pull request —
+  `a11y.spec.ts`, four pages at zero critical violations and three harness
+  variants at zero serious or moderate — but it samples a flat computed
+  background, so contrast over a hachure is measured by
+  `styles/design-tokens.test.ts` instead. A green axe result never overrides
+  that check.
 - **The library is 7 components of 21.** Four of the remaining 14 are plain
   semantics and ten are built on Base UI. Neither group is blocked on the engine
   — `SketchMark`, the drawn-mark primitive, is built.

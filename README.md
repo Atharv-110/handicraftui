@@ -19,8 +19,15 @@ draws it as SVG paths. Tier 2 is the default; tier 1 is the pre-hydration paint,
 fallback, and the opt-out for very large lists.
 
 The two tiers deliberately share stroke weight, corner radii and hachure density, because tier 1 paints
-before every hydration and the handover has to pass unnoticed. Measured in production with Fast 4G
-throttling, the handover completes in 71ms.
+before every hydration and the handover has to pass unnoticed. A DOM `MutationObserver` times it from
+document start: 33.7ms in light mode and 31.1ms on the blackboard, each a median of 3 warm reloads under
+`next build && next start` with Fast 4G throttling, measured on 2026-08-04 by `pnpm test:e2e:perf`. The
+budget, under the same conditions, is 110ms.
+
+This file used to say 71ms, and **nothing got faster — the instrument changed.** That figure came from
+the playground's on-page readout, which polls every 16ms and reports only after three consecutive stable
+counts, so 64ms is the lowest number it can print; it was reading its own floor. The `MutationObserver`
+has no floor, so the two figures measure different things and are not comparable.
 
 ## The API as it stands
 
@@ -91,10 +98,17 @@ charts in v1 — the engine stays chart-agnostic so a chart layer can reuse it l
 
 ## How it is verified
 
-The suite is 108 tests across 16 files. Every one of them is mutation-verified: break the invariant
-it guards, confirm the named test fails and nothing unrelated goes with it, revert, confirm green
-again, and check the revert with `git diff` rather than assuming it landed — prettier reformatting a
+The unit suite is 127 tests across 18 files, run in jsdom. Every one of them is mutation-verified: break
+the invariant it guards, confirm the named test fails and nothing unrelated goes with it, revert, confirm
+green again, and check the revert with `git diff` rather than assuming it landed — prettier reformatting a
 mutated value has silently defeated a revert here before. A test that cannot fail is decoration.
+
+A second suite of 64 Playwright tests across 5 spec files drives a real browser against
+`next build && next start`: exact `getBoundingClientRect()` and `scrollHeight` parity between the tiers,
+the degraded modes (no JavaScript, forced colours, reduced motion, print), axe on four pages with zero
+critical violations, and an overflow sweep at 375, 768, 1280 and 1920px. Those four spec files — 59 of
+the 64 — run on every pull request. The handover and stress timings are the fifth, and run nightly and on
+demand, because a shared CI runner is not the condition their budgets are stated under.
 
 The look is under test the same way the logic is. Corner overshoot is measured as the distance from each
 nominal corner to the nearest point the pen visits: 0.6 to 2.0px when corners run free, exactly 0.00
@@ -119,10 +133,11 @@ Beyond the components that are not built:
 - **Nothing is published.** `@handicraft/core` is 0.0.0 and the registry is not hosted, so no
   `shadcn add` URL resolves.
 - **No docs site.**
-- **Pixel parity between the tiers has never been measured.** It is designed for and guarded by shared
-  constants read out of the stylesheet, but the visual comparison needs Playwright and has not been run.
-- **No axe audit has been run yet.** Components are built to native semantics and the contribution floor
-  requires zero critical violations; the first audit is still ahead.
+- **Ink parity between the tiers is not measured.** Layout parity is: `tier-parity.spec.ts` asserts exact
+  `getBoundingClientRect()` and `scrollHeight` equality between tier 1 and tier 2, no tolerance. Whether
+  the two strokes look alike enough that the swap does not announce itself is still an eyeball check. A
+  pixel diff cannot answer it, because `preserveVertices: false` lets tier 2's stroke wander up to
+  13.81px past the box tier 1 draws at.
 - **The handwriting face is not self-hosted.** The playground borrows Kalam through `next/font`.
 
 ## Local development
