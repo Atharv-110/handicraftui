@@ -128,7 +128,7 @@ export function Harness({
                   ).map((n) => (
                     <span key={n} className="flex flex-col items-center gap-1">
                       <SketchMark name={n} size={22} seedKey={n} />
-                      <span className="font-note text-hc-ink-soft text-[10px]">{n}</span>
+                      <span className="font-note text-hc-ink-soft text-xs">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -167,7 +167,7 @@ export function Harness({
               </Group>
 
               <Group title="Cards">
-                <div className="grid w-full gap-4 sm:grid-cols-2">
+                <div className="grid w-full gap-6 sm:grid-cols-2">
                   <Card>
                     <CardHeader>
                       <CardTitle>Plain card</CardTitle>
@@ -196,7 +196,7 @@ export function Harness({
               </Group>
 
               <Group title="Surfaces">
-                <div className="grid w-full gap-4 sm:grid-cols-2">
+                <div className="grid w-full gap-6 sm:grid-cols-2">
                   <Card className="hc-ruled">
                     <CardTitle>Ruled paper</CardTitle>
                   </Card>
@@ -239,6 +239,12 @@ export function Harness({
 
               {stress ? (
                 <Group title="Stress — 500 frames">
+                  {/* gap-2 is deliberately under the 24px collision floor. This
+                      group exists to render 500 frames as densely as the page
+                      can hold them, and its settle time is only comparable
+                      across cycles under identical conditions — widening the
+                      gap would change both the thing being measured and the
+                      baseline it is measured against. */}
                   <div className="flex flex-wrap gap-2">
                     {Array.from({ length: 500 }, (_, i) => (
                       <Button key={i} size="sm">
@@ -260,7 +266,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   return (
     <section>
       <h2 className="font-note text-hc-ink-soft mb-3 text-xs tracking-widest uppercase">{title}</h2>
-      <div className="flex flex-wrap items-center gap-3">{children}</div>
+      <div className="flex flex-wrap items-center gap-6">{children}</div>
     </section>
   );
 }
