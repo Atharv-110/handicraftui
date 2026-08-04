@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { FILL_LEVELS } from "../engine/generator";
+import { FILL_LEVELS, taperForSize } from "../engine/generator";
+import { CONTROL_RAMP, HAND_FACE_EXCEPTIONS, SPACING, TOKEN_RAMP, TYPE_SCALE } from "./ramps";
 
 /**
  * The contrast instrument for cycle 002a. Reproduces the model
@@ -507,4 +508,296 @@ it("D9 — text-hc-<role>-ink always pairs with stroke: var(--hc-ink) on useSket
       `${file} puts a role ink on text but its useSketchFrame call has no stroke: "var(--hc-ink)"`,
     ).toMatch(strokePattern);
   }
+});
+
+// ---------------------------------------------------------------------------
+// R1 to R5 — cycle 002b. The size ramps, the type scale and the two spacing
+// floors, cross-checked against what components actually ship.
+//
+// `ramps.ts` is imported by no component and exported from no barrel, so
+// these five assertions are its only consumer. That is deliberate: the file
+// exists so the doctrine's numbers live somewhere a test can read, while the
+// components keep the literal Tailwind strings a user who ejects them can
+// still edit.
+// ---------------------------------------------------------------------------
+
+/** The two interactive touch-target literals, frozen from DESIGN-SYSTEM.md §4
+ * rather than derived, so a typo in `ramps.ts` cannot agree with itself. */
+const TOUCH_AAA = "AAA (>=44)";
+const TOUCH_AA = "AA (>=24, spacing rule applies)";
+
+/**
+ * Tailwind's `--spacing` is 0.25rem against a 16px root, so a spacing
+ * utility's suffix is its pixel value over four. Written as division rather
+ * than a lookup table on purpose: a ramp value off the 4px grid then produces
+ * a suffix no Tailwind class carries — 36 gives `h-9`, 38 gives `h-9.5` — and
+ * the containment check fails loudly instead of quietly matching nothing.
+ */
+function spacingClass(prefix: string, px: number): string {
+  return `${prefix}-${px / 4}`;
+}
+
+/** The type step at this pixel size, or `undefined`. R1 and R3 both need the
+ * miss to fail an assertion rather than throw, so this does not use `!`. */
+function typeUtilityFor(px: number): string | undefined {
+  return Object.values(TYPE_SCALE).find((step) => step.px === px)?.utility;
+}
+
+/**
+ * Reduces a source file to only the text that can actually become a class:
+ * comments stripped, then the contents of its double-quoted string literals.
+ *
+ * Both steps are load-bearing and the first one is here because the naive
+ * version was caught by its own mutation. Cycle 002b ships a comment above
+ * Input's `className` reading "px-4 is the control ramp's `md` padding", and
+ * Checkbox's says "gap-2 is the control ramp's `md` gap". A check that reads
+ * raw file text therefore finds `px-4` in `input.tsx` whether or not the
+ * element still carries it — reverting `px-4` to `px-3` left this test green.
+ * That is `QA-CONTRACT.md` Rule V3 in source-read form: a comment documenting
+ * a value is not the value, and a guard that cannot tell them apart guards
+ * nothing.
+ *
+ * The `[^:"'\`\\]` guard on the line-comment pattern keeps a `//` inside a
+ * URL from eating the rest of its line.
+ */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "\n").replace(/(^|[^:"'`\\])\/\/[^\n]*/gm, "$1");
+}
+
+function classSource(source: string): string {
+  return (stripComments(source).match(/"[^"\n]*"/g) ?? []).join(" ");
+}
+
+/**
+ * Whole-token class match. A plain `includes` would let `px-4` match inside
+ * `px-40` and `gap-2` match inside `gap-2.5` — and `gap-2.5` is the exact
+ * value cycle 002b replaced in Checkbox, so a substring check would have made
+ * that regression guard vacuous on the very string it guards.
+ */
+function hasClass(source: string, className: string): boolean {
+  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![\\w-])${escaped}(?![\\w.-])`).test(source);
+}
+
+const registryRoot = resolve(process.cwd(), "../../registry/default");
+
+/** A component's applied class text, with the vacuity floor attached: a path
+ * that resolves but yields nothing would fail every positive check below for
+ * the wrong reason, and the assertion here says which. */
+function registryClasses(relativePath: string): string {
+  const content = readFileSync(join(registryRoot, relativePath), "utf8");
+  expect(content.length, `${relativePath} read empty`).toBeGreaterThan(0);
+  const classes = classSource(content);
+  expect(classes.length, `${relativePath} yielded no class text`).toBeGreaterThan(0);
+  return classes;
+}
+
+it("R1 — CONTROL_RAMP matches DESIGN-SYSTEM.md §4 and every row's type is a TYPE_SCALE step", () => {
+  // Frozen literals of §4's control-ramp table. R3 anchors the shipped class
+  // strings to `CONTROL_RAMP` and this anchors `CONTROL_RAMP` to the
+  // doctrine, so the two ends of that chain are checked against different
+  // sources rather than against each other.
+  const expected = {
+    sm: { height: 36, padX: 12, type: 14, gap: 6 },
+    md: { height: 44, padX: 16, type: 16, gap: 8 },
+    lg: { height: 48, padX: 24, type: 18, gap: 10 },
+  };
+
+  // Reads the control ramp only. If it also read TOKEN_RAMP, the mutation on
+  // Badge's height would fail this test and R4 together and neither would be
+  // isolating what it claims — DESIGN-SYSTEM.md §4's whole reason for two
+  // ramps is that Badge's height answers to the taper gate, not to §4's
+  // control table.
+  expect(Object.keys(CONTROL_RAMP)).toEqual(["sm", "md", "lg"]);
+
+  for (const [size, spec] of Object.entries(expected)) {
+    const row = CONTROL_RAMP[size as keyof typeof CONTROL_RAMP];
+    expect(row.height, `${size} height`).toBe(spec.height);
+    expect(row.padX, `${size} padding-x`).toBe(spec.padX);
+    expect(row.type, `${size} type`).toBe(spec.type);
+    expect(row.gap, `${size} gap`).toBe(spec.gap);
+  }
+
+  for (const [size, row] of Object.entries(CONTROL_RAMP)) {
+    expect(
+      typeUtilityFor(row.type),
+      `${size}'s ${row.type}px type is on no TYPE_SCALE step`,
+    ).toBeDefined();
+  }
+});
+
+it("R2 — touch, denseDesktopOnly and hand are derived from their own numbers, not declared beside them", () => {
+  for (const [size, row] of Object.entries(CONTROL_RAMP)) {
+    expect([TOUCH_AAA, TOUCH_AA], `${size} touch is not one of the two literals`).toContain(
+      row.touch,
+    );
+    // The house rule is 44px (WCAG 2.5.5, Level AAA). 2.5.8's 24px Level AA
+    // floor is what `sm` at 36px actually clears, which is why `sm` is
+    // dense-desktop-only rather than a compliance defect.
+    expect(row.touch, `${size} touch disagrees with its own ${row.height}px height`).toBe(
+      row.height >= 44 ? TOUCH_AAA : TOUCH_AA,
+    );
+    expect(
+      row.denseDesktopOnly,
+      `${size} denseDesktopOnly disagrees with its own ${row.height}px height`,
+    ).toBe(row.height < 44);
+  }
+
+  expect(TOKEN_RAMP.xs.touch).toBe("non-interactive");
+  // Absent rather than false. Dense-desktop-only is a property of an
+  // interactive control's touch target, and a non-interactive token has none.
+  expect(Object.keys(TOKEN_RAMP.xs)).not.toContain("denseDesktopOnly");
+
+  for (const [name, step] of Object.entries(TYPE_SCALE)) {
+    expect(step.hand, `${name} at ${step.px}px disagrees with the 18px hand-face floor`).toBe(
+      step.px >= 18,
+    );
+  }
+
+  // Closed on purpose — a list that can grow is not lintable, and
+  // DESIGN-SYSTEM.md §2 says adding a fourth is a doctrine amendment.
+  expect(HAND_FACE_EXCEPTIONS).toEqual(["badge-text", "label-text", "button-label"]);
+});
+
+it("R3 — Button, Input and Checkbox ship class strings that decode to CONTROL_RAMP", () => {
+  // A walk resolving to the wrong path returns an empty list and passes green
+  // over nothing. Seven components ship today; assert the floor before any
+  // check below can mean anything.
+  expect(collectSourceFiles(registryRoot).length).toBeGreaterThanOrEqual(7);
+
+  // Button's three rows live in one object literal, so they are located in
+  // the raw file and then comment-stripped, rather than read out of the
+  // flattened class text every other component uses.
+  const buttonRaw = readFileSync(join(registryRoot, "ui/button/button.tsx"), "utf8");
+  const inputSrc = registryClasses("ui/input/input.tsx");
+  const checkboxSrc = registryClasses("ui/checkbox/checkbox.tsx");
+
+  const sizesStart = buttonRaw.indexOf("const SIZES = {");
+  expect(sizesStart, "button.tsx has no `const SIZES = {` block").toBeGreaterThanOrEqual(0);
+  const sizesEnd = buttonRaw.indexOf("} as const;", sizesStart);
+  expect(sizesEnd, "button.tsx's SIZES block is not closed by `} as const;`").toBeGreaterThan(
+    sizesStart,
+  );
+  const sizesBlock = stripComments(buttonRaw.slice(sizesStart, sizesEnd));
+  expect(sizesBlock.length, "button.tsx's SIZES block read empty").toBeGreaterThan(0);
+
+  let rowsChecked = 0;
+  for (const [size, row] of Object.entries(CONTROL_RAMP)) {
+    const match = sizesBlock.match(new RegExp(`\\b${size}:\\s*"([^"]+)"`));
+    expect(match, `button.tsx's SIZES has no \`${size}\` row`).not.toBeNull();
+    const classes = match![1]!.trim().split(/\s+/);
+
+    expect(classes, `Button ${size} height`).toContain(spacingClass("h", row.height));
+    expect(classes, `Button ${size} padding-x`).toContain(spacingClass("px", row.padX));
+    expect(classes, `Button ${size} gap`).toContain(spacingClass("gap", row.gap));
+
+    const utility = typeUtilityFor(row.type);
+    expect(utility, `Button ${size}'s ${row.type}px type is on no TYPE_SCALE step`).toBeDefined();
+    expect(classes, `Button ${size} type`).toContain(utility);
+    rowsChecked++;
+  }
+  expect(rowsChecked, "no SIZES row was checked").toBe(3);
+
+  // Input and Checkbox each ship the `md` row only, spread across more than
+  // one string literal, so they are matched as whole class tokens in the file
+  // rather than parsed out of one array.
+  const md = CONTROL_RAMP.md;
+  const mdHeight = spacingClass("h", md.height);
+  const mdType = typeUtilityFor(md.type);
+  expect(mdType, `md's ${md.type}px type is on no TYPE_SCALE step`).toBeDefined();
+
+  expect(hasClass(inputSrc, mdHeight), `input.tsx is missing ${mdHeight}`).toBe(true);
+  expect(
+    hasClass(inputSrc, spacingClass("px", md.padX)),
+    `input.tsx is missing ${spacingClass("px", md.padX)} — the ramp's md padding is ${md.padX}px`,
+  ).toBe(true);
+  expect(hasClass(inputSrc, mdType!), `input.tsx is missing ${mdType}`).toBe(true);
+
+  // Checkbox's height is a minimum because the drawn box is 20px and the row
+  // is padded up to it, so the class carries a `min-` prefix the ramp does not.
+  expect(hasClass(checkboxSrc, `min-${mdHeight}`), `checkbox.tsx is missing min-${mdHeight}`).toBe(
+    true,
+  );
+  expect(
+    hasClass(checkboxSrc, spacingClass("gap", md.gap)),
+    `checkbox.tsx is missing ${spacingClass("gap", md.gap)} — the ramp's md gap is ${md.gap}px`,
+  ).toBe(true);
+});
+
+it("R4 — Badge decodes to TOKEN_RAMP, and 24px stays on the quiet side of the corner-pooling gate", () => {
+  expect(collectSourceFiles(registryRoot).length).toBeGreaterThanOrEqual(7);
+
+  // Comment-stripped for the same reason R3 is: badge.tsx's own comment block
+  // names `h-6`, `min-w-6`, `text-sm` and `h-7` in prose, so a raw file read
+  // would satisfy every check below out of the documentation rather than out
+  // of the element.
+  const badgeSrc = registryClasses("ui/badge/badge.tsx");
+  const checkboxSrc = registryClasses("ui/checkbox/checkbox.tsx");
+
+  // DESIGN-SYSTEM.md §4's token-ramp row, frozen. Reads the token ramp only —
+  // the mirror of R1's control-ramp-only rule, and the reason a mutation to
+  // either ramp isolates to one of the two tests.
+  const xs = TOKEN_RAMP.xs;
+  expect(xs.height).toBe(24);
+  expect(xs.padX).toBe(8);
+  expect(xs.type).toBe(14);
+  expect(xs.gap).toBe(6);
+
+  expect(hasClass(badgeSrc, spacingClass("h", xs.height))).toBe(true);
+  // `min-w-6` keeps width the larger term, which is what pins `min(w, h)` at
+  // the height for every badge rather than letting a one-character badge
+  // drift into a different taper regime.
+  expect(hasClass(badgeSrc, spacingClass("min-w", xs.height))).toBe(true);
+  expect(hasClass(badgeSrc, spacingClass("px", xs.padX))).toBe(true);
+  expect(hasClass(badgeSrc, spacingClass("gap", xs.gap))).toBe(true);
+  const xsType = typeUtilityFor(xs.type);
+  expect(xsType, `the token ramp's ${xs.type}px type is on no TYPE_SCALE step`).toBeDefined();
+  expect(hasClass(badgeSrc, xsType!)).toBe(true);
+
+  // generator.ts pins TAPER_PIVOT at 44 and gates corner pooling at k > 0.55,
+  // so the threshold height is 24.2px and Badge sits 0.2px under it. Asserted
+  // from both sides: a ramp edit that raised the height to 26 would cross the
+  // gate and switch four corner dots on across every badge in every
+  // consumer's app, with no error and no other test failing.
+  expect(taperForSize(xs.height, 999).k).toBeCloseTo(0.545454, 5);
+  expect(taperForSize(xs.height, 999).k).toBeLessThan(0.55);
+  expect(taperForSize(26, 999).k).toBeGreaterThan(0.55);
+
+  // Checkbox's drawn box is the same shape with 4.2px more room. 20 is not a
+  // ramp value on either ramp; it is a geometry pin, named here so nobody
+  // tidies `size-5` up to a ramp height.
+  const CHECKBOX_BOX_PX = 20;
+  expect(hasClass(checkboxSrc, spacingClass("size", CHECKBOX_BOX_PX))).toBe(true);
+  expect(taperForSize(CHECKBOX_BOX_PX, CHECKBOX_BOX_PX).k).toBeCloseTo(0.454545, 5);
+  expect(taperForSize(CHECKBOX_BOX_PX, CHECKBOX_BOX_PX).k).toBeLessThan(0.55);
+});
+
+it("R5 — the two spacing floors agree between handicraft.css and ramps.ts", () => {
+  // Same block-slicing technique as `oklchInBlock` above, for a plain px
+  // value rather than an oklch triple. Block-scoped for the same reason: a
+  // global `css.match` would return `:root`'s value whatever selector the
+  // caller meant.
+  function pxInBlock(selector: string, tokenName: string): string {
+    const start = css.indexOf(selector);
+    expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+    const braceOpen = css.indexOf("{", start);
+    const braceClose = css.indexOf("}", braceOpen);
+    const block = css.slice(braceOpen, braceClose);
+    expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+    const match = block.match(new RegExp(`--hc-${tokenName}:\\s*([^;]+);`));
+    expect(match, `no --hc-${tokenName} declaration inside ${selector}`).not.toBeNull();
+    return match![1]!.trim();
+  }
+
+  expect(SPACING.gapFrame).toBe(24);
+  expect(SPACING.padPage).toBe(12);
+  // Two facing frames each contribute one excursion; a page edge faces one.
+  // The relationship is the derivation, so it is asserted rather than left as
+  // a coincidence of two independent literals.
+  expect(SPACING.gapFrame).toBe(SPACING.padPage * 2);
+
+  // The stylesheet is the second home of both numbers and nothing in the type
+  // system connects the two, which is the Rule R2 drift shape.
+  expect(pxInBlock(":root", "gap-frame")).toBe(`${SPACING.gapFrame}px`);
+  expect(pxInBlock(":root", "pad-page")).toBe(`${SPACING.padPage}px`);
 });
