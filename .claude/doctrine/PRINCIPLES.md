@@ -151,7 +151,17 @@ POOL_SIZE         = 12        hard-coded seeds, not generated
   strokes freeze at their hidden start value and the frame never appears at all.
 - `forced-colors` honoured. Fallback rules live **unlayered** in the stylesheet on purpose, because
   unlayered rules outrank every layer.
-- **Colour never carries meaning alone.** Structurally enforced by highlighter being background-only.
+- **Colour never carries meaning alone.** Structurally enforced by highlighter being background-only,
+  and by the founder decision of 2026-08-03 that **a role colour is emphasis, never the sole signal**.
+
+  Binding on every component: anything using `danger`, `warning`, `success`, `info` or `accent` must
+  carry the same information in text or a drawn mark. **A variant distinguished by colour alone is a
+  defect regardless of its contrast ratio.**
+
+  This is not only an accessibility position, it is what makes the hachure usable. A `low` hachure
+  renders at 1.19:1 to 1.31:1 against paper, and the theoretical ceiling at that opacity is 1.78:1 for
+  pure black — so a hachure that had to carry state could never pass 1.4.11's 3:1 at `low`, for any
+  colour. Full working in `DESIGN-SYSTEM.md`.
 - Native semantics first. Checkbox keeps a real `<input type="checkbox">` in the DOM, transparent and
   positioned over the drawn box, so behaviour is the platform's rather than reimplemented.
 
