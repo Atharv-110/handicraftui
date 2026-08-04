@@ -11,14 +11,17 @@ import { test } from "./fixtures";
  * pinning the exact WCAG levels is what keeps a passing run meaning the same
  * thing across an `axe-core` version change.
  *
- * Doctrine correction, reported rather than fixed here: `PRINCIPLES.md`,
- * `QA-CONTRACT.md` and `INDEX.md` all currently say "no axe run has ever
- * happened on this project". That is stale — cycle 000b ran `@axe-core/cli`
- * 4.12.1 for real (`000b-engine-fixes.md:1318-1327`) and found real
- * violations, including the 18-node `color-contrast` set this file's A2
- * reproduces at 20 (harness gained two `Group` headings since that run,
- * neither adding a new `text-hc-ink-faint` site type). `.claude/doctrine/**`
- * is the founder's alone to edit, so this stays a report rather than a diff.
+ * A2 used to pin a declared 20-node `color-contrast` set, every entry a
+ * `text-hc-ink-faint` site, routed to cycle 002a. 002a landed and moved all
+ * of them to `text-hc-ink-soft`; the measured set is now empty. A2 asserts
+ * zero instead of a lowered literal, which is strictly stronger — a new
+ * violation fails the build rather than being absorbed into a list nobody
+ * re-derives.
+ *
+ * The doctrine correction this block used to report is done: PRINCIPLES.md's
+ * accessibility law and QA-CONTRACT.md's axe bullet both now record cycle
+ * 000b's real @axe-core/cli 4.12.1 run and name the narrower gap — axe in CI,
+ * across the matrix — that this file closes.
  */
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"];
 
@@ -108,73 +111,26 @@ test.describe("a11y", () => {
     expect(results.passes.length).toBeGreaterThan(0);
   });
 
-  /**
-   * A2's declared node set. Measured, not predicted — the pre-registered
-   * estimate in cycle 003 §3.3 was 9 `Group` headings + 10 mark captions + 1
-   * `perf-readout` = 20, confirmed exactly on all three pages below: every
-   * node is `color-contrast`, `serious`, and every one of them is a
-   * `text-hc-ink-faint` site.
-   *
-   * All 20 are routed to cycle 002a, whose assertion D7 forbids
-   * `text-hc-ink-faint` in `registry/default/**` and `apps/playground/app/**`
-   * — this count is expected to fall to near zero once that cycle merges. A2
-   * exists so that drop is independently visible: if 002a lands and this
-   * count does not fall, the assertion and the symptom are not measuring the
-   * same thing.
-   *
-   * A literal here rather than an allowlist file, on purpose — lowering it is
-   * a one-line diff a reviewer sees land, not a silent edit to a fixture.
-   */
-  const DECLARED_SERIOUS_MODERATE_TARGETS = [
-    // perf-readout.tsx:57 — `text-hc-ink-faint` on the settle readout text.
-    'div[data-testid="perf-readout"]',
-    // harness.tsx's `Group` component, `text-hc-ink-faint` section heading —
-    // one per group, 9 groups on the harness page.
-    "section:nth-child(1) > h2",
-    "section:nth-child(2) > h2",
-    "section:nth-child(3) > h2",
-    "section:nth-child(4) > h2",
-    "section:nth-child(5) > h2",
-    "section:nth-child(6) > h2",
-    "section:nth-child(7) > h2",
-    "section:nth-child(8) > h2",
-    "section:nth-child(9) > h2",
-    // harness.tsx's "Marks — drawn, not an icon font" group, one
-    // `text-hc-ink-faint` caption per drawn mark — 10 marks.
-    ".gap-1.flex-col.flex:nth-child(1) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(2) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(3) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(4) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(5) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(6) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(7) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(8) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(9) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-    ".gap-1.flex-col.flex:nth-child(10) > .text-\\[10px\\].text-hc-ink-faint.font-note",
-  ];
-
   for (const p of HARNESS_PAGES) {
-    test(`A2 — serious+moderate count is the declared 20, all routed to 002a (${p.label})`, async ({
-      page,
-      hc,
-    }) => {
+    test(`A2 — zero serious or moderate violations (${p.label})`, async ({ page, hc }) => {
       await hc.goto(p.state);
       const results = await runAxe(page);
-      const counted = results.violations.filter(
-        (v) => v.impact === "serious" || v.impact === "moderate",
-      );
+      const counted = results.violations
+        .filter((v) => v.impact === "serious" || v.impact === "moderate")
+        .map((v) => ({
+          id: v.id,
+          impact: v.impact,
+          targets: v.nodes.map((n) => n.target.join(" ")),
+        }));
 
-      // Every violation in this set is `color-contrast` — asserted
-      // separately from the count so a *different* rule firing 20 times
-      // cannot silently satisfy the number below.
-      for (const v of counted) {
-        expect(v.id).toBe("color-contrast");
-      }
+      expect(counted, JSON.stringify(counted, null, 2)).toEqual([]);
 
-      const targets = counted.flatMap((v) => v.nodes.map((n) => n.target.join(" ")));
-      expect(targets.sort(), JSON.stringify(targets, null, 2)).toEqual(
-        [...DECLARED_SERIOUS_MODERATE_TARGETS].sort(),
-      );
+      // "Expect zero" alone cannot tell a clean page from a blank page, a
+      // failed navigation or a tag-set typo — all three also measure zero
+      // violations. This is true only if the `color-contrast` rule actually
+      // ran and found real text that passed, which is what proves axe looked
+      // at a rendered harness rather than nothing.
+      expect(results.passes.map((r) => r.id)).toContain("color-contrast");
     });
   }
 });
