@@ -256,7 +256,8 @@ A root project targeting playground URLs. Six spec families:
 - **Degraded modes** — forced-colors, reduced-motion, print emulation, and no-JS via
   `javaScriptEnabled: false`. Converts `TESTING.md` §8 from manual steps to specs.
 - **axe** — `@axe-core/playwright`, gate defined by the accessibility skill's WCAG 2.2 checklist,
-  zero critical. Closes the second named gap: no axe run has ever happened on this project.
+  zero critical. Closes the second named gap: axe has run **once, by hand** in cycle 000b, and has
+  never run automatically in CI.
 - **Consumer install E2E, now rather than after hosting** — CI statically serves
   `registry/public/`, then `create-next-app` plus `shadcn add http://localhost:PORT/r/button.json`
   plus build. Unblocks `TESTING.md` §10 without waiting on a domain.
