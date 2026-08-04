@@ -125,12 +125,14 @@ that is correct** — a mutation crossing a genuine shared invariant *should* li
 up every guard that covers it. What matters is that the count is known in advance
 and does not change.
 
-Measured 2026-08-03 against 108 tests in 16 files:
+Re-measured 2026-08-04 against **127 tests in 18 files**. Three of the four are unchanged from the
+2026-08-03 measurement against 108 tests in 16 files. The fourth changed, and is unstable by nature —
+see below the table.
 
 | Mutation | Fails | Which |
 |---|---|---|
 | `preserveVertices: false → true` in `engine/generator.ts` | **5 tests, 2 files** | `aesthetic.test.ts` "does not pin the corners", plus `golden-shapes.test.ts` for `rect`, `rect-small`, `rounded`, `pill` |
-| `POOL_SEEDS` return replaced with `Math.random()` in `engine/seed.ts` | **4 tests, 4 files** | `seed.test.ts` ×2, `generator.test.ts` "derives a usable seed from a React id", `tier2.test.tsx` "renders identical geometry across two independent mounts" |
+| `POOL_SEEDS` return replaced with `Math.random()` in `engine/seed.ts` | **4 or 5 tests, 3 files — not a stable reference** | `tier2.test.tsx` ×2, `aesthetic.test.ts` "bounds distinct geometries by the pool size", `seed.test.ts` "seedFrom is deterministic", and *sometimes* `aesthetic.test.ts` "keeps the stroke visibly loose" |
 | `--hc-stroke-w: 2.4px → 1.6px` in `styles/handicraft.css` | **1 test** | `tier-agreement.test.ts` "uses the same stroke weight" |
 | `--hc-r-a: 4px → 14px` in `styles/handicraft.css` | **1 test** | `tier-agreement.test.ts` "keeps tier-1 corners near-square" |
 
@@ -139,6 +141,32 @@ become false and was never noticed, because nobody counts the failures when the
 suite goes red as expected. **A stale expectation in a mutation table is
 invisible in exactly the way mutation testing exists to prevent.** Re-measure it
 whenever a test file is added that covers one of these invariants.
+
+### The seed mutation is non-deterministic, and the reason is worth knowing
+
+Kept in the table rather than removed, because it still exercises a real
+invariant — but **it is not a fixed-count reference and must never be used as
+one.** The identical mutation, applied unchanged, measured 4 failures, then 5,
+then 4 across three consecutive runs on 2026-08-04.
+
+The cause is in rough.js, not here. `roughjs/bin/math.js`'s `Random.next()`
+reads `if (this.seed) { ... Math.imul(48271, this.seed) ... } else { return
+Math.random(); }`. **`Math.imul` coerces its arguments through `ToInt32`, and
+`Math.random()` returns a float in `[0, 1)`, so every seed this mutation
+produces truncates to `0` on the first internal draw.** Once `this.seed` is `0`,
+the `if` is false forever after and rough.js silently falls through to real
+`Math.random()` for the rest of that generation.
+
+That is a second and broader instance of the hazard `engine/seed.ts`'s own
+comment already names. The comment says a **falsy** seed causes the fallback and
+is thinking of literal `0`; via `Math.imul`'s truncation, *any* fractional float
+does the same thing. Anything constructing a seed from a non-integer source hits
+this, and the symptom is silent — geometry that looks plausible and differs on
+every render.
+
+A stable replacement — a fixed non-pool integer, which stays seeded but wrong —
+would give a countable reference. Not measured yet; it is owed the next time
+this table is touched.
 
 Two results that look like defects and are not. Both were measured:
 
@@ -257,8 +285,10 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
   **`next dev` is explicitly unbudgeted, and the dev-to-production ratio is not a constant.** This
   paragraph previously read "roughly 4× production — 270ms handover against 71ms". **That multiplier is
   withdrawn.** It was one pair of numbers under one network condition, recorded without its conditions,
-  and it does not generalise. Measured under throttling in cycle 002a the real ratio is **60×**, which
-  is not a drift from 4× — it is evidence that the quantity was never a fixed multiple.
+  and it does not generalise. Measured under throttling the real ratio is **roughly 84×**, which is not
+  a drift from 4× — it is evidence that the quantity was never a fixed multiple. It was recorded as 60×
+  until 2026-08-04, against an anchor that has since been corrected; that it moved again is the point
+  rather than an exception to it.
 
   **The mechanism, measured 2026-08-04.** `next dev` serves every file under
   `apps/playground/.next-dev/static/chunks/` with `cache-control: no-store, must-revalidate`. **No
@@ -268,14 +298,29 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
 
   | Condition | Handover | Against production warm |
   |---|---|---|
-  | `next dev`, Fast 4G, cold navigation | 2722.5ms | 60.6× |
-  | `next dev`, Fast 4G, warm reload, route already compiled | 2716.1ms | 60.5× |
-  | `next dev`, unthrottled | 427.8ms | 9.5× |
-  | `next build && next start`, Fast 4G, cold cache | 260.4ms | 5.8× |
-  | `next build && next start`, Fast 4G, warm reload, median of 3 | **44.9ms** | 1× |
+  | `next dev`, Fast 4G, cold navigation | 2722.5ms | 84.5× |
+  | `next dev`, Fast 4G, warm reload, route already compiled | 2716.1ms | 84.4× |
+  | `next dev`, unthrottled | 427.8ms | 13.3× |
+  | `next build && next start`, Fast 4G, cold cache | 260.4ms | 8.1× |
+  | `next build && next start`, Fast 4G, warm reload, median of 3, DOM `MutationObserver` (`tests/e2e/perf.spec.ts` H1/H2, frameCount 32), 2026-08-04 | **32.2ms light / 31.5ms dark** | 1× |
 
   Cold and warm under `next dev` differ by `2722.5 - 2716.1 = 6.4ms`, which is **0.2%**. Route
   compilation is not the cost. Any explanation resting on compile time is disproven by that line.
+
+  **The anchor row read 44.9ms until 2026-08-04, and it was a third artifact of the same kind.** Its
+  provenance is recoverable: cycle 002a measured it with an ad hoc script driven through browser
+  tooling and **never committed**, which waited for two conditions — a frame reaching
+  `data-hc-fidelity="high"` **and** a mark reaching `data-hc-drawn`. The committed instrument waits
+  for one: every `.hc-frame` at high fidelity. It never queries a mark. **These are different
+  quantities by construction**, not two readings of one. The committed instrument has been measured
+  five times across three cycles and every reading falls in a 30–38ms band; 44.9ms has exactly one
+  data point, from a script nobody can re-run.
+
+  **The four `next dev` rows are cycle 002a's own figures on that same uncommitted instrument.** Their
+  ratios above are recomputed against the new anchor, so they now compare one instrument's numerator
+  against another's denominator. They are indicative of the order of magnitude and **not** like-for-like.
+  Re-deriving the whole table on the committed instrument is owed, together with the 110ms budget
+  itself, and neither is done here.
 
   **Rules that follow.**
 
@@ -287,7 +332,7 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
     same investigation unharmed.
   - **The +15% cycle-over-cycle flag still applies, and only between figures taken under identical
     conditions** — same command, same throttle, same instrument. A change of conditions is not a
-    regression. Comparing across conditions is precisely how a 60× transport artifact gets filed as a
+    regression. Comparing across conditions is precisely how an 84× transport artifact gets filed as a
     code defect.
   - Never compare any `next dev` figure to the budget table above.
 
