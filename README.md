@@ -20,9 +20,9 @@ fallback, and the opt-out for very large lists.
 
 The two tiers deliberately share stroke weight, corner radii and hachure density, because tier 1 paints
 before every hydration and the handover has to pass unnoticed. A DOM `MutationObserver` times it from
-document start: 33.7ms in light mode and 31.1ms on the blackboard, each a median of 3 warm reloads under
-`next build && next start` with Fast 4G throttling, measured on 2026-08-04 by `pnpm test:e2e:perf`. The
-budget, under the same conditions, is 110ms.
+document start: 33.6ms in light mode and 34.3ms on the blackboard, the worse of the two, each a median of
+3 warm reloads under `next build && next start` with Fast 4G throttling, measured on 2026-08-04 by
+`pnpm test:e2e:perf`. The budget, under the same conditions, is 110ms.
 
 This file used to say 71ms, and **nothing got faster — the instrument changed.** That figure came from
 the playground's on-page readout, which polls every 16ms and reports only after three consecutive stable

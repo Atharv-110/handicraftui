@@ -232,9 +232,10 @@ pnpm test:e2e:perf        # playwright test --project=perf
 
 H1 and H2 time the handover with a DOM `MutationObserver` from document start,
 against `next build && next start` with Fast 4G throttling, median of 3 warm
-reloads. Measured on 2026-08-04: **33.7ms** in light mode and 31.1ms on the
-blackboard. The provider preloads rough.js and components generate synchronously
-in `useLayoutEffect`, so the handover is one paint rather than a fetch.
+reloads. Measured on 2026-08-04: 33.6ms in light mode and **34.3ms** on the
+blackboard, which is the worse of the two and the figure to quote. The provider
+preloads rough.js and components generate synchronously in `useLayoutEffect`, so
+the handover is one paint rather than a fetch.
 
 Both assert against a 110ms budget. That budget was derived against a different
 instrument — see step 9 — and a like-for-like re-derivation is still owed.
@@ -293,7 +294,8 @@ handover, which lands in the tens.
 
 S1 and S2 in `pnpm test:e2e:perf` automate this reading against a production
 build, unthrottled, median of 3, asserted against a 300ms budget. Measured on
-2026-08-04: 141ms in light mode and 145ms on the blackboard.
+2026-08-04: 144ms in light mode and 152ms on the blackboard, at 532 frames — the
+500 stress buttons plus the harness's own 32.
 
 The number that carries the argument is generation, measured on its own: 500
 components cost **1.6ms** from the 12-seed pool and **110ms** with unique seeds,
