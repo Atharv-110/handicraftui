@@ -208,6 +208,20 @@
 
     --hc-stroke-w: 2.6px;
     --hc-stroke-w-strong: 3.2px;
+
+    /* Redeclared here for one reason. A custom property's var() references are
+       substituted where the property is declared, and descendants inherit the
+       already-resolved string. Declared only at the document root, these two
+       froze the light ink into the shadow and this theme's own ink could never
+       reach them — measured on the blackboard at 1.0054:1, an edge nobody can
+       see, where chalk reads 12.9270:1. Redeclaring re-runs the substitution
+       at this level, and nothing else does.
+
+       The 3px offset is deliberately not redeclared. It is theme-independent
+       and button.tsx's press offset pins to the single copy above, so a second
+       one here would be a drift pair with no reason to exist. */
+    --hc-shadow: var(--hc-shadow-offset) var(--hc-shadow-offset) 0 var(--hc-ink);
+    --hc-shadow-sm: 2px 2px 0 var(--hc-ink);
   }
 }
 
