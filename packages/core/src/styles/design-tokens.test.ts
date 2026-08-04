@@ -951,3 +951,154 @@ it("E4 — CardFooter ships the gap that SPACING.gapFrame decodes to, not the 8p
     "card.tsx's applied class text contains gap-2 — either the footer regressed to the 8px that measured -2.13px of clearance, or stripComments stopped stripping and this guard is now reading the comment",
   ).toBe(false);
 });
+
+// ---------------------------------------------------------------------------
+// E5 — cycle 002c, iteration 2. The composed-token rule.
+//
+// A custom property's `var()` references are substituted where that property is
+// declared, and descendants inherit the already-resolved string. So a token
+// composed only in `:root` freezes whatever `:root` resolved and no theme block
+// downstream can reach it. That shipped: `--hc-shadow` rendered the light ink on
+// the blackboard at 1.0054:1 against a ground where the intended chalk reads
+// 12.9270:1, forced by both colours being authored at 24% lightness.
+//
+// The browser is how a defect of this class gets found once. This is how it
+// stops coming back — the source condition is static, so it is checkable here
+// across the whole class at no runtime cost, rather than one token at a time in
+// a browser.
+// ---------------------------------------------------------------------------
+
+/**
+ * `handicraft.css` with every block comment removed.
+ *
+ * E5 *enumerates* declarations where every other reader in this file looks one
+ * up by name, and that difference is what makes the shared readers unusable
+ * here. `css.indexOf(":root")` lands on the literal `:root` inside the file
+ * header comment at `:6`, so `oklchInBlock` and `pxInBlock` slice from
+ * `@layer base {` rather than from the selector — a superset that happens to
+ * contain the real block whole. Harmless when the caller names its token,
+ * wrong when the caller is counting.
+ *
+ * Stripping first also deletes the two false `:root` hits in the header and the
+ * one inside `.dark`'s own comment at `:190`, which is what lets the uniqueness
+ * guard in `declarationsIn` be an assertion rather than a hope.
+ *
+ * The shared readers are deliberately left alone. Teaching them to strip
+ * comments would close three filed traps at once, and it would also change a
+ * reader fifteen existing assertions depend on, so it needs its own mutation
+ * pass over all of them rather than a ride-along here.
+ */
+const bareCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+/**
+ * Every `--hc-<name>` declared directly inside one selector's block, mapped to
+ * its trimmed value text.
+ *
+ * Known limit, marked rather than hidden: the two block names are hard-coded by
+ * the caller. A third theme block would have to be added to E5's list by hand.
+ * There is exactly one theme block today and adding one is a deliberate act,
+ * where a general block enumerator is how this file's slicing bugs arrived in
+ * the first place.
+ */
+function declarationsIn(selector: ":root" | ".dark"): Map<string, string> {
+  const start = bareCss.indexOf(selector);
+  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+
+  // Ambiguity is the one failure this cannot absorb: a second occurrence would
+  // silently make the slice below depend on which one the file happens to
+  // reach first, which is the Rule V3 shape the readers above already carry.
+  expect(
+    bareCss.lastIndexOf(selector),
+    `${selector} appears more than once outside comments — the slice below is no longer unambiguous`,
+  ).toBe(start);
+
+  const braceOpen = bareCss.indexOf("{", start);
+  const braceClose = bareCss.indexOf("}", braceOpen);
+  const block = bareCss.slice(braceOpen, braceClose);
+  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+
+  const out = new Map<string, string>();
+  for (const m of block.matchAll(/--hc-([a-z0-9-]+):\s*([^;]+);/g)) {
+    out.set(m[1]!, m[2]!.trim());
+  }
+  return out;
+}
+
+it("E5 — a composed token is redeclared, identically, in every theme block whose tokens it reads", () => {
+  const root = declarationsIn(":root");
+  const dark = declarationsIn(".dark");
+
+  // A slice that resolved to the wrong block returns an empty map, and every
+  // check below then passes over nothing. Counted at cycle 002c iteration 2:
+  // :root declares 34 and .dark declares 23, so both floors carry margin for
+  // ordinary token work rather than tripping on the next token anyone adds.
+  expect(root.size, ":root read empty or truncated").toBeGreaterThanOrEqual(30);
+  expect(dark.size, ".dark read empty or truncated").toBeGreaterThanOrEqual(20);
+
+  // A count alone cannot tell a whole block from a truncated one that happens
+  // to be long enough, so both ends are named. --hc-paper opens each block and
+  // --hc-pad-page closes :root. For .dark the end marker is --hc-stroke-w-strong
+  // — the last declaration that predates this cycle's fix — deliberately not
+  // the redeclared shadow tokens, which are the thing under test.
+  expect(root.has("paper") && root.has("pad-page"), ":root slice does not span the block").toBe(
+    true,
+  );
+  expect(
+    dark.has("paper") && dark.has("stroke-w-strong"),
+    ".dark slice does not span the block",
+  ).toBe(true);
+  expect(dark.has("ink"), ".dark no longer overrides --hc-ink").toBe(true);
+
+  // The composed set is discovered, not named: any :root declaration whose
+  // value substitutes another token. A third composed token is then covered on
+  // the day it lands rather than on the day someone remembers it exists.
+  const composed = new Map<string, string[]>();
+  for (const [name, value] of root) {
+    const deps = [...value.matchAll(/var\(\s*--hc-([a-z0-9-]+)\s*\)/g)].map((m) => m[1]!);
+    if (deps.length > 0) composed.set(name, deps);
+  }
+
+  // Measured, not guessed: :root carries exactly two composed declarations,
+  // handicraft.css:148 and :149, and both read --hc-ink. Written as a lower
+  // bound and two names rather than as an exact count, because a third composed
+  // token should join the covered set instead of tripping the floor.
+  expect(
+    composed.size,
+    "no composed declarations found in :root — the scan resolved to the wrong block",
+  ).toBeGreaterThanOrEqual(2);
+  expect(composed.has("shadow"), "--hc-shadow is no longer composed from other tokens").toBe(true);
+  expect(composed.has("shadow-sm"), "--hc-shadow-sm is no longer composed from other tokens").toBe(
+    true,
+  );
+
+  let checked = 0;
+  for (const [name, deps] of composed) {
+    const overridden = deps.filter((dep) => dark.has(dep));
+    if (overridden.length === 0) continue;
+    const reads = overridden.map((dep) => `--hc-${dep}`).join(", ");
+
+    expect(
+      dark.has(name),
+      `--hc-${name} composes ${reads}, which .dark overrides, but .dark does not redeclare --hc-${name}. Its var() references are substituted at :root, so it inherits the light value into the blackboard and this theme's own ink can never reach it`,
+    ).toBe(true);
+
+    // Present is not enough, and this is the clause that matters. A hard-coded
+    // chalk value here would resolve correctly in a browser and look right,
+    // while giving the token a second home to drift from — the fix that
+    // reintroduces, inside the fix, the defect being fixed.
+    expect(
+      dark.get(name),
+      `.dark's --hc-${name} is not textually identical to :root's, so the value now has two homes. Redeclaring must re-run the same composition at this level, never hard-code what it currently resolves to`,
+    ).toBe(root.get(name));
+
+    checked++;
+  }
+
+  // Both shadow tokens depend on --hc-ink, which .dark overrides, so both must
+  // have been reached. A loop that reached neither would satisfy every
+  // assertion above it.
+  expect(
+    checked,
+    "no composed token was actually checked against .dark — the dependency intersection came back empty",
+  ).toBeGreaterThanOrEqual(2);
+});
