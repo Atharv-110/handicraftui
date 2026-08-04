@@ -293,6 +293,14 @@ Plus the `text-hc-ink-faint` source scan: move it out of `design-tokens.test.ts`
 task of each package that owns the files, so the check runs where the hash already covers what it
 reads. Closes `QA-CONTRACT.md` Rule V1b's one open escape. _(dev)_
 
+**The off-scale check must strip comments and read only quoted string literals before matching a class
+name.** The house comment style names the value it justifies — `input.tsx:49` contains the literal
+`px-4`, `checkbox.tsx:76` contains `gap-2`, and `badge.tsx:106-118` contains `h-6`, `min-w-6`,
+`text-sm` and `h-7` — so a raw-text reader reports the class the comment mentions rather than the class
+the element carries. Measured in cycle 002b: the first draft of R3 passed green, 132 passed and 0
+failed, with `input.tsx`'s `px-4` reverted to `px-3`. `design-tokens.test.ts:536-568` is the working
+reader. The comments are correct and stay; the reader is what has to change.
+
 ### 6.7 Re-verify the built seven
 
 All seven components against the new design system and the §5.1 state pairs. This replaces v3's "QA

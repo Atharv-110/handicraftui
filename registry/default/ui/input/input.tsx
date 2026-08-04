@@ -46,8 +46,12 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
   return (
     <div
       {...frameProps}
+      // px-4 is the control ramp's `md` padding, the same 16px Button `md`
+      // carries. Text inset from the frame is what a reader notices when a field
+      // and the button that submits it share a row, and this was 12px until
+      // cycle 002b — a disagreement nobody chose. DESIGN-SYSTEM.md §4 is the ramp.
       className={cn(
-        "hc-frame bg-hc-paper-raised relative flex h-11 w-full items-center px-3",
+        "hc-frame bg-hc-paper-raised relative flex h-11 w-full items-center px-4",
         disabled && "pointer-events-none opacity-50",
         className,
       )}

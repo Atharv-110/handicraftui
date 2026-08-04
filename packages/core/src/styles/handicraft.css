@@ -132,6 +132,19 @@
     --hc-second-pass-opacity: 0.5;
 
     --hc-space-unit: 0.25rem;
+
+    /* Two spacing floors, not a spacing scale. The scale is Tailwind's own 4px
+       grid; these are the two numbers an ordinary design system does not need,
+       because an ordinary system's borders do not wander off their own box.
+       Strokes leave the nominal box by 10.76px at p99 across every hand and both
+       themes, so two facing frames need 10.76 x 2 = 21.52px between them, rounded
+       up the 4px grid to 24. Page padding faces one frame rather than two, so it
+       is half: 12. Deliberately mapped to no Tailwind utility — a gap-hc-frame
+       sitting beside gap-6 would be a second name for one value, which is the
+       defect DESIGN-SYSTEM.md §1 collapses on the colour tokens. §3 carries the
+       measurement. */
+    --hc-gap-frame: 24px;
+    --hc-pad-page: 12px;
   }
 
   /* Dark mode is a blackboard, not a dimmed version of the light theme:

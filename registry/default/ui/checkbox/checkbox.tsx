@@ -73,8 +73,12 @@ export function Checkbox({
   return (
     <label
       htmlFor={inputId}
+      // gap-2 is the control ramp's `md` gap, 8px, matching this row's 44px
+      // height. It was 10px until cycle 002b, which is Button `lg`'s gap on an
+      // `md`-height row — a number borrowed from the wrong line of one table.
+      // DESIGN-SYSTEM.md §4 is the ramp.
       className={cn(
-        "font-hand text-hc-ink inline-flex min-h-11 cursor-pointer items-center gap-2.5 select-none",
+        "font-hand text-hc-ink inline-flex min-h-11 cursor-pointer items-center gap-2 select-none",
         !label && "min-w-11 justify-center",
         disabled && "pointer-events-none opacity-50",
         className,
