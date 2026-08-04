@@ -197,6 +197,84 @@ gets rediscovered.
 ring sits on paper, where it measures 5.22:1 light and 7.21:1 dark. Whether the stated requirement is
 the right one is an open question, flagged and not decided here.
 
+### The canonical role-to-mark map
+
+A role colour is emphasis and never the sole signal (`PRINCIPLES.md`). Where the second signal is a
+drawn mark, the mark is fixed per role rather than chosen per component. One reader learns one
+vocabulary.
+
+| Role | Mark | In `MARK_STROKES` today |
+|---|---|---|
+| `danger` | `cross` | Yes |
+| `success` | `check` | Yes — already the Checkbox tick |
+| `warning` | `bang` | No, owed |
+| `info` | `info` | No, owed |
+| `accent` | none | n/a — `accent` is emphasis, not status |
+
+Four of the five roles take a mark: `5 - 1 = 4`. Two of the four exist, so `4 - 2 = 2` are owed —
+**`bang` and `info`**. Both land with Alert, their first consumer. `engine/marks.ts` is a core
+touchpoint, so that cycle carries its own Rule R1.
+
+This lives in doctrine rather than in a `role-marks.ts` module because it has one consumer today, and
+a one-consumer module is an abstraction ahead of its evidence. Extract it on the `ramps.ts` pattern
+when Alert makes it two.
+
+### `marked` is explicitly non-semantic
+
+Highlighter is emphasis and never status.
+
+Strip the colour from a `marked` badge and the reader loses **salience**, not **information** — every
+word is still there, they just stop being pointed at it first. Strip the colour from a `danger` badge
+and the reader loses the fact that something is wrong, which existed nowhere else. That distinction is
+the whole test the colour-alone rule applies, and `marked` is on the safe side of it by construction
+rather than by luck.
+
+Binding: **a component may use highlighter for emphasis with no accompanying mark. It may never use
+highlighter to mean a status.** The moment a variant named `important` or `urgent` fills with
+highlighter, it is a role in everything but name and the rule fires.
+
+### A drawn mark carrying a non-colour signal needs a tier-1 fallback
+
+`SketchMark` generates in a layout effect, and rough.js arrives through an async import because it is
+an optional peer dependency. The server therefore sends an empty `<svg>`, and a component whose mark
+is its non-colour signal is distinguished by **colour alone** until hydration — and permanently, if
+rough.js is never installed.
+
+Binding: **any component using a drawn mark to satisfy the colour-alone rule ships a tier-1 fallback
+for that mark.** The fallback paints from CSS with no JavaScript and hides itself once real geometry
+exists, keyed off `data-hc-drawn` on the mark's own `<svg>` — never off mount, which would delete the
+signal permanently in the one configuration where it matters most, and never off the frame's
+`data-hc-fidelity`, which `SketchMark` does not read and which is absent at `fidelity=lite`.
+
+The shipped mechanism is `.hc-mark-slot` in `handicraft.css`: a `::before` carrying the glyph in
+`--hc-font-hand`, pinned to `--hc-ink` rather than `currentColor` so the two tiers cannot flip colour
+at the handover, hidden by `.hc-mark-slot:has(> svg[data-hc-drawn])::before`.
+
+**Two limits of the mechanism, both measured in cycle 002a rather than assumed.**
+
+**Position is correctable, and the correction is a measurement, never a derivation.** Centring a
+glyph's line box does not centre its ink, in either axis — the vertical error is where the baseline
+sits inside the line box, the horizontal error is asymmetric side bearings. Cycle 002a derived 0.5px
+in one axis from font arithmetic and then measured **1.585px in the opposite direction**, plus 0.19px
+in the axis the derivation predicted to be zero. One wrong method, two wrong axes. The correction that
+shipped was measured, and it verified: all four instances land within **0.145px** of the slot's
+geometric centre against a 0.25px bar, and the handover movement fell from 1.59px to 0.343px, a
+**4.64×** reduction.
+
+Two rules follow. **Tune against the slot's geometric centre, not against the drawn mark's measured
+centroid** — the drawn side carries rough.js wobble, which moved 0.42px between two seeds against the
+fallback's 0.11px instrument spread, so tuning to the delta bakes one instance's wobble into a global
+constant. **And the constant is valid only for the face that painted it**, verified down to that
+face's `cmap` rather than its declared `unicode-range`: a declared range is a promise, a `cmap` entry
+is the fact, and a glyph missing from the file falls through to a metric-adjusted local face whose
+metrics are the operating system's. Re-measure when the face changes.
+
+**Weight is not correctable.** One tier is a stroke width and the other is a typeface's stem, and no
+CSS pins a stem to a number. The two tiers of a drawn mark will always differ slightly in weight, and
+**correcting the position makes that difference more visible rather than less**, because the marks
+then occupy the same footprint instead of being separated. That is the price of a font glyph over a
+hardcoded path, and the hardcoded path costs tier-agreement drift in a new file, which is worse.
+
 ---
 
 ## 2. Type scale — two scales plus a named exception list
@@ -294,9 +372,14 @@ columns.
 **Token ramp**, for non-interactive marks — Badge today, plus Chip, Tag, Pill and Avatar-status when
 they exist:
 
-| Size | Height | Padding-x | Type | Touch target |
-|---|---|---|---|---|
-| `xs` | 24px | 8px | 14px | non-interactive |
+| Size | Height | Padding-x | Type | Gap | Touch target |
+|---|---|---|---|---|---|
+| `xs` | 24px | 8px | 14px | 6px | non-interactive |
+
+Gap is the control ramp's own type-to-gap pairing read at the same type size: `sm` pairs 14px type
+with a 6px gap, so 14px token type takes 6px. Badge ships `gap-1.5`. The column exists because Badge
+needed a gap and the ramp had no answer, which meant the number came from another table without
+saying so.
 
 **The touch-target column is a field, not a comment.** One of `AAA (≥44)`, `AA (≥24, spacing rule
 applies)`, or `non-interactive`. That turns Button's prose caveat into something checkable.
@@ -383,7 +466,12 @@ Stated so nobody treats them as more settled than they are.
   moves every dark-mode number here. No calibration cycle is assigned; this file is the reason to
   assign one.
 - **Excalifont's metrics are unverified.** §2's table is Kalam's. If the font decision changes, §2's
-  numbers move.
+  numbers move — **and so does the fallback mark's position correction**, `transform: translate(-0.2px,
+  1.6px)` in `handicraft.css`, which is measured against Kalam 400 and against nothing else. Excalifont
+  is listed in no font stack in this repository and is loaded nowhere; `layout.tsx` loads Kalam as an
+  explicit stand-in and says so. **The cycle that lands `registry:font` and self-hosts Excalifont owes
+  a re-measure of that constant against the real face**, and owes a check that the face covers U+00D7
+  in its `cmap` rather than merely declaring the range.
 
 ---
 

@@ -43,26 +43,72 @@
     --hc-ink-soft: oklch(46% 0.025 265);
     --hc-ink-faint: oklch(66% 0.018 265);
 
-    /* Accents drawn from the subject: the exercise-book margin rule, a
-       highlighter, and blue biro. */
-    --hc-red: oklch(56% 0.19 25);
+    /* Accents drawn from the subject: a highlighter and blue biro. The
+       exercise-book margin rule used to live here as --hc-red, at perceptual
+       distance 0.0234 from --hc-danger — a just-noticeable step is ~0.02, so
+       the two were one colour under two names. Collapsed into the role table
+       below; the margin rule now reads --hc-danger-ink. */
     --hc-highlighter: oklch(92% 0.17 105);
     --hc-biro: oklch(48% 0.13 255);
 
-    /* Focus is its own colour, never an accent. It must clear 3:1 against both
-       paper and ink, which neither the highlighter nor the margin red does. */
-    --hc-focus: oklch(52% 0.19 255);
+    /* Focus is its own colour, never an accent. The old value here,
+       oklch(52% 0.19 255), has a linear red channel of -0.010836 and was
+       silently clipped by the browser to #0065D2 — the token was lying about
+       what it rendered, by 35.702 of 255 levels. This value converts that
+       same rendered hex back to oklch, so the pixel on screen is unchanged
+       and the excursion drops to 0.017 levels.
 
-    /* Feedback */
-    --hc-danger: oklch(54% 0.2 27);
-    --hc-success: oklch(56% 0.14 150);
+       Measured at outline-offset: 3px, the ring sits on paper: 5.2080:1
+       light, 7.2146:1 dark, clearing the 3:1 floor with room. Whether it
+       also needs 3:1 against ink is a real, separate question
+       DESIGN-SYSTEM.md §1 flags as open and declines to decide — not
+       asserted here. */
+    --hc-focus: oklch(52.44% 0.186 256.98);
+
+    /* Semantic roles: danger, warning, success, info, accent. Each carries an
+       ink value and a fill value per theme — full derivation in
+       DESIGN-SYSTEM.md §1. Role-tinted text is legal over its own fill's
+       hachure up to fill: "low" and no further; the fill itself is
+       decorative and 1.4.11-exempt, because no colour clears 3:1 at fill:
+       "low" opacity (0.24) — the binding numbers are the 4.5:1 text ratios
+       only.
+
+       Full oklch precision is load-bearing, not pedantry. This table shipped
+       once with lightness rounded to whole percent and the oklch and hex
+       columns then disagreed on 15 of 20 values, dropping 5 of the 10 fills
+       below the guideline. Copy these values exactly. Never re-round them,
+       and never write a token from the hex with a comment holding the
+       oklch — the two drift apart again.
+
+       A role colour is emphasis, never the sole signal — PRINCIPLES.md. Any
+       component using one must carry the same information in text or a
+       drawn mark; see badge.tsx for the worked example. */
+    --hc-danger-ink: oklch(50.92% 0.1761 27.04);
+    --hc-danger-fill: oklch(66.92% 0.1843 27.05);
+    --hc-warning-ink: oklch(50.02% 0.0899 74.96);
+    --hc-warning-fill: oklch(65.44% 0.1175 75.07);
+    --hc-success-ink: oklch(48.1% 0.1132 149.69);
+    --hc-success-fill: oklch(63.54% 0.1491 149.81);
+    --hc-info-ink: oklch(49.41% 0.1388 255.26);
+    --hc-info-fill: oklch(65.06% 0.1616 255.04);
+    --hc-accent-ink: oklch(51.02% 0.1731 10.02);
+    --hc-accent-fill: oklch(67.53% 0.1873 10.1);
 
     /* Type. Handwriting is the accent face, used for display, buttons and
        labels. Body copy and form fields use a legible humanist stack — an
        all-handwritten UI fails at 14px in a table, and shipping a webfont for
        body text is a cost every consumer would pay whether they want it or
        not. */
-    --hc-font-hand: "Excalifont", "Kalam", "Patrick Hand", ui-rounded, cursive;
+    /* Excalifont dropped from the stack. It is loaded nowhere in this
+       repository — layout.tsx loads Kalam as an explicit stand-in and says so
+       in its own comment — so leaving it first here promised a font this
+       library never installs, and any consumer who happens to have it on
+       their own machine would get metrics nobody has tested. That includes
+       the fallback mark's position correction further down this file, which
+       is measured against Kalam specifically. Excalifont returns once
+       registry:font self-hosts it, and that cycle owes a re-measure of that
+       correction against the real face rather than the stand-in. */
+    --hc-font-hand: "Kalam", "Patrick Hand", ui-rounded, cursive;
     --hc-font-body:
       ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
       sans-serif;
@@ -100,13 +146,28 @@
     --hc-ink-soft: oklch(76% 0.014 85);
     --hc-ink-faint: oklch(58% 0.014 85);
 
-    --hc-red: oklch(68% 0.17 25);
     --hc-highlighter: oklch(84% 0.15 105);
     --hc-biro: oklch(70% 0.12 255);
     --hc-focus: oklch(74% 0.14 245);
 
-    --hc-danger: oklch(68% 0.18 27);
-    --hc-success: oklch(70% 0.13 150);
+    /* Dark values for the ten role tokens above. See :root for the full
+       derivation. Dark mode inverts the ink/fill lightness relationship —
+       the fill goes darker than the ink — which is correct for chalk on
+       slate and is not a colour inversion of the light set; do not "fix" it.
+       success dark sits at 2.994881 against paper, under the 3.0 house
+       design guideline by 0.005 — deliberately not adjusted, because the
+       adjusted value that clears 3.0 drops role ink over its own fill under
+       the real 4.5:1 floor. DESIGN-SYSTEM.md §1 is the full arithmetic. */
+    --hc-danger-ink: oklch(68.48% 0.1735 27.11);
+    --hc-danger-fill: oklch(54.45% 0.1882 26.96);
+    --hc-warning-ink: oklch(68.6% 0.123 75.17);
+    --hc-warning-fill: oklch(52.6% 0.0943 75.34);
+    --hc-success-ink: oklch(66.1% 0.1554 149.83);
+    --hc-success-fill: oklch(50.85% 0.119 150.09);
+    --hc-info-ink: oklch(68% 0.1459 254.99);
+    --hc-info-fill: oklch(52.49% 0.1463 254.85);
+    --hc-accent-ink: oklch(69.01% 0.1744 10.23);
+    --hc-accent-fill: oklch(54.98% 0.1871 10.04);
 
     --hc-stroke-w: 2.6px;
     --hc-stroke-w-strong: 3.2px;
@@ -122,12 +183,19 @@
   --color-hc-ink: var(--hc-ink);
   --color-hc-ink-soft: var(--hc-ink-soft);
   --color-hc-ink-faint: var(--hc-ink-faint);
-  --color-hc-red: var(--hc-red);
   --color-hc-highlighter: var(--hc-highlighter);
   --color-hc-biro: var(--hc-biro);
   --color-hc-focus: var(--hc-focus);
-  --color-hc-danger: var(--hc-danger);
-  --color-hc-success: var(--hc-success);
+  --color-hc-danger-ink: var(--hc-danger-ink);
+  --color-hc-danger-fill: var(--hc-danger-fill);
+  --color-hc-warning-ink: var(--hc-warning-ink);
+  --color-hc-warning-fill: var(--hc-warning-fill);
+  --color-hc-success-ink: var(--hc-success-ink);
+  --color-hc-success-fill: var(--hc-success-fill);
+  --color-hc-info-ink: var(--hc-info-ink);
+  --color-hc-info-fill: var(--hc-info-fill);
+  --color-hc-accent-ink: var(--hc-accent-ink);
+  --color-hc-accent-fill: var(--hc-accent-fill);
 
   --font-hand: var(--hc-font-hand);
   --font-body: var(--hc-font-body);
@@ -192,6 +260,80 @@
   }
   .hc-frame[data-hc-fidelity="high"] {
     background-image: none;
+  }
+
+  /*
+   * Tier 1 for a drawn mark.
+   *
+   * SketchMark generates in a layout effect and rough.js arrives through an
+   * async import, because it is an optional peer dependency. So the server
+   * sends an empty <svg> and a mark-bearing component carries no mark until
+   * hydration — which, for a component whose mark is its non-colour signal,
+   * means it is briefly distinguished by colour alone. This is the frame's own
+   * handover one level down: paint something immediately, step aside the moment
+   * real geometry exists.
+   *
+   * A font glyph rather than a hardcoded path. A tier-1 layer may not load
+   * rough.js — that is what makes it tier 1 — and the hand face is the only
+   * source of hand-drawn shapes that costs no JavaScript. Two rotated CSS bars
+   * were the other option and read as a geometric icon, which is the look this
+   * library exists to avoid.
+   *
+   * The slot takes its size from the mark's own <svg>, which carries width and
+   * height attributes in the server output too, so the box is the same before
+   * and after the swap and nothing can reflow at the handover.
+   */
+  .hc-mark-slot {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+  }
+
+  .hc-mark-slot::before {
+    /* × U+00D7 MULTIPLICATION SIGN. Written as an escape so no encoding step in
+       the CSS pipeline can mangle it. Dingbat crosses were rejected: a
+       handwriting face is unlikely to cover them, and a missing glyph falls back
+       to a system face whose metrics are unknown.
+
+       No font-size. It inherits, and the mark's own size was chosen to match the
+       inherited x-height — see the size derivation in the component. Pinned to
+       --hc-ink rather than currentColor for the same reason the frame's stroke
+       is: a component that tints its text would otherwise tint this layer and
+       not the drawn one, and the mark would change colour at the handover. */
+    content: "\00D7";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Flex centring positions the glyph's line box, not its ink, and those are
+       not the same point in either axis: the multiplication sign is drawn near
+       x-height, which sits above the line box's middle, and its side bearings
+       are not symmetric. Measured against the loaded hand face, the glyph's ink
+       centroid sat 1.585px above and 0.19px right of the slot's centre, on two
+       badges agreeing within 0.11px. This cancels that.
+
+       A measurement, not a derivation. A different hand face has different
+       metrics, so this number is re-measured with it — the derivation that
+       predicted 0.5px in the other direction failed precisely because it
+       reasoned from a font metric instead of reading one. The drawn mark needs
+       no equivalent: marks.ts draws the cross symmetric about the centre by
+       construction, so its nominal position is already the slot's centre. */
+    transform: translate(-0.2px, 1.6px);
+
+    font-family: var(--hc-font-hand);
+    line-height: 1;
+    color: var(--hc-ink);
+    pointer-events: none;
+  }
+
+  /* Mirrors .hc-frame[data-hc-fidelity="high"] above. The attribute lands only
+     once paths exist, so a page that never loads rough.js keeps this layer
+     forever — which is the correct behaviour for an optional peer dependency,
+     and the reason this is not keyed off mount. */
+  .hc-mark-slot:has(> svg[data-hc-drawn])::before {
+    display: none;
   }
 
   /*

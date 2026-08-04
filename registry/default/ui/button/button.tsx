@@ -16,7 +16,7 @@ import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handicraft/cor
 const VARIANTS = {
   default: "text-hc-ink hover:bg-hc-paper-sunken",
   primary: "text-hc-ink",
-  danger: "text-hc-danger hover:bg-hc-danger/10",
+  danger: "text-hc-danger-ink hover:bg-hc-danger-fill/10",
   ghost: "bg-transparent text-hc-ink hover:bg-hc-paper-sunken",
 } as const;
 
@@ -28,14 +28,21 @@ const VARIANTS = {
 const FILL_COLORS: Record<keyof typeof VARIANTS, string> = {
   default: "var(--hc-ink-faint)",
   primary: "var(--hc-highlighter)",
-  danger: "var(--hc-danger)",
+  danger: "var(--hc-danger-fill)",
   ghost: "transparent",
 };
 
-/** Primary leans on texture to carry emphasis; the rest stay quiet. */
+/**
+ * `primary` is held at "low", not "med". Ink over highlighter hachure at "med"
+ * measures 3.64:1 on the blackboard — under the 4.5:1 AA floor — the same
+ * defect Badge `marked` hit in cycle 1, from the same token at the same
+ * level. At "low" it clears 7.20:1 dark, 14.82:1 light. See
+ * DESIGN-SYSTEM.md §1 for the full ceiling table. The rest stay quiet
+ * regardless.
+ */
 const FILL_LEVELS: Record<keyof typeof VARIANTS, FillLevel> = {
   default: "low",
-  primary: "med",
+  primary: "low",
   danger: "low",
   ghost: "no",
 };
@@ -74,6 +81,15 @@ export function Button({
     shape: "rect",
     fill: fill ?? FILL_LEVELS[variant],
     fillColor: FILL_COLORS[variant],
+    // Pinned rather than left to currentColor. Tier 1's pseudo-element stroke
+    // is fixed to --hc-ink in CSS; tier 2 resolves currentColor against this
+    // element, which `danger` tints. Without this the frame is ink before
+    // hydration and red after — visible at every page load. Unconditional
+    // across all four variants rather than gated on `danger`, so the other
+    // three (already --hc-ink) agree by construction instead of by
+    // coincidence, and a future tinted variant cannot reintroduce the bug by
+    // forgetting a branch. DESIGN-SYSTEM.md §1.
+    stroke: "var(--hc-ink)",
     ...(rescribble !== undefined ? { rescribble } : {}),
   });
   const { ref: frameRef, ...frameAttrs } = frameProps;

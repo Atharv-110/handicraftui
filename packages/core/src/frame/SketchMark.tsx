@@ -104,6 +104,12 @@ export function SketchMark({
       // the tell that makes a sketch look fake.
       style={{ overflow: "visible", display: "inline-block", flex: "none" }}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
+      // The frame publishes data-hc-fidelity="high" only once it has geometry,
+      // so its CSS strokes can step aside without ever leaving a gap. A mark
+      // needs the same signal for the same reason. Not named "fidelity": this
+      // component has no fidelity setting and never reads one, so borrowing that
+      // word would claim behaviour it does not have.
+      {...(paths.length > 0 ? { "data-hc-drawn": "" } : {})}
       focusable="false"
     >
       <g transform={rotation ? `rotate(${rotation} ${size / 2} ${size / 2})` : undefined}>

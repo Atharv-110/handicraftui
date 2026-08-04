@@ -11,7 +11,14 @@
  */
 
 import * as React from "react";
-import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handicraft/core";
+import {
+  cn,
+  composeRefs,
+  SketchMark,
+  useSketchFrame,
+  type FillLevel,
+  type MarkName,
+} from "@handicraft/core";
 
 /**
  * Every variant carries the same ink text and the same ink stroke. That looks
@@ -23,14 +30,21 @@ import { cn, composeRefs, useSketchFrame, type FillLevel } from "@handicraft/cor
  * A component that tints its text and lets the stroke follow `currentColor`
  * therefore has its frame change colour at the handover — tier 1 in ink, tier 2
  * in the tint. The hachure colour, by contrast, is threaded to both tiers
- * identically through `--hc-fill-color`. It is the only per-variant channel
- * both tiers agree on, so it is the only one Badge uses: four visibly distinct
- * badges by what is scribbled inside them, with no colour flip anywhere.
+ * identically through `--hc-fill-color`, so it is the one per-variant channel
+ * both tiers agree on and Badge still uses it for that reason.
  *
  * Rejected: tinting the text per variant the way Button does. Two independent
  * reasons. It causes the handover flip above. And same-hue text over its own
  * hachure — danger text on a danger fill — measures under AA at every level;
  * that is a finding against Button, not a reason to repeat the pattern here.
+ *
+ * Hachure colour alone is no longer the whole story, though. `default` and
+ * `danger` both fill at `med` and differ only in which colour is scribbled —
+ * a colour-only distinction is exactly what DESIGN-SYSTEM.md's rule forbids
+ * for a variant that genuinely signals status. `danger` carries a leading
+ * `SketchMark` glyph for that reason; see the render below. `marked` needs no
+ * glyph — highlighter is emphasis, not status, so losing its colour costs
+ * salience, not information.
  */
 const VARIANTS = {
   default: "text-hc-ink",
@@ -42,7 +56,7 @@ const VARIANTS = {
 const FILL_COLORS: Record<keyof typeof VARIANTS, string> = {
   default: "var(--hc-ink-faint)",
   marked: "var(--hc-highlighter)",
-  danger: "var(--hc-danger)",
+  danger: "var(--hc-danger-fill)",
   ghost: "transparent",
 };
 
@@ -62,6 +76,23 @@ const FILL_LEVELS: Record<keyof typeof VARIANTS, FillLevel> = {
   marked: "low",
   danger: "med",
   ghost: "no",
+};
+
+/**
+ * `default` and `danger` both fill at `med` and would otherwise differ only
+ * in hachure colour — exactly the colour-only distinction
+ * DESIGN-SYSTEM.md's rule forbids for a variant that signals status. `cross`
+ * is the canonical mark for `danger` (DESIGN-SYSTEM.md §1). `marked` and
+ * `default` stay `null`: `marked` is highlighter, which is emphasis rather
+ * than status and is documented as explicitly non-semantic, and `default`
+ * carries no status to begin with. `ghost` has no fill at all, so it is
+ * already distinguished by texture.
+ */
+const VARIANT_MARKS: Record<keyof typeof VARIANTS, MarkName | null> = {
+  default: null,
+  marked: null,
+  danger: "cross",
+  ghost: null,
 };
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -92,8 +123,13 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
  * which fits a card or a button; a badge is a note written on the page, not an
  * object sitting on it.
  *
- * `seedKey` is not needed — no state changes a badge's fill and it never
- * portals, so `useId` alone gives each badge in a list its own geometry.
+ * `seedKey` is now needed. `danger`'s leading glyph is a second `SketchMark`
+ * beside the frame, and without a shared key it falls back to its own
+ * `useId` — a different tree position and therefore a different pool seed,
+ * so the mark and the frame would be drawn by two different hands. `autoId`
+ * is threaded to both `useSketchFrame` and `SketchMark`, the same pattern
+ * Checkbox already uses with `inputId`. `useId` is still per-instance, so
+ * each badge in a list keeps its own geometry regardless.
  * `focusWithin` is not set — a badge is non-interactive, wraps no control, and
  * its own frame element is not focusable, so `:focus-visible` correctly never
  * fires. `rescribble` is not set — nothing here affords a hover. The 44px
@@ -115,10 +151,17 @@ export function Badge({
   ref,
   ...props
 }: BadgeProps) {
+  const autoId = React.useId();
+  // Read once into a local: TypeScript does not narrow a repeated index
+  // expression across a JSX ternary, and a cast here would silently accept a
+  // future variant that maps to `null`.
+  const mark = VARIANT_MARKS[variant];
+
   const { frameProps, sketchLayer } = useSketchFrame({
     shape: "rect",
     fill: fill ?? FILL_LEVELS[variant],
     fillColor: FILL_COLORS[variant],
+    seedKey: autoId,
   });
   const { ref: frameRef, ...frameAttrs } = frameProps;
 
@@ -127,14 +170,34 @@ export function Badge({
       {...frameAttrs}
       ref={composeRefs(frameRef as React.Ref<HTMLSpanElement>, ref)}
       className={cn(
-        "hc-frame font-hand text-hc-ink inline-flex h-6 min-w-6 items-center justify-center px-2",
-        "text-sm leading-none select-none",
+        "hc-frame font-hand text-hc-ink inline-flex h-6 min-w-6 items-center justify-center gap-1.5",
+        "px-2 text-sm leading-none select-none",
         VARIANTS[variant],
         className,
       )}
       {...props}
     >
       {sketchLayer}
+      {mark ? (
+        // aria-hidden here is not a duplicate of SketchMark's own. That one
+        // hides the <svg>; this one hides the CSS ::before that paints before
+        // hydration, which Chrome and NVDA read out as text. Without it this
+        // badge is announced with a multiplication sign in front of it, but
+        // only until it hydrates — so the bug would be invisible in every
+        // manual test that starts after the page settles.
+        <span className="hc-mark-slot" aria-hidden="true">
+          <SketchMark
+            name={mark}
+            size={14}
+            seedKey={autoId}
+            // Pinned, not currentColor. The frame's two tiers resolve their
+            // stroke against different elements and flip colour at the
+            // handover if a component tints its text; this mark has two
+            // tiers now and can do the same thing.
+            color="var(--hc-ink)"
+          />
+        </span>
+      ) : null}
       {children}
     </span>
   );
