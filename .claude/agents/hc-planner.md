@@ -3,7 +3,7 @@ name: hc-planner
 description: Researches and drafts feature briefs for Handicraft UI on genuinely new capability surfaces — theme builder, docs information architecture, landing page concept, annotation layer, v2 charts. Reads live web for prior art and current best practice, then proposes what to build and why, inside the locked product vision. Deliberately NOT used for routine component builds; the architect works straight from doctrine for those. Answers "what and why", never "how".
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, Skill, ToolSearch
 model: opus
-effort: xhigh
+effort: high
 color: purple
 ---
 
