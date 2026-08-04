@@ -20,7 +20,51 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "lint": {}
+    "lint": {},
+
+    // The three overrides below each repeat their generic task's `dependsOn`
+    // and `outputs` in full. A `<package>#<task>` entry REPLACES the generic
+    // entry rather than merging with it — measured on turbo 2.10.8, an
+    // override carrying only `inputs` resolves to `dependsOn: []` and
+    // `outputs: []`, which would drop `.next` from the cache entirely and let
+    // a cache hit restore nothing.
+    //
+    // `$TURBO_DEFAULT$` is load-bearing, not decoration: without it the
+    // package's own files stop being hashed, trading this blind spot for a
+    // worse one. `$TURBO_ROOT$` rather than `../../` so the glob does not
+    // depend on package depth — `registry` sits one level under the root,
+    // `apps/playground` two.
+
+    // `.next` embeds registry component source, reached only through the
+    // `@/ui/*` path alias in apps/playground/tsconfig.json. Turbo's
+    // package-graph hashing cannot see through a path alias, so without this
+    // a registry-only edit leaves the served bundle stale at an unchanged hash.
+    "@handicraft/playground#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", ".next-dev/**", "!.next-dev/cache/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/registry/default/**"]
+    },
+
+    // Same alias, one gate earlier. This is the only task that checks a
+    // registry component against the harness call sites that consume it —
+    // @handicraft/registry#typecheck sees the components without the call
+    // sites, so a prop rename type-errors here and nowhere else.
+    "@handicraft/playground#typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/registry/default/**"]
+    },
+
+    // vitest reaches registry/tests/** through the include glob in
+    // packages/core/vitest.config.ts, and those tests import the components
+    // they cover, so both halves of registry are real inputs to this task.
+    "@handicraft/core#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/registry/default/**",
+        "$TURBO_ROOT$/registry/tests/**"
+      ]
+    }
   },
   "globalEnv": ["NODE_ENV"]
 }
