@@ -1,0 +1,162 @@
+name: E2E
+
+# Separate from ci.yml on purpose (cycle 003 §1). The five gates plus
+# format:check stay exactly as they are and never see a browser image; this
+# workflow owns everything that needs one.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly, arbitrary UTC hour with no other significance. Feeds the
+    # `perf` job only — see that job's `if:` below.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+# Never cancel a scheduled (nightly) run — that run is the trend line's
+# record for that night. Mirrors ci.yml's own reasoning for the same rule.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+  # Every screenshot assertion in this cycle checks this before comparing
+  # anything (cycle 003 §2.3) — CoreText and FreeType hint and antialias
+  # differently, and every baseline this repo commits is Linux-rendered
+  # inside the exact image pinned below. Set once, for every job, rather than
+  # per-step.
+  HC_SNAPSHOT_ENV: docker
+
+jobs:
+  # Cheap, and only meaningful on a pull request: computes whether this diff
+  # hits the `visual` job's blast radius, so that job's own `if:` can gate on
+  # a job output instead of re-running the diff itself. A job's `if:` cannot
+  # see a step output from inside its own run, hence the split.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      visual: ${{ steps.filter.outputs.hit }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history — the diff below needs `origin/main` to resolve to
+          # something real, not the shallow single commit `checkout` fetches
+          # by default.
+          fetch-depth: 0
+
+      - name: Does this diff touch the visual blast radius?
+        id: filter
+        run: |
+          # QA-CONTRACT.md Rule R1's blast radius, verbatim — the exact set
+          # that already means "every consumer is re-verified" (cycle 003
+          # §5). Plain shell + git, matching ci.yml's existing preference for
+          # explicit steps over a third-party filter action.
+          if git diff --name-only origin/main...HEAD | grep -qE \
+            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/)'; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Tier parity, degraded modes, axe, overflow. Gates every pull request —
+  # this is the job the "under 3 minutes" claim (withdrawn, cycle 003 §4) was
+  # about, and the one whose real wall time replaces it.
+  e2e:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@v7
+
+      # No setup-node step: the pinned image already ships the Node version
+      # its own Playwright build was tested against (confirmed live at
+      # v24.18.1, Ubuntu 24.04 Noble — satisfies package.json's `"node":
+      # ">=20"`), so adding one would just install a second, uncoordinated
+      # Node alongside it.
+      - run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-e2e-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-e2e-pnpm-store-
+
+      # `pnpm-workspace.yaml`'s `allowBuilds` blocks playwright's own
+      # postinstall (the browser downloader) the same way it does locally
+      # (cycle 003 §2.4) — harmless here because the pinned image already
+      # carries Chromium at the exact version `@playwright/test` expects, at
+      # the path it expects it. No `playwright install` step exists on
+      # purpose.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test:e2e
+
+  # Cycle 004's job. Its trigger logic is this cycle's to build and verify —
+  # the `changes` job above and the `if:` below are real and tested on a real
+  # pull request in both directions, per this cycle's Definition of Done.
+  # Its payload is not: `/matrix` and the `visual` Playwright project do not
+  # exist until cycle 004 lands (cycle 003 §7.1, §7.4). This step is a
+  # placeholder that succeeds without claiming to have tested anything, so
+  # this job can be exercised for real now and cycle 004 only has to replace
+  # one step.
+  visual:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && needs.changes.outputs.visual == 'true')
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - name: Resolve the pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-e2e-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-e2e-pnpm-store-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Visual matrix — not built until cycle 004
+        run: |
+          echo "The visual project and /matrix route are cycle 004's (see cycle 003 §7.1, §7.4)."
+          echo "This job's trigger fired correctly; there is no suite to run yet."
+
+  # Record-only. Never gates a pull request — QA-CONTRACT.md's budgets are
+  # stated under conditions a shared 2-vCPU runner is not, and asserting them
+  # here would manufacture failures that are correct to ignore (cycle 003
+  # §5). `pnpm test:e2e:perf` on the founder's own machine remains the
+  # authoritative, asserting run.
+  perf:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      HC_PERF_RECORD_ONLY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - name: Resolve the pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-e2e-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-e2e-pnpm-store-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:e2e:perf

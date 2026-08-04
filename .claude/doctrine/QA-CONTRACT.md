@@ -31,6 +31,44 @@ The architect adds per-cycle criteria on top. Nothing ships below this line.
 `hc-dev` reports gate results. **Re-run all five yourself.** A dev agent claiming green is the single
 most likely false report in this system, and every downstream check inherits the error.
 
+## Rule V1a — bypass the turbo cache when the manifest touches `registry/default/**`
+
+Rule V1 says never trust the dev manifest. This one says the build tool can produce the same false
+green, and re-running the gate does not catch it.
+
+`turbo.json` declares no `inputs` on any task, so every task hashes only its own package directory.
+`registry/default/**` reaches `apps/playground` through the `@/ui/*` tsconfig path alias and reaches
+the vitest run through `packages/core/vitest.config.ts`'s `include` glob. Turbo's package-graph
+hashing sees through neither, because `registry` is not a declared dependency of either package.
+
+Measured with `turbo run <task> --dry=json` on 2026-08-04: `@handicraft/playground#build` hashes 13
+inputs, `@handicraft/core#test` hashes 33, and **none of those 46 sits under `registry/`**. A
+registry-only edit therefore leaves both tasks at an unchanged hash. Reproduced live: with
+`useSketchFrame` wired into `label.tsx`, a plain `pnpm test` replayed `108 passed` in 30ms while the
+same source, run for real, fails `label.test.tsx`'s A15.
+
+**Two of the four cached gates are affected and two are not.** `build` and `test` are blind.
+`typecheck` and `lint` are not — `@handicraft/registry` is a real workspace package with its own
+`typecheck` and `lint` scripts, each hashing 7 files under `registry/default/ui` directly. A type
+error or a lint error in a registry component was never at risk. A behavioural regression and a stale
+served bundle were.
+
+**The rule.** Until cycle 003a closes this, any cycle whose manifest touches `registry/default/**`
+runs `pnpm test` and `pnpm build` with `--force`, or after `rm -rf .turbo`. `--force` is the precise
+form; under turbo 2.x the cache lives at `.turbo/cache` in the repository root.
+
+**Filtered runs are already real runs, which is what keeps the mutation record trustworthy.**
+Passthrough arguments are part of the hash: `@handicraft/core#test` hashes `04471ed58aaf1b02` bare and
+`347fadaff300cb85` with `-- -t "A15"`. Every mutation run in this project's history used a `-t` or
+`-g` filter, so none of them was a replay and no past cycle's conclusions are in doubt.
+
+**CI was never exposed.** Neither `ci.yml` nor `e2e.yml` caches `.turbo` — every `actions/cache@v6`
+step caches the pnpm store path alone — so a fresh runner starts with no cache and every task really
+executes. The exposure is local-cache only.
+
+**This rule expires rather than evolves.** Cycle 003a deletes it in the same pull request that fixes
+the hashing, and that deletion is a line in 003a's own Definition of Done.
+
 ---
 
 ## Mutation testing

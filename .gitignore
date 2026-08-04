@@ -10,8 +10,17 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
-*-snapshots/*-actual.png
-*-snapshots/*-diff.png
+# `**/` prefix is load-bearing, not decorative — cycle 003 §15.5. A pattern
+# containing a `/` is root-anchored by git, so the unprefixed form matched
+# only `*-snapshots/` sitting one level deep, which is where a
+# `{testFilePath}`-only `snapshotPathTemplate` token bug used to land them.
+# Now that baselines nest under `tests/e2e/` (`playwright.config.ts`), the
+# unprefixed pattern would silently stop ignoring `-actual`/`-diff` files at
+# that depth. Verified with `git check-ignore -v` at both depths; the
+# committed baseline itself (no `-actual`/`-diff` suffix) still stays
+# trackable either way, which is the whole point of committing baselines.
+**/*-snapshots/*-actual.png
+**/*-snapshots/*-diff.png
 
 # env
 .env
