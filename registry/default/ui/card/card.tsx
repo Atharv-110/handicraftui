@@ -47,7 +47,13 @@ export function Card({ className, ruled = false, children, ref, ...props }: Card
     >
       {sketchLayer}
       {ruled ? (
-        <span aria-hidden="true" className="bg-hc-red/45 absolute inset-y-4 left-7 w-px" />
+        // `--hc-red` collapsed into the role table (perceptual distance 0.0234
+        // from --hc-danger — a just-noticeable step is ~0.02). `danger-ink`,
+        // not `accent-ink`, is the closer match: old red rendered #CC3336
+        // light / #EF6661 dark against danger-ink's #B52A27 / #F2675C, while
+        // accent-ink at hue 10 renders visibly pinker. Decorative at 45%
+        // alpha with aria-hidden, so no contrast floor binds either choice.
+        <span aria-hidden="true" className="bg-hc-danger-ink/45 absolute inset-y-4 left-7 w-px" />
       ) : null}
       {children}
     </div>

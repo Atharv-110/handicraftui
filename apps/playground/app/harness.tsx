@@ -128,7 +128,7 @@ export function Harness({
                   ).map((n) => (
                     <span key={n} className="flex flex-col items-center gap-1">
                       <SketchMark name={n} size={22} seedKey={n} />
-                      <span className="font-note text-hc-ink-faint text-[10px]">{n}</span>
+                      <span className="font-note text-hc-ink-soft text-[10px]">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -147,6 +147,7 @@ export function Harness({
                 <Badge>Draft</Badge>
                 <Badge variant="marked">New</Badge>
                 <Badge variant="danger">Overdue</Badge>
+                <Badge variant="danger">3</Badge>
                 <Badge variant="ghost">Archived</Badge>
                 <Badge>9</Badge>
                 <Badge>In review since Tuesday</Badge>
@@ -258,9 +259,7 @@ export function Harness({
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="font-note text-hc-ink-faint mb-3 text-xs tracking-widest uppercase">
-        {title}
-      </h2>
+      <h2 className="font-note text-hc-ink-soft mb-3 text-xs tracking-widest uppercase">{title}</h2>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </section>
   );
@@ -349,7 +348,7 @@ function Controls(props: ControlsProps) {
             value={props.drawMs}
             onChange={(e) => props.onDrawMs(Number(e.target.value))}
           />
-          <span className="text-hc-ink-faint tabular-nums">{props.drawMs}ms</span>
+          <span className="text-hc-ink-soft tabular-nums">{props.drawMs}ms</span>
         </label>
       ) : null}
       <Toggle label="stress ×500" checked={props.stress} onChange={props.onStress} />

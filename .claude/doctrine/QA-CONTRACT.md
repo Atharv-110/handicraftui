@@ -208,10 +208,47 @@ document.documentElement.scrollWidth <= document.documentElement.clientWidth
   Both are **1.4× the worst figure observed in cycle 000b**, and that multiplier is stated so the next
   person knows the headroom is deliberate rather than inherited.
 
-  **`next dev` is explicitly unbudgeted.** It measured roughly 4× production — 270ms handover against
-  71ms — so a single number cannot serve both. Under `next dev`, report the measurement and flag
-  **change from the previous cycle**, treating more than +15% as an M finding. Never compare a `next dev`
-  figure to the table above.
+  **`next dev` is explicitly unbudgeted, and the dev-to-production ratio is not a constant.** This
+  paragraph previously read "roughly 4× production — 270ms handover against 71ms". **That multiplier is
+  withdrawn.** It was one pair of numbers under one network condition, recorded without its conditions,
+  and it does not generalise. Measured under throttling in cycle 002a the real ratio is **60×**, which
+  is not a drift from 4× — it is evidence that the quantity was never a fixed multiple.
+
+  **The mechanism, measured 2026-08-04.** `next dev` serves every file under
+  `apps/playground/.next-dev/static/chunks/` with `cache-control: no-store, must-revalidate`. **No
+  full-page navigation under `next dev` is ever cache-warm.** Every reload re-fetches the entire
+  unminified, eval-source-mapped client bundle. The ratio to production is therefore set by bundle size
+  and link speed rather than by compile cost, and it grows every time the bundle grows.
+
+  | Condition | Handover | Against production warm |
+  |---|---|---|
+  | `next dev`, Fast 4G, cold navigation | 2722.5ms | 60.6× |
+  | `next dev`, Fast 4G, warm reload, route already compiled | 2716.1ms | 60.5× |
+  | `next dev`, unthrottled | 427.8ms | 9.5× |
+  | `next build && next start`, Fast 4G, cold cache | 260.4ms | 5.8× |
+  | `next build && next start`, Fast 4G, warm reload, median of 3 | **44.9ms** | 1× |
+
+  Cold and warm under `next dev` differ by `2722.5 - 2716.1 = 6.4ms`, which is **0.2%**. Route
+  compilation is not the cost. Any explanation resting on compile time is disproven by that line.
+
+  **Rules that follow.**
+
+  - **Handover is measured on `next build && next start` only.** A throttled `next dev` handover figure
+    measures the dev server's transport, not the library. It is not an instrument. Do not report it as a
+    handover number and do not compare it to anything.
+  - **Stress may be measured under `next dev`, unthrottled.** Settle time is computation-bound and the
+    transport is out of the loop once the page has loaded. This is why the stress figure survived the
+    same investigation unharmed.
+  - **The +15% cycle-over-cycle flag still applies, and only between figures taken under identical
+    conditions** — same command, same throttle, same instrument. A change of conditions is not a
+    regression. Comparing across conditions is precisely how a 60× transport artifact gets filed as a
+    code defect.
+  - Never compare any `next dev` figure to the budget table above.
+
+  This paragraph is the second time a number in this section was an artifact rather than a measurement.
+  The first was a 60ms budget below the instrument floor. Both survived because they were recorded
+  without their conditions. **A figure in this section carries its command, its throttle and its date,
+  or it is not recorded.**
 
   **Never set a budget below ~64ms.** `apps/playground/app/perf-readout.tsx` ticks at 16ms and requires
   three consecutive stable counts, so its earliest possible output is four ticks. That is an instrument
