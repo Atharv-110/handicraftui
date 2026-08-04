@@ -108,7 +108,8 @@ Cut it there.
 
 Numbers are the argument. Use them in place of adjectives, and never round in the project's favour.
 
-- **State the condition.** "The handover completes in 71ms in production, Fast 4G throttled." Not "the
+- **State the condition.** "The handover completes in 34.3ms, measured against
+  `next build && next start`, Fast 4G throttled, median of 3 warm reloads, on 2026-08-04." Not "the
   handover is fast".
 - **Give the comparison where one exists.** "1.6ms from the 12-seed pool, 110ms without."
 - **Digits with units, no space**: `1.6ms`, `44px`, `375px`, `2.4px`. Dimensions take `×`: `190×52`.
@@ -164,8 +165,8 @@ Not:
 An empty screen is an invitation. Say what belongs there and the one action that puts it there. No mood,
 no "nothing to see here", no illustration doing the talking.
 
-> No components match "acccordion". Accordion is not built yet — 4 of 21 are. Clear the search to see the
-> four that exist.
+> No components match "acccordion". Accordion is not built yet — 7 of 21 are. Clear the search to see the
+> seven that exist.
 
 ## Component descriptions — the recipe
 
@@ -214,7 +215,7 @@ every word a reader sees.
 ## Two standing honesty rules
 
 1. **Nothing gets documented that does not exist.** Check `.claude/state/INDEX.md` before writing about a
-   component. Four of 21 are built; prose reading as though the other 17 ship today is a defect, not
+   component. Seven of 21 are built; prose reading as though the other 14 ship today is a defect, not
    optimism.
 2. **No install instruction until one works.** `@handicraft/core` is 0.0.0 and unpublished, the registry is
    not hosted, `handicraftui.dev` is not registered. An instruction that fails costs more than an honest
