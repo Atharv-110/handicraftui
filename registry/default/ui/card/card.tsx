@@ -82,5 +82,16 @@ export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDi
 }
 
 export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-4 flex items-center gap-2", className)} {...props} />;
+  // gap-6 is DESIGN-SYSTEM.md §3's 24px collision floor, and a footer is where
+  // it binds hardest: two drawn frames facing each other with nothing between
+  // them. It was 8px until cycle 002c, which measured -2.13px of clearance —
+  // the Button's stroke and the Badge's interpenetrating, not merely close — at
+  // hand=loose on the blackboard. Sized for two default-size Buttons, the
+  // likeliest footer content and the worst case: both sit at taper k = 1 and
+  // need 10.76 x 2 = 21.52px, which rounds up the 4px grid to 24. A smaller
+  // number fits the one pair the harness happens to hold and collides on the
+  // common one. Pass className="gap-2" when a footer holds text rather than
+  // frames — §3's floor binds drawn frames only, and tailwind-merge lets the
+  // override win.
+  return <div className={cn("mt-4 flex items-center gap-6", className)} {...props} />;
 }

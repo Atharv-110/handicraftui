@@ -114,12 +114,36 @@
       sans-serif;
     --hc-font-note: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
-    /* Stroke + shadow. The shadow has no blur on purpose: it reads as paper
-       lifted off the page, not as a soft drop shadow. */
     /* Matches BASE_STROKE_WIDTH in engine/generator.ts. The two tiers have to
        agree on weight or the handover is visible as a sudden thickening. */
     --hc-stroke-w: 2.4px;
     --hc-stroke-w-strong: 3px;
+
+    /* Elevation, level on-page. DESIGN-SYSTEM.md §5 defines two levels and this
+       is the first: paper lifted off the page, never a soft drop shadow. The
+       blur radius is literally 0 on purpose and E1 asserts it, because a blur is
+       the one thing that would make this read as a rendered UI shadow rather
+       than as a sheet of paper with an edge.
+
+       No second token names it. An --hc-elevation-on-page beside --hc-shadow
+       would be two names for one value, the defect DESIGN-SYSTEM.md §1 spends a
+       whole row collapsing on the colour tokens. .hc-lift is how a component
+       opts in: Card and Button carry it, and Badge says in its own header why a
+       note written on the page is not an object sitting on it.
+
+       The 3px offset is duplicated, and the duplicate is load-bearing.
+       button.tsx moves the button by exactly this many pixels on press so it
+       lands on its own shadow instead of beside it. Nothing in the type system
+       connects a CSS length to a Tailwind arbitrary value, so E3 asserts the
+       pair — the same drift shape --hc-stroke-w already answers for against
+       engine/generator.ts.
+
+       Level over-page — a hachure scrim plus the sheet's own ink frame — is
+       deliberately absent. It has no consumer until Base UI Wave B and it is
+       built by the first overlay cycle, which is Tooltip. Paper tokens cannot
+       stand in for it: raised against paper measures 1.0364 light and 1.1212
+       dark against the 3:1 that any component-identifying signal needs, and E2
+       is what holds that door shut. */
     --hc-shadow-offset: 3px;
     --hc-shadow: var(--hc-shadow-offset) var(--hc-shadow-offset) 0 var(--hc-ink);
     --hc-shadow-sm: 2px 2px 0 var(--hc-ink);
