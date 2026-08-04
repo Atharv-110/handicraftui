@@ -36,7 +36,7 @@ rm -rf apps/playground/.next-dev
 
 ## Gates
 
-All five must pass before a pull request is ready. Run them from the repository root.
+All six must pass before a pull request is ready. Run them from the repository root.
 
 ```bash
 pnpm test            # vitest
