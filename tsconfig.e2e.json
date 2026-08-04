@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Relative path, not the bare `@handicraft/typescript-config` specifier every
+  // workspace package uses — the root `package.json` is not itself a workspace
+  // member (`pnpm-workspace.yaml` lists `packages/*`, `apps/*`, `registry`, not
+  // `.`), so pnpm never symlinks that package into the root `node_modules`. A
+  // bare specifier here would resolve only by accident, if some other install
+  // step happened to hoist it. The relative path always works and adds no new
+  // root devDependency for a config file that already ships in the workspace.
+  "extends": "./packages/typescript-config/base.json",
+  "compilerOptions": {
+    // Explicit rather than left to the default "include every @types package
+    // found anywhere in node_modules" — a root-level tsconfig sees every
+    // workspace's hoisted @types, and the fixtures/specs here only ever run in
+    // Node (via the Playwright test runner) plus browser code typed through
+    // Playwright's own `Page` API, never through ambient DOM globals.
+    "types": ["node"]
+  },
+  "include": ["tests/e2e/**/*.ts", "playwright.config.ts"]
+}

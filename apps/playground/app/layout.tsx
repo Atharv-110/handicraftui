@@ -22,7 +22,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={kalam.variable} suppressHydrationWarning>
+    // Server-rendered, zero client cost, and `suppressHydrationWarning` is
+    // already here. `reuseExistingServer: false` in playwright.config.ts
+    // already keeps a timing spec off `next dev`, but Rule V4's history is a
+    // list of times this project trusted a process and got a stale artifact
+    // anyway — an assertion beats a convention. Cycle 003's E1 reads this
+    // before any timing spec runs, so a spec accidentally talking to `next
+    // dev` fails loudly instead of just reporting a faster number.
+    <html
+      lang="en"
+      className={kalam.variable}
+      suppressHydrationWarning
+      data-hc-env={process.env.NODE_ENV}
+    >
       <body>{children}</body>
     </html>
   );
