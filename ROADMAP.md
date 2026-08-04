@@ -17,16 +17,16 @@ v3 was written without access to `.claude/`, which is robots-blocked to automate
 flagged a pending doctrine diff. That diff has now been done against the real files, and these are
 the results. Each correction follows v3's own precedence rule: existing doctrine wins.
 
-| v3 said                                                                        | Doctrine says                                                                                                                                                                    | Applied                                                                                                                                     |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| §5.5 handover assert at **71ms**                                               | Budget is **110ms**, deliberately 1.4× the worst observed figure of 71ms, under stated conditions                                                                                | Asserting at worst-observed guarantees flake. Budget is 110ms production, and `next dev` stays unbudgeted at roughly 4× that                |
-| §0/§4.2 "518 frames settle in **64ms**", states budget "≤ 2× the current 64ms" | 64ms is the **instrument floor** of `apps/playground/app/perf-readout.tsx` — 16ms tick, three consecutive stable counts, so four ticks minimum. "An artifact, not a measurement" | Stress budget is **300ms** production, unthrottled, median of 3. No budget is ever set below ~64ms because the instrument cannot resolve it |
-| §5.3 "Badge/Separator/Label — never QA'd"                                      | Cycle 1 ran a full QA pass on all three, mutation-verified, browser-verified                                                                                                     | Dropped. Replaced by re-verifying all seven against the new design system and state-pair rules, which is a different and smaller job        |
-| §0 "PENDING DOCTRINE DIFF", blocking Phase 0 item 1                            | All five doctrine files are readable from inside the repo                                                                                                                        | Done. This table is the diff                                                                                                                |
-| §3 cycle close                                                                 | `PRINCIPLES.md` carries two founder approval gates — briefs and merges                                                                                                           | Both added to the cycle protocol in §4                                                                                                      |
-| §"Comms" caveman `full`                                                        | Founder changed the level to `lite` on 2026-08-03                                                                                                                                | `lite` throughout                                                                                                                           |
-| §"Team": planner, ui-architect, dev, qa, hc-writer                             | Files are `hc-planner`, `hc-architect`, `hc-dev`, `hc-qa`, `hc-writer`                                                                                                           | Mapped                                                                                                                                      |
-| §4 doctrine additions: state pairs, pool-caching, motion tokens, test seam     | —                                                                                                                                                                                | All four kept. They are the strongest part of v3                                                                                            |
+| v3 said                                                                        | Doctrine says                                                                                                                                                                    | Applied                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §5.5 handover assert at **71ms**                                               | Budget is **110ms**, deliberately 1.4× the worst figure observed in cycle 000b, under stated conditions                                                                          | Asserting at worst-observed guarantees flake. Budget is 110ms production. `next dev` stays unbudgeted, and the "roughly 4×" ratio this row originally carried is **withdrawn** — measured under throttling it is 60×, so the quantity was never a fixed multiple |
+| §0/§4.2 "518 frames settle in **64ms**", states budget "≤ 2× the current 64ms" | 64ms is the **instrument floor** of `apps/playground/app/perf-readout.tsx` — 16ms tick, three consecutive stable counts, so four ticks minimum. "An artifact, not a measurement" | Stress budget is **300ms** production, unthrottled, median of 3. No budget is ever set below ~64ms because the instrument cannot resolve it                                                                                                                      |
+| §5.3 "Badge/Separator/Label — never QA'd"                                      | Cycle 1 ran a full QA pass on all three, mutation-verified, browser-verified                                                                                                     | Dropped. Replaced by re-verifying all seven against the new design system and state-pair rules, which is a different and smaller job                                                                                                                             |
+| §0 "PENDING DOCTRINE DIFF", blocking Phase 0 item 1                            | All five doctrine files are readable from inside the repo                                                                                                                        | Done. This table is the diff                                                                                                                                                                                                                                     |
+| §3 cycle close                                                                 | `PRINCIPLES.md` carries two founder approval gates — briefs and merges                                                                                                           | Both added to the cycle protocol in §4                                                                                                                                                                                                                           |
+| §"Comms" caveman `full`                                                        | Founder changed the level to `lite` on 2026-08-03                                                                                                                                | `lite` throughout                                                                                                                                                                                                                                                |
+| §"Team": planner, ui-architect, dev, qa, hc-writer                             | Files are `hc-planner`, `hc-architect`, `hc-dev`, `hc-qa`, `hc-writer`                                                                                                           | Mapped                                                                                                                                                                                                                                                           |
+| §4 doctrine additions: state pairs, pool-caching, motion tokens, test seam     | —                                                                                                                                                                                | All four kept. They are the strongest part of v3                                                                                                                                                                                                                 |
 
 **One addition v3 did not have: the design system.** It is now Phase 0 item 0 and it blocks the rest
 of Phase 0. Reasoning in §6.
@@ -35,11 +35,15 @@ of Phase 0. Reasoning in §6.
 
 ## 1. Where the project actually is
 
-Verified against `origin/main` at commit `08a50f4`, not assumed.
+Verified against `origin/main` at commit `4dc82e1`, not assumed.
 
 - **7 of 21 components** shipped: Badge, Button, Card, Checkbox, Input, Label, Separator.
-- **108 tests across 16 files**, green. All five gates green.
-- Two-tier render with a tested tier agreement. Handover measured at 71ms in production.
+- **127 tests across 18 files**, green, plus **64 Playwright tests across 5 spec families**. All five
+  gates green, and both CI workflows green on `main`.
+- Two-tier render with a tested tier agreement. Handover measured at **33.6ms** light and **34.3ms**
+  on the blackboard — median of 3 warm reloads, `next build && next start`, Fast 4G throttled,
+  2026-08-04, on the `MutationObserver` instrument. The 71ms this file used to quote came from
+  `perf-readout.tsx`, which cannot report below 64ms by construction.
 - Fixed 12-seed pool with a mixed hash. 500 components generate in 1.6ms from the pool, 110ms
   without.
 - Central size-aware taper. Corner overshoot as a tested invariant (`preserveVertices: false`).
@@ -50,8 +54,9 @@ Verified against `origin/main` at commit `08a50f4`, not assumed.
 - `focusWithin` contract, `--hc-focus` token.
 - URL-addressable playground on port 4321. Registry builds to `registry/public/r/`.
 
-**Known stale, fixed in Phase 0 item 2:** `README.md` says four components exist. `TESTING.md` says
-62 tests pass.
+**Phase 0 item 2 closed this.** `README.md` and `TESTING.md` now carry the measured counts and the
+corrected handover figure. This note previously claimed the README said four components, which was
+itself stale — the README had already been fixed and the complaint outlived the defect.
 
 **Unbuilt, 14:** Skeleton, Alert, Avatar, Textarea (plain semantics) · Radio, Switch, Select, Slider,
 Tabs, Accordion, Dialog, Popover, Tooltip, DropdownMenu (Base UI).
@@ -237,8 +242,9 @@ overlay exception. _(main thread, hc-writer)_
 
 ### 6.2 Docs sync
 
-`README.md` says four components, reality is seven. `TESTING.md` says 62 tests, reality is 108.
-Smallest possible pull request. _(hc-writer)_
+**Done.** `README.md`'s 71ms handover claim corrected to the measured 33.6ms / 34.3ms with its
+conditions, `TESTING.md`'s counts to 127 across 18 files plus the 64 Playwright tests, and the "no
+axe audit has been run yet" and "pixel parity never measured" claims retired. _(hc-writer)_
 
 ### 6.3 State machinery — blocked on 6.0
 
@@ -262,8 +268,9 @@ A root project targeting playground URLs. Six spec families:
   `registry/public/`, then `create-next-app` plus `shadcn add http://localhost:PORT/r/button.json`
   plus build. Unblocks `TESTING.md` §10 without waiting on a domain.
 - **Handover timing** — ported from `TESTING.md` §6, asserting the **110ms** production budget under
-  `next build && next start` with Fast 4G throttling, median of 3. Not 71ms: that is the worst
-  observed figure and asserting there leaves zero headroom.
+  `next build && next start` with Fast 4G throttling, median of 3. Deliberately not asserted at the
+  observed figure: that leaves zero headroom and guarantees flake. The observed figure this line once
+  named as 71ms measures 33.6ms / 34.3ms on the `MutationObserver` instrument cycle 003 built.
 
 **Matrix pruning rule**, which is what keeps the screenshot count survivable: the full grid runs on
 Button only. Every other component tests all states at the default hand, plus one spot-check row
@@ -398,7 +405,7 @@ breakage breaks the docs build. Dogfooding as CI. The playground stays the engin
   font pairing and UX guidelines. House voice is the README's register: measured numbers, decisions
   with reasons, zero marketing adjectives. `VOICE.md` governs and `hc-writer` enforces.
 - **Foundations pages** — Philosophy (five laws, four verbs, the corner-overshoot story) · Hands, ink
-  and fill with a live switcher · **Two tiers**, the 71ms handover as a feature page nobody else can
+  and fill with a live switcher · **Two tiers**, the 34.3ms handover as a feature page nobody else can
   write · Seeds and the 12-pool (determinism, 1.6ms against 110ms) · Motion · Accessibility with
   published axe results · **The design system**, which after §6.0 is a page rather than an apology.
 - **Component template** — live demo with hand and state controls · `shadcn add` command · anatomy ·
