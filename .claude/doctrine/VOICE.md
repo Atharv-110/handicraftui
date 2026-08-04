@@ -113,7 +113,7 @@ Numbers are the argument. Use them in place of adjectives, and never round in th
   handover is fast".
 - **Give the comparison where one exists.** "1.6ms from the 12-seed pool, 110ms without."
 - **Digits with units, no space**: `1.6ms`, `44px`, `375px`, `2.4px`. Dimensions take `×`: `190×52`.
-- **Digits for counts**: 4 of 21 components, 85 tests, 12 seeds. Reword rather than open a sentence with a
+- **Digits for counts**: 7 of 21 components, 127 tests, 12 seeds. Reword rather than open a sentence with a
   digit.
 - **Never invent one.** If a claim needs a number nobody has measured, write `<NEEDS-NUMBER>` in its place
   and raise it in the report. A plausible number is the worst thing that can go in this copy — the whole
