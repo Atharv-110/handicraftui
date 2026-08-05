@@ -87,10 +87,42 @@ For every new assertion:
 
 1. Note the file's exact current state.
 2. Break the invariant the test guards.
-3. Run the suite. Confirm **that test fails, and only that test**. A mutation that fails five tests
-   means the assertion is not isolating what it claims to.
+3. Run the suite. Confirm the mutation fails **exactly its derived count** — the number written down
+   before the run, derived from which assertions read the text the mutation changes. For most
+   mutations that count is 1. Where it is higher, the derivation is the claim being tested, and an
+   undeclared count is a failure whether it is higher or lower than expected.
 4. Revert.
 5. **Verify the revert** — re-run the suite *and* `git diff` the file. Clean diff, green suite.
+
+### Deriving the count — hubs and spokes
+
+A **spoke** is a value only one assertion reads; mutating it fails 1 test. A **hub** is a value
+several assertions read, so mutating it fails every guard that reads it. Neither is a defect. A
+mutation failing 5 tests is only a problem when the count was not derived in advance, because then
+nobody knows whether the extra failures are the shared invariant working or the assertion failing to
+isolate what it claims.
+
+**When a cycle adds an assertion, re-classify every already-named mutation against the new
+assertion's read set before writing the predicted total.** A new assertion that reads text an
+existing mutation changes converts that mutation from spoke to hub. Deriving only the new mutations
+is half the rule.
+
+This is written because the same error occurred twice: cycles 002b and 002c each predicted 1 for a
+mutation that had become a hub, and each was caught by QA against the architect's own brief rather
+than by the architect. The count is cheap to derive and expensive to discover.
+
+**A count is written as its addends, never as a total.** `M6 + M7 + card + checkbox = 4`, not `4`.
+
+Cycle 004 produced six wrong counts across one document. Every one of them is the same shape: a sum
+with a term dropped. The hub-and-spoke rule above catches the case where nobody knew about the
+intersection — but the sixth slip was written *four paragraphs after* the section that identified the
+missing term, by the same author, in the same dispatch. Knowing the intersection is not enough when
+the total is written as a bare number, because a bare number carries no record of what went into it
+and cannot be checked against anything.
+
+Addends make the omission visible to a reader who never re-derives the count. They also survive a
+cycle: the next author changing an assertion can see which terms are affected without reconstructing
+the arithmetic from scratch.
 
 ### A filter that matches nothing still exits 0
 
@@ -118,6 +150,17 @@ a grep.
 
 Never assume a revert worked. `git diff` is now the baseline — that is what the first commit is for.
 
+**The revert surface is the tree, not the file.** Check `git status --porcelain` over the whole
+repository and compare the entry count to what it was before the mutation. Reverting the source file
+is not sufficient and `git diff` on that file will read clean while the tree is dirty.
+
+A mutation that changes a **snapshot name** is the case that proves it. Playwright writes a missing
+baseline rather than failing, so the run leaves new PNG files behind under the mutated names — files
+no source revert touches, because the source is not where they came from. Cycle 004's QA hit this on
+its own mutation run: 32 stray baselines, `git status` going from 32 entries to 64, caught only
+because it counted. The next author generating artifacts from a mutated build inherits the same
+shape whatever the file type.
+
 ### Known-good mutations (from `TESTING.md`)
 
 **Each must fail its stated count. Two of the four fail more than one test, and
@@ -128,6 +171,15 @@ and does not change.
 Re-measured 2026-08-04 against **127 tests in 18 files**. Three of the four are unchanged from the
 2026-08-03 measurement against 108 tests in 16 files. The fourth changed, and is unstable by nature —
 see below the table.
+
+Re-measured again 2026-08-06 against **137 tests in 18 files**, cycle 004. Three are unchanged; the
+fourth landed inside its declared 4-or-5 range, which is the only thing that row can be held to.
+
+**These lines accumulate rather than replace each other, and that is the point.** The instruction
+below the table — re-measure whenever a test file is added — is only auditable if a reader can see
+which suite populations the table has already survived. `108/16 → 127/18 → 137/18` is that audit
+trail. Overwriting the earlier figure would assert a measurement nobody took and delete the evidence
+for a rule this file imposes fifteen lines further down.
 
 | Mutation | Fails | Which |
 |---|---|---|

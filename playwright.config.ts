@@ -102,5 +102,16 @@ export default defineConfig({
       retries: 0,
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // Screenshots do not measure time, so parallelism is free here — unlike
+      // `perf`, which serialises for that reason. `retries: 0` is pinned for
+      // the opposite half of `perf`'s reasoning: a screenshot that passes on
+      // retry is masking a real nondeterminism, and the config carrying no
+      // global `retries` today is not a guarantee it never will.
+      name: "visual",
+      testMatch: "matrix.spec.ts",
+      retries: 0,
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 });

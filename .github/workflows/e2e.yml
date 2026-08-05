@@ -56,8 +56,35 @@ jobs:
           # that already means "every consumer is re-verified" (cycle 003
           # §5). Plain shell + git, matching ci.yml's existing preference for
           # explicit steps over a third-party filter action.
+          # Fix F9, cycle 004 iteration 2, declared growth. Three more paths
+          # change all 67 captures the same way the four already listed do:
+          # `layout.tsx` loads Kalam via `next/font/google`, and every
+          # specimen's geometry is measured against those metrics;
+          # `globals.css` declares `--hc-font-hand` and the `body` background
+          # F1 fixed; `fixtures.ts` holds `matrixUrl`'s key emission and
+          # `gotoSpecimen`'s settle, neither matched by the existing
+          # `tests/e2e/matrix` prefix.
+          # Fix F12, cycle 004 iteration 3, declared growth. `playwright.config.ts`
+          # was absent from this list despite holding `snapshotPathTemplate`
+          # (where every one of the 67 baselines is read from and written to)
+          # and the `visual` project's `testMatch`, `retries` and
+          # `devices["Desktop Chrome"]` — the 1280x720 viewport and
+          # deviceScaleFactor every pixel derivation in the cycle document
+          # depends on. Root-anchored `^`, no directory prefix needed: the
+          # file sits at the repository root. A toolchain bump
+          # (`pnpm-lock.yaml`, the pinned image tag) is deliberately left out —
+          # that class of change regenerates all 68 baselines anyway and so
+          # announces itself, where an edit here would not.
+          # Cycle 004a, declared growth. This workflow file now selects which
+          # manifest of a two-entry OCI image index runs the comparison
+          # (`ubuntu-24.04-arm` versus `ubuntu-latest` resolve to different
+          # Chromium binaries under the one pinned tag), so editing it changes
+          # all 67 captures exactly the way changing the image tag would.
+          # `tests/e2e/snapshot-env.ts` holds the constants both architecture
+          # guards assert against, and matches neither the existing
+          # `tests/e2e/matrix` prefix nor `tests/e2e/fixtures\.ts`.
           if git diff --name-only origin/main...HEAD | grep -qE \
-            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/)'; then
+            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|apps/playground/app/layout\.tsx|apps/playground/app/globals\.css|tests/e2e/matrix|tests/e2e/fixtures\.ts|playwright\.config\.ts|^\.github/workflows/e2e\.yml|^tests/e2e/snapshot-env\.ts)'; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
@@ -66,9 +93,24 @@ jobs:
   # Tier parity, degraded modes, axe, overflow. Gates every pull request —
   # this is the job the "under 3 minutes" claim (withdrawn, cycle 003 §4) was
   # about, and the one whose real wall time replaces it.
+  # Cycle 004a. `runs-on: ubuntu-24.04-arm`, not `ubuntu-latest` — D-NJS is a
+  # committed screenshot baseline in this job, and the pinned image tag below
+  # is an OCI image *index* with two entries, sha256:c091b21d… for
+  # linux/amd64 and sha256:941cc91e… for linux/arm64 (re-checkable with
+  # `docker manifest inspect mcr.microsoft.com/playwright:v1.62.1-noble`). The
+  # daemon picks a manifest by host architecture, so the same tag string
+  # resolves to two different Chromium binaries — on `ubuntu-latest` this job
+  # ran amd64 against an arm64-generated baseline. `timeout-minutes: 20`:
+  # neither job carried one before this cycle, and an unavailable or
+  # mistyped runner label does not error, it queues — the GitHub default is
+  # 360 minutes, which turns a label problem into a six-hour hang instead of
+  # a same-day failure. The failing run measured 97s wall for this job; 20
+  # minutes is 12.4x that, enough headroom for a cold arm64 runner with no
+  # pnpm cache.
   e2e:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@v7
@@ -101,20 +143,35 @@ jobs:
 
       - run: pnpm test:e2e
 
-  # Cycle 004's job. Its trigger logic is this cycle's to build and verify —
-  # the `changes` job above and the `if:` below are real and tested on a real
-  # pull request in both directions, per this cycle's Definition of Done.
-  # Its payload is not: `/matrix` and the `visual` Playwright project do not
-  # exist until cycle 004 lands (cycle 003 §7.1, §7.4). This step is a
-  # placeholder that succeeds without claiming to have tested anything, so
-  # this job can be exercised for real now and cycle 004 only has to replace
-  # one step.
+  # Cycle 004's job. Its trigger logic was built and verified in cycle 003 —
+  # the `changes` job above and the `if:` below are real and were tested on a
+  # real pull request in both directions there, against a placeholder
+  # payload. Cycle 004 replaces that placeholder with the real suite: the
+  # standalone `pnpm build` step stays (a build failure now surfaces as its
+  # own step rather than as a `webServer` timeout inside the test run).
+  # Cycle 004a. `runs-on: ubuntu-24.04-arm`, `timeout-minutes: 20` — same
+  # mechanism and the same derivation as the `e2e` job's comment above; this
+  # job holds all 67 matrix baselines, the majority of what moved. On
+  # `ubuntu-latest` this job ran the amd64 half of the pinned tag's image
+  # index against arm64-generated baselines: 11 of 67 cells disagreed, 146 to
+  # 874 differing pixels, including two tier-1 cells that run no JavaScript
+  # at all (cycle 004a §1). Moving both baseline-touching jobs to
+  # `ubuntu-24.04-arm` resolves the tag to sha256:941cc91e… on both CI and
+  # the founder's colima daemon — the same digest, not merely the same tag
+  # string. `changes` and `perf` stay on `ubuntu-latest` on purpose: `changes`
+  # touches no browser and no baseline, and `perf` measures wall time under
+  # `QA-CONTRACT.md`'s "identical conditions" rule — moving it would break its
+  # own trend line to fix an architecture problem it does not have. The
+  # statable rule: every job that reads or writes a committed screenshot
+  # baseline runs on `linux/arm64`; jobs that do neither stay on
+  # `ubuntu-latest`.
   visual:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && needs.changes.outputs.visual == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@v7
@@ -130,16 +187,22 @@ jobs:
             ${{ runner.os }}-e2e-pnpm-store-
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Visual matrix — not built until cycle 004
-        run: |
-          echo "The visual project and /matrix route are cycle 004's (see cycle 003 §7.1, §7.4)."
-          echo "This job's trigger fired correctly; there is no suite to run yet."
+      - run: pnpm test:e2e:visual
 
   # Record-only. Never gates a pull request — QA-CONTRACT.md's budgets are
   # stated under conditions a shared 2-vCPU runner is not, and asserting them
   # here would manufacture failures that are correct to ignore (cycle 003
   # §5). `pnpm test:e2e:perf` on the founder's own machine remains the
   # authoritative, asserting run.
+  #
+  # Cycle 004a. Deliberately still `ubuntu-latest`, not moved alongside `e2e`
+  # and `visual`. This job writes no committed baseline and reads none, so it
+  # has no architecture dependency to fix — it measures time, and
+  # `QA-CONTRACT.md` binds the +15% cycle-over-cycle flag to figures "taken
+  # under identical conditions — same command, same throttle, same
+  # instrument." An architecture change is a change of conditions; moving
+  # this job would silently break its own trend line to fix a problem it does
+  # not have.
   perf:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
