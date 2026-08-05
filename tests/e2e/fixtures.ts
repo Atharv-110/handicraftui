@@ -67,12 +67,15 @@ export function matrixUrl(cell: Cell): string {
 }
 
 /**
- * One painted frame past the current one. Exported rather than inlined so
- * M8's calibration (`matrix.spec.ts`) can wait on the *exact* anchor
- * `gotoSpecimen`'s tier-1 branch uses; a calibration against a different
- * wait proves nothing about this one. Fix F13, cycle 004 iteration 3.
+ * One painted frame past the current one — two nested
+ * `requestAnimationFrame` calls. This is the two-frame anchor
+ * `gotoSpecimen`'s lite branch waits on before reading `.hc-sketch-svg`.
+ * No longer exported: fix F16, cycle 004 iteration 4, removed the only
+ * external call site, a calibration in `matrix.spec.ts` that checked this
+ * anchor against a real tier-2 mount on every run. See the comment at the
+ * anchor's use below for why the calibration is gone rather than repaired.
  */
-export function settleOneFrame(page: Page): Promise<void> {
+function settleOneFrame(page: Page): Promise<void> {
   return page.evaluate(
     () =>
       new Promise<void>((resolve) => {
@@ -165,17 +168,48 @@ export const test = base.extend<{ hc: HcFixture }>({
           // this anchor sitting at index 2 — one frame of margin, not a
           // guarantee. The settle itself is real: 0 of 10 local runs see the
           // mount at `goto()`'s return, 10 of 10 see it at the anchor, and
-          // M8 fails 10 of 10 under its named mutation. If the mount ever
-          // slips to index 3 on a slower machine, this anchor goes vacuously
-          // true again with H4's exact shape — silently — which is why M8b
-          // (`matrix.spec.ts`) checks the anchor against a real tier-2 mount
-          // on every run rather than trusting the margin alone.
+          // M8 fails 10 of 10 under its named mutation.
+          // If the mount ever slips to index 3 on a slower machine, this
+          // anchor goes vacuously true again with H4's exact shape —
+          // silently.
+          //
+          // Fix F16, cycle 004 iteration 4. A calibration used to sit in M8
+          // and point at this paragraph: it navigated at high fidelity,
+          // waited on this same anchor, and asserted a mounted
+          // `.hc-sketch-svg` so a slow machine would fail loudly instead of
+          // passing vacuously. It was removed because its own named
+          // mutation could not be made to bind. Tier 2's mount *races* the
+          // `load` event rather than following it, so deleting the anchor
+          // leaves the read sitting on the boundary instead of before it.
+          // Measured 2026-08-05, `next build && next start`, 40 trials, two
+          // count reads one CDP round trip apart: already present at
+          // `goto()`'s return on 24, first seen on the second read on 14,
+          // absent on both on 2. A guard whose mutation is a coin flip has
+          // no derived count, and an integer written beside it would be a
+          // figure nobody could reproduce.
+          //
+          // So the margin above is recorded and unwatched. It stops being a
+          // timing question when the frame publishes a positive
+          // tier-resolution attribute in *both* directions — today
+          // `data-hc-fidelity="high"` appears only when tier 2 wins, so at
+          // `fidelity=lite` there is nothing to wait for. That is
+          // `packages/core/src/frame/**`, Rule R1 fires, and it is its own
+          // cycle.
           await settleOneFrame(page);
           await expect(page.locator(".hc-sketch-svg")).toHaveCount(0);
-          // The positive half `goto()`'s own lite branch already carries
-          // (line ~106 above) — proves the page actually painted something
-          // rather than having gone blank, which the negative assertion
-          // alone cannot distinguish.
+          // The positive half `goto()`'s own lite branch already carries —
+          // the `.hc-frame` not-empty assertion inside `HcFixture.goto`'s
+          // own lite branch, above — proves the page actually painted
+          // something rather than having gone blank, which the negative
+          // assertion alone cannot distinguish.
+          //
+          // Fix F18, cycle 004 iteration 4. This comment cited "line ~106
+          // above". The citation was correct when iteration 1 wrote it, and
+          // F13 broke it — inserting fifteen lines above the target moved it
+          // to 121 — after which F16's revert moved it three further, to
+          // 124. Two edits in two iterations, neither aimed at this line.
+          // Naming the assertion instead of a line number cannot go stale
+          // the same way.
           //
           // F14, cycle 004 iteration 3. This assertion carries no carve-out
           // the way the `else` branch below does for Label, and it needs

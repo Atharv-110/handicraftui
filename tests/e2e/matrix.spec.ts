@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { settleOneFrame, test } from "./fixtures";
+import { test } from "./fixtures";
 import { MATRIX_CELLS, nameFor, type Component } from "./matrix-grid";
 
 /**
@@ -199,21 +199,6 @@ test.describe("matrix guards", () => {
     page,
     hc,
   }) => {
-    // Fix F13, cycle 004 iteration 3. H4 was M8 passing because its
-    // assertion was true before the thing it tests could happen. F3's
-    // settle fixed that with one frame of margin, measured — tier 2 mounts
-    // at rAF index 1 on 11 of 12 trials and index 2 on 1 of 12, against an
-    // anchor at index 2 — and a margin is not a guarantee when the failure
-    // it protects against is silent. So the anchor is checked against a
-    // real tier-2 mount on every run, on the exact code path M8's own named
-    // mutation creates: force `fidelity="high"` and the tier-1 cell
-    // *becomes* this navigation. A plain `count()` read, never a web-first
-    // assertion — `not.toHaveCount(0)` polls until true and would
-    // calibrate nothing.
-    await page.goto("/matrix?c=button&fill=med");
-    await settleOneFrame(page);
-    expect(await page.locator(".hc-sketch-svg").count()).toBeGreaterThan(0);
-
     // Fix F3, cycle 004 iteration 2. Routed through `hc.gotoSpecimen` rather
     // than a bare `page.goto` plus this test's own assertions — the settle
     // that makes "zero sketch SVGs" a real check rather than a check that is
