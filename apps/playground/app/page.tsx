@@ -1,4 +1,5 @@
 import { cn } from "@handicraft/core/utils";
+import { parseHcParams } from "./hc-params";
 import { Harness } from "./harness";
 
 /**
@@ -16,21 +17,15 @@ export default async function Page({
   // Read on the server so the initial state matches between server and client.
   // Deriving it from window.location in a useState initialiser would mismatch.
   // Also gives Playwright a way to pin a tier without clicking anything.
+  // Parsing itself moved to hc-params.ts — cycle 004, so `/matrix` reads the
+  // same nine-key vocabulary instead of growing a second, driftable copy.
   const params = await searchParams;
-  const fidelity = params.fidelity === "lite" ? "lite" : "high";
-  const dark = params.dark === "1";
-  const texture = params.texture !== "0";
-  const stress = params.stress === "1";
-  const hand = (["steady", "natural", "loose", "hurried"] as const).find((h) => h === params.hand);
-  const ink = params.ink === "plain" ? "plain" : "layered";
-  const drawOn = params.drawOn === "1";
-  const drawMs = Number(params.drawMs) || undefined;
-  const fill = (["no", "low", "med", "high"] as const).find((f) => f === params.fill);
+  const hc = parseHcParams(params);
 
   return (
     // The theme class has to wrap the header too, or dark mode leaves a strip of
     // light paper above the fold.
-    <main className={cn(dark && "dark")}>
+    <main className={cn(hc.dark && "dark")}>
       <header className="bg-hc-paper text-hc-ink px-6 pt-10">
         <div className="mx-auto max-w-3xl">
           <h1 className="font-hand text-3xl">Handicraft UI</h1>
@@ -40,15 +35,15 @@ export default async function Page({
         </div>
       </header>
       <Harness
-        initialFidelity={fidelity}
-        initialDark={dark}
-        initialTexture={texture}
-        initialStress={stress}
-        {...(hand ? { initialHand: hand } : {})}
-        initialInk={ink}
-        initialDrawOn={drawOn}
-        {...(drawMs ? { initialDrawMs: drawMs } : {})}
-        {...(fill ? { initialFill: fill } : {})}
+        initialFidelity={hc.fidelity}
+        initialDark={hc.dark}
+        initialTexture={hc.texture}
+        initialStress={hc.stress}
+        {...(hc.hand ? { initialHand: hc.hand } : {})}
+        initialInk={hc.ink}
+        initialDrawOn={hc.drawOn}
+        {...(hc.drawMs ? { initialDrawMs: hc.drawMs } : {})}
+        {...(hc.fill ? { initialFill: hc.fill } : {})}
       />
     </main>
   );

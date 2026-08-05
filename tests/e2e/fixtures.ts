@@ -1,4 +1,5 @@
 import { expect, test as base } from "@playwright/test";
+import type { Cell } from "./matrix-grid";
 
 export type Hand = "steady" | "natural" | "loose" | "hurried";
 export type Ink = "layered" | "plain";
@@ -47,6 +48,24 @@ export function hcUrl(path: string, state: HcState = {}): string {
   return qs.length > 0 ? `${path}?${qs}` : path;
 }
 
+/**
+ * Builds a `/matrix` URL from a grid cell — cycle 004. `c` is the specimen
+ * id; `sfill` and `fill` are matrix-only and shared-vocabulary keys
+ * respectively, both omitted unless the cell actually sets them so a cell
+ * with `hand: null` (tier 1) never emits a `hand=` key the route would
+ * otherwise have to specially ignore.
+ */
+export function matrixUrl(cell: Cell): string {
+  const params = new URLSearchParams();
+  params.set("c", cell.component);
+  if (cell.tier === "lite") params.set("fidelity", "lite");
+  if (cell.theme === "dark") params.set("dark", "1");
+  if (cell.hand) params.set("hand", cell.hand);
+  if (cell.sfill) params.set("sfill", cell.sfill);
+  params.set("fill", cell.ceil);
+  return `/matrix?${params.toString()}`;
+}
+
 export interface HcFixture {
   /**
    * Navigate and wait for the tier the state asked for to actually be the one
@@ -62,6 +81,18 @@ export interface HcFixture {
   goto(state?: HcState, path?: string): Promise<void>;
   /** `.hc-frame` count, read at runtime so no spec hard-codes 31 or 32. */
   frameCount(): Promise<number>;
+  /**
+   * Navigate to a matrix cell's URL and wait for both the requested tier to
+   * settle and the webfont it will be measured against to finish loading.
+   * Screenshot geometry is a function of the font metrics Kalam resolves to,
+   * and `goto()`'s own settle condition — "the requested tier is on screen"
+   * — says nothing about whether those metrics have arrived yet. Kept as its
+   * own method rather than added to `goto()`, so the 64 existing specs stay
+   * on the exact wait they were built and verified against — `goto()` is
+   * untouched by this cycle, provable with `git diff` showing zero lines
+   * changed on that function.
+   */
+  gotoSpecimen(cell: Cell): Promise<void>;
 }
 
 export const test = base.extend<{ hc: HcFixture }>({
@@ -86,6 +117,20 @@ export const test = base.extend<{ hc: HcFixture }>({
       },
       async frameCount() {
         return page.locator(".hc-frame").count();
+      },
+      async gotoSpecimen(cell) {
+        await page.goto(matrixUrl(cell));
+
+        if (cell.tier === "lite") {
+          await expect(page.locator(".hc-sketch-svg")).toHaveCount(0);
+        } else {
+          // Label holds no `.hc-frame` at all, so this correctly resolves at
+          // zero-equals-zero for that one specimen rather than hanging.
+          await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+        }
+
+        await page.evaluate(() => document.fonts.ready);
+        await page.mouse.move(0, 0);
       },
     };
     await use(fixture);

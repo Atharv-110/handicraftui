@@ -16,9 +16,12 @@
     "format:check": "prettier --check .",
     "registry:build": "tsx scripts/build-registry.ts",
     "test:e2e": "playwright test --project=e2e",
+    "test:e2e:visual": "playwright test --project=visual",
     "test:e2e:perf": "playwright test --project=perf",
-    "test:e2e:docker": "bash scripts/e2e-docker.sh",
-    "test:e2e:update": "playwright test --project=e2e --update-snapshots"
+    "test:e2e:docker": "bash scripts/e2e-docker.sh e2e",
+    "test:e2e:docker:visual": "bash scripts/e2e-docker.sh visual",
+    "test:e2e:update": "bash scripts/e2e-docker.sh e2e --update-snapshots=all",
+    "test:e2e:update:visual": "bash scripts/e2e-docker.sh visual --update-snapshots=all"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

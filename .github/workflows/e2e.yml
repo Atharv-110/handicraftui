@@ -57,7 +57,7 @@ jobs:
           # §5). Plain shell + git, matching ci.yml's existing preference for
           # explicit steps over a third-party filter action.
           if git diff --name-only origin/main...HEAD | grep -qE \
-            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/)'; then
+            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|tests/e2e/matrix)'; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
@@ -101,14 +101,12 @@ jobs:
 
       - run: pnpm test:e2e
 
-  # Cycle 004's job. Its trigger logic is this cycle's to build and verify —
-  # the `changes` job above and the `if:` below are real and tested on a real
-  # pull request in both directions, per this cycle's Definition of Done.
-  # Its payload is not: `/matrix` and the `visual` Playwright project do not
-  # exist until cycle 004 lands (cycle 003 §7.1, §7.4). This step is a
-  # placeholder that succeeds without claiming to have tested anything, so
-  # this job can be exercised for real now and cycle 004 only has to replace
-  # one step.
+  # Cycle 004's job. Its trigger logic was built and verified in cycle 003 —
+  # the `changes` job above and the `if:` below are real and were tested on a
+  # real pull request in both directions there, against a placeholder
+  # payload. Cycle 004 replaces that placeholder with the real suite: the
+  # standalone `pnpm build` step stays (a build failure now surfaces as its
+  # own step rather than as a `webServer` timeout inside the test run).
   visual:
     needs: changes
     if: |
@@ -130,10 +128,7 @@ jobs:
             ${{ runner.os }}-e2e-pnpm-store-
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Visual matrix — not built until cycle 004
-        run: |
-          echo "The visual project and /matrix route are cycle 004's (see cycle 003 §7.1, §7.4)."
-          echo "This job's trigger fired correctly; there is no suite to run yet."
+      - run: pnpm test:e2e:visual
 
   # Record-only. Never gates a pull request — QA-CONTRACT.md's budgets are
   # stated under conditions a shared 2-vCPU runner is not, and asserting them
