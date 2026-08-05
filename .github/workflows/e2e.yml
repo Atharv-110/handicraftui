@@ -56,8 +56,27 @@ jobs:
           # that already means "every consumer is re-verified" (cycle 003
           # §5). Plain shell + git, matching ci.yml's existing preference for
           # explicit steps over a third-party filter action.
+          # Fix F9, cycle 004 iteration 2, declared growth. Three more paths
+          # change all 67 captures the same way the four already listed do:
+          # `layout.tsx` loads Kalam via `next/font/google`, and every
+          # specimen's geometry is measured against those metrics;
+          # `globals.css` declares `--hc-font-hand` and the `body` background
+          # F1 fixed; `fixtures.ts` holds `matrixUrl`'s key emission and
+          # `gotoSpecimen`'s settle, neither matched by the existing
+          # `tests/e2e/matrix` prefix.
+          # Fix F12, cycle 004 iteration 3, declared growth. `playwright.config.ts`
+          # was absent from this list despite holding `snapshotPathTemplate`
+          # (where every one of the 67 baselines is read from and written to)
+          # and the `visual` project's `testMatch`, `retries` and
+          # `devices["Desktop Chrome"]` — the 1280x720 viewport and
+          # deviceScaleFactor every pixel derivation in the cycle document
+          # depends on. Root-anchored `^`, no directory prefix needed: the
+          # file sits at the repository root. A toolchain bump
+          # (`pnpm-lock.yaml`, the pinned image tag) is deliberately left out —
+          # that class of change regenerates all 68 baselines anyway and so
+          # announces itself, where an edit here would not.
           if git diff --name-only origin/main...HEAD | grep -qE \
-            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|tests/e2e/matrix)'; then
+            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|apps/playground/app/layout\.tsx|apps/playground/app/globals\.css|tests/e2e/matrix|tests/e2e/fixtures\.ts|playwright\.config\.ts)'; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"

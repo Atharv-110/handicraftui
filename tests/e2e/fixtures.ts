@@ -1,4 +1,4 @@
-import { expect, test as base } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 import type { Cell } from "./matrix-grid";
 
 export type Hand = "steady" | "natural" | "loose" | "hurried";
@@ -66,6 +66,21 @@ export function matrixUrl(cell: Cell): string {
   return `/matrix?${params.toString()}`;
 }
 
+/**
+ * One painted frame past the current one. Exported rather than inlined so
+ * M8's calibration (`matrix.spec.ts`) can wait on the *exact* anchor
+ * `gotoSpecimen`'s tier-1 branch uses; a calibration against a different
+ * wait proves nothing about this one. Fix F13, cycle 004 iteration 3.
+ */
+export function settleOneFrame(page: Page): Promise<void> {
+  return page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
 export interface HcFixture {
   /**
    * Navigate and wait for the tier the state asked for to actually be the one
@@ -122,7 +137,57 @@ export const test = base.extend<{ hc: HcFixture }>({
         await page.goto(matrixUrl(cell));
 
         if (cell.tier === "lite") {
+          // Fix F3, cycle 004 iteration 2 (H4). A bare `toHaveCount(0)` here
+          // is a web-first assertion, which resolves the instant it is
+          // true — and at `fidelity=lite` the page starts with zero
+          // `.hc-sketch-svg` regardless of whether tier 2 is about to mount
+          // anyway, so the assertion was true before the thing it exists to
+          // rule out could happen. Measured live under the fix brief's named
+          // mutation (`matrix/page.tsx` forcing `fidelity="high"`): count 0
+          // the instant `goto()` returns, count 1 after a 2s settle.
+          //
+          // Tier 2's mount is not signalled by any DOM attribute — there is
+          // no `data-hc-fidelity="lite"`, only `"high"` when tier 2 is
+          // active (`useSketchFrame.tsx:269`) — so there is no positive
+          // marker to wait for instead. What there is: the frame's first
+          // size measurement happens synchronously inside a layout effect on
+          // mount (`useSketchFrame.tsx:172-187`, no `ResizeObserver` round
+          // trip needed for the initial read), and the geometry pass that
+          // follows takes the synchronous `generateSketchSync` path whenever
+          // the engine is already warm. Both land within the same handful of
+          // commits, so `settleOneFrame` — one full painted frame past
+          // hydration — anchors past the boundary a real tier-2 mount would
+          // have already crossed, without waiting on an arbitrary timeout.
+          //
+          // Fix F13, cycle 004 iteration 3. The margin was not measured when
+          // the paragraph above was written; it now is. Across 12 trials,
+          // tier 2 mounts at rAF index 1 on 11 and at index 2 on 1, against
+          // this anchor sitting at index 2 — one frame of margin, not a
+          // guarantee. The settle itself is real: 0 of 10 local runs see the
+          // mount at `goto()`'s return, 10 of 10 see it at the anchor, and
+          // M8 fails 10 of 10 under its named mutation. If the mount ever
+          // slips to index 3 on a slower machine, this anchor goes vacuously
+          // true again with H4's exact shape — silently — which is why M8b
+          // (`matrix.spec.ts`) checks the anchor against a real tier-2 mount
+          // on every run rather than trusting the margin alone.
+          await settleOneFrame(page);
           await expect(page.locator(".hc-sketch-svg")).toHaveCount(0);
+          // The positive half `goto()`'s own lite branch already carries
+          // (line ~106 above) — proves the page actually painted something
+          // rather than having gone blank, which the negative assertion
+          // alone cannot distinguish.
+          //
+          // F14, cycle 004 iteration 3. This assertion carries no carve-out
+          // the way the `else` branch below does for Label, and it needs
+          // none today: this whole `if` branch only ever runs for block B,
+          // which is Button-only (§3.5), so a `.hc-frame` always exists to
+          // find. That is an assumption on the branch, not a fact about the
+          // type, and it is worth writing down rather than leaving implicit
+          // — the day a tier-1 Label cell is added (§6.3), this assertion
+          // fails loudly and immediately, naming the exact locator, which is
+          // a gate working rather than a trap, not a defect to pre-empt with
+          // untested code written against a cycle that does not exist yet.
+          await expect(page.locator(".hc-frame")).not.toHaveCount(0);
         } else {
           // Label holds no `.hc-frame` at all, so this correctly resolves at
           // zero-equals-zero for that one specimen rather than hanging.

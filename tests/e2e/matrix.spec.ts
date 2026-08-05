@@ -1,18 +1,30 @@
 import { expect } from "@playwright/test";
-import { test } from "./fixtures";
+import { settleOneFrame, test } from "./fixtures";
 import { MATRIX_CELLS, nameFor, type Component } from "./matrix-grid";
 
 /**
- * §3.6's starting hypothesis, not a measured constant. Inside one pinned
- * image the pool seeds are fixed, `useId` is deterministic for a fixed tree,
- * `feTurbulence` runs at a fixed `seed={3}`, and the clip is an element box
- * rather than a full-page height — the one jitter cycle 003 measured (D-NJS,
- * ~1px of full-page height across separate container invocations) has no
- * mechanism on a fixed-size element clip. That is an inference, not a
- * measurement: QA executes the two-invocation protocol §3.6 pre-registers
- * and fixes the real constant. This value ships as the hypothesis it is.
+ * Both measured, not inherited as a hypothesis. `W` (the worst
+ * differing-pixel count across two separate container invocations of all 67
+ * pairs) came back as byte identity, not merely zero, in cycle 004 both
+ * before and after F1's fix: iteration 1 measured it across four separate
+ * invocations of the pre-fix set, and iteration 2 re-ran the two-invocation
+ * protocol on the regenerated set (26 dark baselines moved by F1, the other
+ * 41 confirmed byte-identical against their pre-fix copies) and got the
+ * same result. Pool seeds are fixed constants, `useId` is deterministic for
+ * a fixed tree, `feTurbulence` runs at a fixed `seed={3}`, and the clip is
+ * an element box rather than a full-page height, so §3.6's mechanical
+ * argument held both times.
+ *
+ * `threshold` stays alongside it rather than at Playwright's default 0.2,
+ * because at byte identity there is no differing pixel for either constant
+ * to act on — `threshold: 0` costs nothing in stability here — while at 0.2
+ * the pre-fix gate measurably could not see real regressions: a
+ * `no`-to-`low` fill change on 9 of 10 cells, a hand swap on 6 dark cells,
+ * and a complete turbulence-filter removal on 3 dark tier-1 cells all
+ * passed at 0.2 and registered 275 to 2,512 differing pixels at 0.
  */
 const HC_MATRIX_MAX_DIFF_PIXELS = 0;
+const HC_MATRIX_THRESHOLD = 0;
 
 /** `component`s appear once each — the seven ids the route recognises. */
 const ALL_COMPONENTS = [...new Set(MATRIX_CELLS.map((c) => c.component))] as Component[];
@@ -31,6 +43,14 @@ test.describe("matrix guards", () => {
       await page.goto(`/matrix?c=${id}`);
       await expect(page.locator('[data-testid="hc-specimen"]')).toHaveCount(1);
       await expect(page.locator('[data-testid="hc-specimen-unknown"]')).toHaveCount(0);
+      // Fix F5, cycle 004 iteration 2, declared growth. The wrapper existing
+      // is not the same claim as this test's own title — "renders its
+      // specimen" — and without this a specimen returning `null` still
+      // passes: the wrapper div renders unconditionally regardless of what
+      // `renderSpecimen` returns. All seven specimens render an element
+      // child (Button a `<button>`, Label a `<label>`, the rest a `<div>` or
+      // the component's own root), so this holds for every id.
+      await expect(page.locator('[data-testid="hc-specimen"] > *')).not.toHaveCount(0);
     }
   });
 
@@ -155,6 +175,16 @@ test.describe("matrix guards", () => {
       await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
       await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-fill", expected[sfill]);
     }
+
+    // Fix F8, cycle 004 iteration 2, declared growth. The loop above proves
+    // the clamp happens at the default ceiling; nothing proved it stops
+    // happening once the ceiling is raised, and the 11 cells generated at
+    // `sfill: "high", ceil: "high"` would all silently render "med" with
+    // every guard here green — the exact class of clamp §3.3 names and this
+    // test's own title claims to cover.
+    await page.goto("/matrix?c=button&sfill=high&fill=high");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-fill", "high");
   });
 
   test("M7 — the ceiling clamps: sfill=high with fill=no reads data-hc-fill=no", async ({
@@ -165,8 +195,42 @@ test.describe("matrix guards", () => {
     await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-fill", "no");
   });
 
-  test("M8 — fidelity=lite renders zero sketch SVGs and at least one frame", async ({ page }) => {
-    await page.goto("/matrix?c=button&fidelity=lite");
+  test("M8 — fidelity=lite renders zero sketch SVGs and at least one frame", async ({
+    page,
+    hc,
+  }) => {
+    // Fix F13, cycle 004 iteration 3. H4 was M8 passing because its
+    // assertion was true before the thing it tests could happen. F3's
+    // settle fixed that with one frame of margin, measured — tier 2 mounts
+    // at rAF index 1 on 11 of 12 trials and index 2 on 1 of 12, against an
+    // anchor at index 2 — and a margin is not a guarantee when the failure
+    // it protects against is silent. So the anchor is checked against a
+    // real tier-2 mount on every run, on the exact code path M8's own named
+    // mutation creates: force `fidelity="high"` and the tier-1 cell
+    // *becomes* this navigation. A plain `count()` read, never a web-first
+    // assertion — `not.toHaveCount(0)` polls until true and would
+    // calibrate nothing.
+    await page.goto("/matrix?c=button&fill=med");
+    await settleOneFrame(page);
+    expect(await page.locator(".hc-sketch-svg").count()).toBeGreaterThan(0);
+
+    // Fix F3, cycle 004 iteration 2. Routed through `hc.gotoSpecimen` rather
+    // than a bare `page.goto` plus this test's own assertions — the settle
+    // that makes "zero sketch SVGs" a real check rather than a check that is
+    // true before the thing it tests lives once in `fixtures.ts`, not here
+    // and there. See that file for why a plain `toHaveCount(0)` was a false
+    // green (H4, iteration 1): it resolves the instant it is true, and a
+    // page that starts correct and mounts tier 2 late is correct at the
+    // first poll regardless.
+    await hc.gotoSpecimen({
+      component: "button",
+      state: "default",
+      tier: "lite",
+      hand: null,
+      sfill: null,
+      ceil: "med",
+      theme: "light",
+    });
     await expect(page.locator(".hc-sketch-svg")).toHaveCount(0);
     await expect(page.locator(".hc-frame")).not.toHaveCount(0);
   });
@@ -174,8 +238,39 @@ test.describe("matrix guards", () => {
   test("M9 — the grid is exactly 67 cells with 67 unique screenshot names, matching the derived cross-checks", () => {
     expect(MATRIX_CELLS.length).toBe(67);
 
+    // Fix F6, cycle 004 iteration 2, figure. This line cannot itself fail by
+    // mutation — the test title *is* `nameFor(cell)` (below), so a colliding
+    // name aborts Playwright's own collection with a duplicate-title error
+    // before a single test runs. Uniqueness is enforced there; this
+    // restates the intent rather than adding a reachable check, and keeping
+    // it is worth more than deleting a statement of intent that enforces
+    // nothing new.
     const names = new Set(MATRIX_CELLS.map(nameFor));
     expect(names.size).toBe(67);
+
+    // Fix F6, cycle 004 iteration 2, declared growth — the second half of
+    // the split. Injectivity of the on-disk filename follows from every
+    // token matching this shape (lowercase ASCII sits between the
+    // snapshot-path sanitizer's `\x5B-\x60` and `\x7B-\x7F` ranges, so `__`
+    // is the only substring it ever rewrites, and the seven-token tuple
+    // survives split on `-`) — proven by construction, not by counting. The
+    // token shape is the cause; the on-disk name set is its consequence.
+    // Asserting the cause fires the moment a bad `state` value is typed in a
+    // future cycle (§1.1's reserved segment); asserting only the effect
+    // would not fire until 67 files already existed on disk.
+    for (const cell of MATRIX_CELLS) {
+      for (const token of [
+        cell.component,
+        cell.state,
+        cell.tier,
+        cell.hand ?? "na",
+        cell.sfill ?? "na",
+        cell.ceil,
+        cell.theme,
+      ]) {
+        expect(token).toMatch(/^[a-z]+$/);
+      }
+    }
 
     expect(tally(MATRIX_CELLS.map((c) => c.component))).toEqual({
       button: 40,
@@ -215,6 +310,7 @@ test.describe("matrix screenshots", () => {
       await hc.gotoSpecimen(cell);
       await expect(page.locator('[data-testid="hc-specimen"]')).toHaveScreenshot(name, {
         maxDiffPixels: HC_MATRIX_MAX_DIFF_PIXELS,
+        threshold: HC_MATRIX_THRESHOLD,
       });
     });
   }

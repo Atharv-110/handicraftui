@@ -25,18 +25,15 @@ import { Input } from "@/ui/input/input";
 import { Label } from "@/ui/label/label";
 import { Separator } from "@/ui/separator/separator";
 import type { FillLevel } from "@handicraft/core";
-
-export const SPECIMEN_IDS = [
-  "button",
-  "badge",
-  "card",
-  "checkbox",
-  "input",
-  "separator",
-  "label",
-] as const;
-
-export type SpecimenId = (typeof SPECIMEN_IDS)[number];
+// `verbatimModuleSyntax: true` requires the `type` modifier on a
+// type-only import — `ReactElement` is used only in the return
+// annotation below, never as a value.
+import type { ReactElement } from "react";
+// Fix F7, cycle 004 iteration 2 — the id list and its type live in
+// `specimen-ids.ts`, a plain module with no "use client", so `matrix/page.tsx`
+// (a Server Component) can import the real runtime array instead of keeping
+// a hand-copied duplicate. See that file's header comment for the full story.
+import type { SpecimenId } from "./specimen-ids";
 
 export interface SpecimenProps {
   c: SpecimenId;
@@ -64,7 +61,13 @@ export function Specimen({ c, sfill }: SpecimenProps) {
   );
 }
 
-function renderSpecimen(c: SpecimenId, sfill: FillLevel | undefined) {
+// Fix F11, cycle 004 iteration 3. Without this annotation an id added to
+// `SPECIMEN_IDS` with no matching `case` below infers a return type of
+// `Element | undefined` rather than an error, and `undefined` renders as
+// nothing — silently. With it, a non-exhaustive switch fails to satisfy
+// `ReactElement` and `tsc` raises `TS2366` at build time. See
+// `specimen-ids.ts`'s header comment, direction 2, for the full mechanism.
+function renderSpecimen(c: SpecimenId, sfill: FillLevel | undefined): ReactElement {
   switch (c) {
     case "button":
       return <Button {...(sfill ? { fill: sfill } : {})}>Save changes</Button>;
