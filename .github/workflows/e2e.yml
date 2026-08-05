@@ -32,13 +32,23 @@ env:
   HC_SNAPSHOT_ENV: docker
 
 jobs:
-  # Cheap, and only meaningful on a pull request: computes whether this diff
-  # hits the `visual` job's blast radius, so that job's own `if:` can gate on
-  # a job output instead of re-running the diff itself. A job's `if:` cannot
-  # see a step output from inside its own run, hence the split.
+  # Cycle 005. No longer pull-request-only — this is the only place any
+  # event decides whether `visual` runs, so it has to run on all four events
+  # itself or a skipped `changes` silently skips `visual` too. A job whose
+  # `needs:` dependency was skipped is skipped itself: an `if:` with no
+  # status-check function carries an implicit `success()`, and `success()`
+  # is false against a skipped dependency. That is why the 68 committed
+  # baselines gated pull requests and never `main` (E2E run 31049219574,
+  # merge commit c9e0bbb: `e2e` succeeded, `changes`, `perf` and `visual` all
+  # skipped) — `visual`'s own three-way `if:` never mattered, because
+  # `changes` being pull-request-only skipped it first on every other event.
+  # `timeout-minutes: 10` — this job touches no browser and needs no image
+  # pull, so 10 is headroom over its normal sub-minute run rather than a
+  # measured ceiling; an unavailable runner label queues instead of erroring,
+  # and the GitHub default of 360 minutes turns that into a six-hour hang.
   changes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       visual: ${{ steps.filter.outputs.hit }}
     steps:
@@ -49,46 +59,92 @@ jobs:
           # by default.
           fetch-depth: 0
 
-      - name: Does this diff touch the visual blast radius?
+      - name: Should the visual job run?
         id: filter
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
-          # QA-CONTRACT.md Rule R1's blast radius, verbatim — the exact set
-          # that already means "every consumer is re-verified" (cycle 003
-          # §5). Plain shell + git, matching ci.yml's existing preference for
-          # explicit steps over a third-party filter action.
-          # Fix F9, cycle 004 iteration 2, declared growth. Three more paths
-          # change all 67 captures the same way the four already listed do:
-          # `layout.tsx` loads Kalam via `next/font/google`, and every
-          # specimen's geometry is measured against those metrics;
-          # `globals.css` declares `--hc-font-hand` and the `body` background
-          # F1 fixed; `fixtures.ts` holds `matrixUrl`'s key emission and
-          # `gotoSpecimen`'s settle, neither matched by the existing
-          # `tests/e2e/matrix` prefix.
-          # Fix F12, cycle 004 iteration 3, declared growth. `playwright.config.ts`
-          # was absent from this list despite holding `snapshotPathTemplate`
-          # (where every one of the 67 baselines is read from and written to)
-          # and the `visual` project's `testMatch`, `retries` and
-          # `devices["Desktop Chrome"]` — the 1280x720 viewport and
-          # deviceScaleFactor every pixel derivation in the cycle document
-          # depends on. Root-anchored `^`, no directory prefix needed: the
-          # file sits at the repository root. A toolchain bump
-          # (`pnpm-lock.yaml`, the pinned image tag) is deliberately left out —
-          # that class of change regenerates all 68 baselines anyway and so
-          # announces itself, where an edit here would not.
-          # Cycle 004a, declared growth. This workflow file now selects which
-          # manifest of a two-entry OCI image index runs the comparison
-          # (`ubuntu-24.04-arm` versus `ubuntu-latest` resolve to different
-          # Chromium binaries under the one pinned tag), so editing it changes
-          # all 67 captures exactly the way changing the image tag would.
-          # `tests/e2e/snapshot-env.ts` holds the constants both architecture
-          # guards assert against, and matches neither the existing
-          # `tests/e2e/matrix` prefix nor `tests/e2e/fixtures\.ts`.
-          if git diff --name-only origin/main...HEAD | grep -qE \
-            '^(packages/core/src/engine/|packages/core/src/theme/context\.tsx|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|apps/playground/app/layout\.tsx|apps/playground/app/globals\.css|tests/e2e/matrix|tests/e2e/fixtures\.ts|playwright\.config\.ts|^\.github/workflows/e2e\.yml|^tests/e2e/snapshot-env\.ts)'; then
-            echo "hit=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "hit=false" >> "$GITHUB_OUTPUT"
-          fi
+          # `shell: bash` rather than the default, for `-o pipefail`. The
+          # default `run` shell on Linux is `bash -e` without it.
+          #
+          # This job is now the only place that decides whether `visual`
+          # runs, for every event. A job whose `needs:` dependency was
+          # skipped is skipped itself — an `if:` with no status-check
+          # function carries an implicit `success()`, and `success()` is
+          # false against a skipped dependency. So gating `visual` on event
+          # names in its own `if:` never worked and could not: `changes` was
+          # pull-request-only, and skipping it skipped `visual` whatever
+          # `visual` asked for. That is why the 68 committed baselines
+          # gated pull requests and never `main` (E2E run 31049219574,
+          # merge commit c9e0bbb: `e2e` succeeded, `changes`, `perf` and
+          # `visual` all skipped), and why `workflow_dispatch` on `visual`
+          # was dead for the same reason and had never been noticed.
+          #
+          # `EVENT` comes through the environment rather than being
+          # interpolated into the script body. `github.event_name` is a
+          # controlled enum and cannot carry an injection today, but the
+          # habit is what keeps that true when the next condition reads
+          # something a contributor controls.
+          case "$EVENT" in
+            push | workflow_dispatch)
+              # `main` gets the full comparison unconditionally. The
+              # blast-radius filter is a pull-request cost optimisation;
+              # a `main` run is the permanent record for that commit, which
+              # is ci.yml's own stated reason for never cancelling one.
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+              ;;
+            pull_request)
+              # Written to a file and checked in three steps rather than
+              # piped straight into `if`. A pipeline reports its last
+              # command's status, so `git diff | grep -q` reads exactly the
+              # same as "the diff succeeded and matched nothing" when the
+              # diff itself failed — `origin/main` failing to resolve would
+              # silently disable the visual gate. `test -s` closes it: a
+              # pull request with zero changed files does not exist.
+              #
+              # QA-CONTRACT.md Rule R1's blast radius, verbatim — the exact
+              # set that already means "every consumer is re-verified"
+              # (cycle 003 §5). Fix F9 (cycle 004 iteration 2): `layout.tsx`
+              # loads Kalam via `next/font/google`, and every specimen's
+              # geometry is measured against those metrics; `globals.css`
+              # declares `--hc-font-hand` and the `body` background F1
+              # fixed; `fixtures.ts` holds `matrixUrl`'s key emission and
+              # `gotoSpecimen`'s settle, neither matched by the existing
+              # `tests/e2e/matrix` prefix. Fix F12 (cycle 004 iteration 3):
+              # `playwright.config.ts` holds `snapshotPathTemplate` (where
+              # every one of the 67 baselines is read from and written to)
+              # and the `visual` project's `testMatch`, `retries` and
+              # `devices["Desktop Chrome"]` — the 1280x720 viewport and
+              # deviceScaleFactor every pixel derivation in the cycle
+              # document depends on. Cycle 004a: this workflow file now
+              # selects which manifest of a two-entry OCI image index runs
+              # the comparison, so editing it changes all 67 captures the
+              # way changing the image tag would; `snapshot-env.ts` holds the
+              # constants both architecture guards assert against. Cycle 005:
+              # `packages/core/src/theme/context\.tsx` widens to
+              # `packages/core/src/theme/`, which now also holds
+              # `surface.tsx` — it paints every matrix cell's background, and
+              # an edit there that did not trigger `visual` would be the
+              # exact miss this cycle exists to close. `harness\.tsx` and
+              # `page\.tsx` both change in this cycle and are both rendered
+              # by D-NJS's committed baseline in the `e2e` job, which runs on
+              # every pull request unconditionally — belt-and-braces here,
+              # not a live gap.
+              git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/changed.txt"
+              test -s "$RUNNER_TEMP/changed.txt"
+              if grep -qE '^(packages/core/src/engine/|packages/core/src/theme/|packages/core/src/frame/|packages/core/src/styles/handicraft\.css|registry/default/|apps/playground/app/matrix/|apps/playground/app/hc-params\.ts|apps/playground/app/layout\.tsx|apps/playground/app/globals\.css|apps/playground/app/harness\.tsx|apps/playground/app/page\.tsx|tests/e2e/matrix|tests/e2e/fixtures\.ts|playwright\.config\.ts|^\.github/workflows/e2e\.yml|^tests/e2e/snapshot-env\.ts)' \
+                "$RUNNER_TEMP/changed.txt"; then
+                echo "hit=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "hit=false" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            *)
+              # `schedule`. The nightly run feeds `perf` only.
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
   # Tier parity, degraded modes, axe, overflow. Gates every pull request —
   # this is the job the "under 3 minutes" claim (withdrawn, cycle 003 §4) was
@@ -167,9 +223,18 @@ jobs:
   # `ubuntu-latest`.
   visual:
     needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && needs.changes.outputs.visual == 'true')
+    # Cycle 005. One condition, no event names, no status functions — every
+    # event now goes through `changes`, which runs on all four and emits
+    # `hit=true` unconditionally for `push` and `workflow_dispatch`, runs
+    # the blast-radius diff for `pull_request`, and `hit=false` for
+    # `schedule`. The previous three-way `if:` (`workflow_dispatch` OR
+    # `pull_request`-with-a-hit, falling through to false for everything
+    # else) never ran on two of the three events it named: `changes` being
+    # pull-request-only meant a `push` or `workflow_dispatch` run never
+    # produced `needs.changes.outputs.visual` at all, so any branch reading
+    # that output on those events read an unset output — an empty string,
+    # false against `== 'true'` — regardless of what this `if:` said.
+    if: needs.changes.outputs.visual == 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble

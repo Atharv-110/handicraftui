@@ -138,3 +138,19 @@ export const SPACING = {
   gapFrame: 24,
   padPage: 12,
 } as const;
+
+/**
+ * Two geometry pins, not ramp values on either ramp. Named here rather than
+ * left as literals so `hc/no-off-scale-class` (cycle 005) has an auditable
+ * allowance list: a value the rule permits is either a ramp value or an
+ * entry in this closed list, and adding a third entry is a visible line in
+ * a diff rather than a widened regex. Both numbers already had a prose home
+ * before this export existed — `checkboxBox` in TOKEN_RAMP's own comment
+ * above, `ruleThickness` in R4's local literal — this just gives them one a
+ * lint rule can read too. `checkboxBox` is the drawn box at `size-5`;
+ * `ruleThickness` is Separator's 2px rule at `h-0.5` / `w-0.5`.
+ */
+export const GEOMETRY_PINS = {
+  checkboxBox: 20,
+  ruleThickness: 2,
+} as const;

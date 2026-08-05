@@ -1,0 +1,11 @@
+{
+  "components": {
+    "badge": ["@handicraft/core"],
+    "button": ["@handicraft/core"],
+    "card": ["@handicraft/core"],
+    "checkbox": ["@handicraft/core"],
+    "input": ["@handicraft/core"],
+    "label": ["@handicraft/core"],
+    "separator": ["@handicraft/core"]
+  }
+}

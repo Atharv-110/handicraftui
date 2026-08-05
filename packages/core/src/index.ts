@@ -13,6 +13,8 @@ export {
   type HandicraftProviderProps,
 } from "./theme/context";
 
+export { HandicraftSurface, type HandicraftSurfaceProps } from "./theme/surface";
+
 export {
   useSketchFrame,
   useSketchSeed,

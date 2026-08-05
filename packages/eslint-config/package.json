@@ -8,12 +8,14 @@
   "exports": {
     "./base": "./base.js",
     "./react-library": "./react-library.js",
-    "./next": "./next.js"
+    "./next": "./next.js",
+    "./handicraft-rules": "./handicraft-rules.js"
   },
   "files": [
     "base.js",
     "react-library.js",
-    "next.js"
+    "next.js",
+    "handicraft-rules.js"
   ],
   "dependencies": {
     "@eslint/js": "^10.0.1",
