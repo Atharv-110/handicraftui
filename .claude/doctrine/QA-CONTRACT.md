@@ -111,6 +111,19 @@ This is written because the same error occurred twice: cycles 002b and 002c each
 mutation that had become a hub, and each was caught by QA against the architect's own brief rather
 than by the architect. The count is cheap to derive and expensive to discover.
 
+**A count is written as its addends, never as a total.** `M6 + M7 + card + checkbox = 4`, not `4`.
+
+Cycle 004 produced six wrong counts across one document. Every one of them is the same shape: a sum
+with a term dropped. The hub-and-spoke rule above catches the case where nobody knew about the
+intersection — but the sixth slip was written *four paragraphs after* the section that identified the
+missing term, by the same author, in the same dispatch. Knowing the intersection is not enough when
+the total is written as a bare number, because a bare number carries no record of what went into it
+and cannot be checked against anything.
+
+Addends make the omission visible to a reader who never re-derives the count. They also survive a
+cycle: the next author changing an assertion can see which terms are affected without reconstructing
+the arithmetic from scratch.
+
 ### A filter that matches nothing still exits 0
 
 `pnpm test -- -t "<name>"` filters correctly — that part works. But a name matching **no test** reports
@@ -136,6 +149,17 @@ timeline survived into an apparently green run. It was only caught because an ex
 a grep.
 
 Never assume a revert worked. `git diff` is now the baseline — that is what the first commit is for.
+
+**The revert surface is the tree, not the file.** Check `git status --porcelain` over the whole
+repository and compare the entry count to what it was before the mutation. Reverting the source file
+is not sufficient and `git diff` on that file will read clean while the tree is dirty.
+
+A mutation that changes a **snapshot name** is the case that proves it. Playwright writes a missing
+baseline rather than failing, so the run leaves new PNG files behind under the mutated names — files
+no source revert touches, because the source is not where they came from. Cycle 004's QA hit this on
+its own mutation run: 32 stray baselines, `git status` going from 32 entries to 64, caught only
+because it counted. The next author generating artifacts from a mutated build inherits the same
+shape whatever the file type.
 
 ### Known-good mutations (from `TESTING.md`)
 
