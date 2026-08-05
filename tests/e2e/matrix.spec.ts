@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { test } from "./fixtures";
 import { MATRIX_CELLS, nameFor, type Component } from "./matrix-grid";
+import { isSnapshotEnv, SNAPSHOT_ARCH, SNAPSHOT_PLATFORM } from "./snapshot-env";
 
 /**
  * Both measured, not inherited as a hypothesis. `W` (the worst
@@ -273,6 +274,23 @@ test.describe("matrix guards", () => {
 
     const tier2Hands = MATRIX_CELLS.filter((c) => c.tier === "high").map((c) => c.hand ?? "na");
     expect(tally(tier2Hands)).toEqual({ natural: 20, steady: 13, loose: 13, hurried: 13 });
+  });
+
+  // Cycle 004a. The old rule — real baselines only ever committed from
+  // inside `mcr.microsoft.com/playwright:v1.62.1-noble` — was satisfied on
+  // both sides of cycle 004's first CI failure. `docker manifest inspect` on
+  // that tag returns an OCI image *index* with two entries, sha256:c091b21d…
+  // for linux/amd64 and sha256:941cc91e… for linux/arm64, and the daemon
+  // picks by host architecture: the same tag string, two different Chromium
+  // binaries. 11 of 67 cells disagreed, 146 to 874 differing pixels,
+  // including two tier-1 cells that run no JavaScript at all — a
+  // rasterization difference, not a code one. Every committed baseline is
+  // now `linux/arm64` specifically, and this assertion is what makes that
+  // fact enforced rather than only written down.
+  test("M10 — baselines are compared on the architecture they were generated on", async () => {
+    test.skip(!isSnapshotEnv(), "architecture only constrains the snapshot environment");
+    expect(process.platform).toBe(SNAPSHOT_PLATFORM);
+    expect(process.arch).toBe(SNAPSHOT_ARCH);
   });
 });
 

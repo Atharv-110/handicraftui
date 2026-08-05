@@ -38,6 +38,28 @@ cd "$ROOT"
 
 IMAGE="mcr.microsoft.com/playwright:v1.62.1-noble"
 
+# The tag above is an OCI image *index*, not an image: `docker manifest
+# inspect` returns two entries, sha256:c091b21d… for linux/amd64 and
+# sha256:941cc91e… for linux/arm64, and the daemon picks by host
+# architecture. So pinning the tag pins the Playwright version and pins
+# neither the digest nor the instruction set. Cycle 004 shipped 68 baselines
+# generated here on arm64 and CI compared them on amd64: 11 of 67 failed,
+# 146 to 874 differing pixels, including two tier-1 cells that run no
+# JavaScript at all — a rasterization difference, not a code one. Every
+# committed baseline is linux/arm64 (cycle 004a §2.3), so a daemon of any
+# other architecture can neither generate nor check one, and is refused
+# here rather than allowed to write a baseline nobody can reproduce.
+DAEMON_ARCH="$(docker version --format '{{.Server.Arch}}' 2>/dev/null || true)"
+if [ -z "$DAEMON_ARCH" ]; then
+  echo "e2e-docker: could not read the Docker daemon architecture. Is the daemon running?" >&2
+  exit 1
+fi
+if [ "$DAEMON_ARCH" != "arm64" ]; then
+  echo "e2e-docker: daemon architecture is '$DAEMON_ARCH', not 'arm64'." >&2
+  echo "e2e-docker: every committed baseline is rendered on linux/arm64. Refusing to run." >&2
+  exit 1
+fi
+
 # Invariant: no command running inside the container may write to any host
 # `node_modules`. The fix is not tightening the bind mount — it stays
 # read-write on purpose, for the reasons above — it is shadowing every
@@ -137,7 +159,14 @@ VOLUME_ARGS+=(-v "hc-e2e-pnpm-store:/pnpm-store")
 # positional, the same idiom one argument longer — `pnpm exec playwright
 # test` rather than `pnpm test:e2e`, because the latter is now
 # `e2e`-specific and this script has to reach `visual` too.
-docker run --rm --ipc=host \
+#
+# `--platform linux/arm64` is not redundant with the daemon check above. That
+# check covers the daemon; this covers a stale locally-cached amd64 image
+# under this same tag — if anyone ever ran this script with
+# `--platform linux/amd64`, the local tag now points at the amd64 manifest
+# and a bare `docker run` would use it even on an arm64 daemon. The flag
+# forces the correct manifest regardless of what is cached.
+docker run --rm --ipc=host --platform linux/arm64 \
   -v "$ROOT":/w \
   "${VOLUME_ARGS[@]}" \
   -w /w \

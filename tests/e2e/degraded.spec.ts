@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { test } from "./fixtures";
+import { isSnapshotEnv, SNAPSHOT_ARCH, SNAPSHOT_PLATFORM } from "./snapshot-env";
 
 /**
  * D-NJS's shared baseline tolerance. Both sides render tier 1 through the
@@ -128,6 +129,19 @@ test.describe("degraded modes", () => {
     });
 
     await noJsContext.close();
+  });
+
+  // Cycle 004a. `matrix.spec.ts`'s M10 covers the `visual` project; D-NJS
+  // above is a committed baseline living in the `e2e` project instead, and a
+  // guard that only lived in `visual` would leave exactly this one
+  // cross-architecture screenshot uncovered — the same incompleteness this
+  // cycle exists to fix, one file over. Shares `snapshot-env.ts`'s constants
+  // with M10 rather than repeating them, so the two guards can never drift
+  // apart.
+  test("D-ARCH — baselines are compared on the architecture they were generated on", async () => {
+    test.skip(!isSnapshotEnv(), "architecture only constrains the snapshot environment");
+    expect(process.platform).toBe(SNAPSHOT_PLATFORM);
+    expect(process.arch).toBe(SNAPSHOT_ARCH);
   });
 
   test("D-FC — forced-colors hides both stroke passes and the sketch SVG", async ({ page, hc }) => {
