@@ -172,6 +172,15 @@ Re-measured 2026-08-04 against **127 tests in 18 files**. Three of the four are 
 2026-08-03 measurement against 108 tests in 16 files. The fourth changed, and is unstable by nature —
 see below the table.
 
+Re-measured again 2026-08-06 against **137 tests in 18 files**, cycle 004. Three are unchanged; the
+fourth landed inside its declared 4-or-5 range, which is the only thing that row can be held to.
+
+**These lines accumulate rather than replace each other, and that is the point.** The instruction
+below the table — re-measure whenever a test file is added — is only auditable if a reader can see
+which suite populations the table has already survived. `108/16 → 127/18 → 137/18` is that audit
+trail. Overwriting the earlier figure would assert a measurement nobody took and delete the evidence
+for a rule this file imposes fifteen lines further down.
+
 | Mutation | Fails | Which |
 |---|---|---|
 | `preserveVertices: false → true` in `engine/generator.ts` | **5 tests, 2 files** | `aesthetic.test.ts` "does not pin the corners", plus `golden-shapes.test.ts` for `rect`, `rect-small`, `rounded`, `pill` |
