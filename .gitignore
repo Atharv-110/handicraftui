@@ -6,6 +6,15 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Content is a function of distDir, and this repo runs two distDir values by
+# design (.next-dev under the dev-server rule, .next under next build). No
+# committed copy of next-env.d.ts can be correct for both, so tracking it
+# means fighting the generator on every run. next dev / next build regenerate
+# it; nothing in the gate list reads it — confirmed with a direct
+# `npx tsc --noEmit` in the fresh-clone shape (file absent, .next-dev absent,
+# no turbo cache in the loop).
+apps/playground/next-env.d.ts
+
 # Playwright
 test-results/
 playwright-report/

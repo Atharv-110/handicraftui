@@ -183,7 +183,7 @@ behaviour never reads it.
 
 Gate: all seven items green.
 
-### 6.0 Design system — NEW, blocks items 3 through 6
+### 6.0 Design system — NEW, blocks items 3, 5 and 6
 
 **This did not exist in v3 and it is the largest gap in the project.** There is an engine — tested,
 invariant-guarded, excellent — and seven components' worth of styling decisions made one at a time.
@@ -459,7 +459,7 @@ difference, not a competitor) · skills-lock hygiene plus the `CONTRIBUTING.md` 
 
 | Risk                                                                                   | Mitigation                                                                                                                                                                                   |
 | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The design system arrives too late and Phase 1 components each invent their own values | It is item 0 and it blocks items 3 through 6. Nothing new is built before it lands                                                                                                           |
+| The design system arrives too late and Phase 1 components each invent their own values | It is item 0 and it blocks items 3, 5 and 6. Nothing new is built before it lands. Item 4 never depended on it and shipped first, in cycles 003 and 003a                                     |
 | Founder becomes the bottleneck now that briefs need approval too                       | Briefs are one per cycle and reviewable in minutes when every number carries its derivation. If it does bottleneck, that is a real signal and the gate gets revisited — not quietly bypassed |
 | Beta users on 0.x hit churn during Phase 2                                             | Additive-only registry rule, dependency tripwire, CHANGELOG discipline from `0.1.0-beta`                                                                                                     |
 | Screenshot matrix explodes                                                             | Pruned grid: Button full, everything else states at default hand plus one spot row. Architect owns the grid file                                                                             |

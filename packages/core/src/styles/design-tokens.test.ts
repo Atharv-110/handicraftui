@@ -156,6 +156,29 @@ function oklchInBlock(selector: string, tokenName: string): [number, number, num
   return [Number(match![1]) / 100, Number(match![2]), Number(match![3])];
 }
 
+/**
+ * The same block-slicing technique as `oklchInBlock`, for a plain declaration
+ * value rather than an oklch triple. Hoisted to module scope in cycle 002c so
+ * R5 and E1 share one reader: duplicating it would put the same slicing
+ * blindness in two places, which is the one thing `oklchInBlock`'s own note
+ * says it did deliberately once and would not do twice.
+ *
+ * Block-scoped for the reason that note gives — a global `css.match` returns
+ * `:root`'s value whatever selector the caller meant, and a test that cannot
+ * tell the two apart passes for the wrong reason.
+ */
+function pxInBlock(selector: string, tokenName: string): string {
+  const start = css.indexOf(selector);
+  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+  const braceOpen = css.indexOf("{", start);
+  const braceClose = css.indexOf("}", braceOpen);
+  const block = css.slice(braceOpen, braceClose);
+  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+  const match = block.match(new RegExp(`--hc-${tokenName}:\\s*([^;]+);`));
+  expect(match, `no --hc-${tokenName} declaration inside ${selector}`).not.toBeNull();
+  return match![1]!.trim();
+}
+
 function renderToken(selector: ":root" | ".dark", tokenName: string): Rendered {
   const [L, C, H] = oklchInBlock(selector, tokenName);
   return render(L, C, H);
@@ -773,22 +796,6 @@ it("R4 — Badge decodes to TOKEN_RAMP, and 24px stays on the quiet side of the 
 });
 
 it("R5 — the two spacing floors agree between handicraft.css and ramps.ts", () => {
-  // Same block-slicing technique as `oklchInBlock` above, for a plain px
-  // value rather than an oklch triple. Block-scoped for the same reason: a
-  // global `css.match` would return `:root`'s value whatever selector the
-  // caller meant.
-  function pxInBlock(selector: string, tokenName: string): string {
-    const start = css.indexOf(selector);
-    expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
-    const braceOpen = css.indexOf("{", start);
-    const braceClose = css.indexOf("}", braceOpen);
-    const block = css.slice(braceOpen, braceClose);
-    expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
-    const match = block.match(new RegExp(`--hc-${tokenName}:\\s*([^;]+);`));
-    expect(match, `no --hc-${tokenName} declaration inside ${selector}`).not.toBeNull();
-    return match![1]!.trim();
-  }
-
   expect(SPACING.gapFrame).toBe(24);
   expect(SPACING.padPage).toBe(12);
   // Two facing frames each contribute one excursion; a page edge faces one.
@@ -800,4 +807,298 @@ it("R5 — the two spacing floors agree between handicraft.css and ramps.ts", ()
   // system connects the two, which is the Rule R2 drift shape.
   expect(pxInBlock(":root", "gap-frame")).toBe(`${SPACING.gapFrame}px`);
   expect(pxInBlock(":root", "pad-page")).toBe(`${SPACING.padPage}px`);
+});
+
+// ---------------------------------------------------------------------------
+// E1 to E4 — cycle 002c. The `on-page` elevation level, and the CardFooter
+// collision floor 002b routed here.
+//
+// `E` marks the cycle, not the subject: E1 to E3 are elevation, E4 is the
+// footer gap. DESIGN-SYSTEM.md §5 defines two elevation levels and only
+// `on-page` has a consumer today, so these assertions cover the shipped level
+// and hold the door shut on the absent one.
+// ---------------------------------------------------------------------------
+
+it("E1 — the on-page shadow is a 3px offset with a literally zero blur, composed from one token", () => {
+  expect(pxInBlock(":root", "shadow-offset")).toBe("3px");
+
+  // Split on whitespace rather than parsed: `var(--hc-shadow-offset)` carries
+  // no internal space, so the four positional parts of a box-shadow are
+  // recoverable without a CSS parser. Length is asserted first because a
+  // four-part shape is what makes indexing parts[2] mean "blur radius" at all.
+  const shadow = pxInBlock(":root", "shadow").split(/\s+/);
+  expect(shadow.length, `--hc-shadow is not a four-part box-shadow: ${shadow.join(" ")}`).toBe(4);
+
+  // Both offsets read the token rather than repeating `3px`. If they were
+  // literals, E3's drift check would be comparing button.tsx against a number
+  // that no longer has a single home, and the pair could disagree three ways
+  // instead of two.
+  expect(shadow[0], "--hc-shadow x offset does not read --hc-shadow-offset").toBe(
+    "var(--hc-shadow-offset)",
+  );
+  expect(shadow[1], "--hc-shadow y offset does not read --hc-shadow-offset").toBe(
+    "var(--hc-shadow-offset)",
+  );
+
+  // The literal `0`, not `0px` and not a length. A blur radius is the one
+  // property that would make this read as a rendered UI drop shadow rather
+  // than as a sheet of paper lifted off the page, which is the whole aesthetic
+  // claim DESIGN-SYSTEM.md §5 makes for this level.
+  expect(shadow[2], "--hc-shadow has a non-zero blur radius").toBe("0");
+  expect(shadow[3], "--hc-shadow is not drawn in ink").toBe("var(--hc-ink)");
+
+  const shadowSm = pxInBlock(":root", "shadow-sm").split(/\s+/);
+  expect(shadowSm.length, `--hc-shadow-sm is not a four-part box-shadow`).toBe(4);
+  expect(shadowSm[2], "--hc-shadow-sm has a non-zero blur radius").toBe("0");
+});
+
+it("E2 — paper tokens cannot carry elevation alone: every raised/sunken pair is under 3:1", () => {
+  // DESIGN-SYSTEM.md §5's `over-page` level is deliberately unbuilt, and the
+  // obvious shortcut for an overlay author is to reach for --hc-paper-raised
+  // and call the job done. These three surfaces are a depth *hint* on top of a
+  // frame that already identifies the component; none of them is separable
+  // enough to identify one on its own. 3:1 is the floor any non-text
+  // component-identifying signal has to clear, so measuring under it is the
+  // evidence that the shortcut does not work.
+  //
+  // Asserted as a bound rather than at the six filed figures on purpose. The
+  // worst pair measures about 1.24 and the ceiling is 3.0, so a hundredth of
+  // drift in the compositing model cannot make this flaky — where pinning the
+  // figures would have made it a tripwire for model precision instead of for
+  // the claim.
+  let checked = 0;
+  for (const selector of [":root", ".dark"] as const) {
+    const theme = selector === ":root" ? "light" : "dark";
+    const paper = renderToken(selector, "paper");
+    const raised = renderToken(selector, "paper-raised");
+    const sunken = renderToken(selector, "paper-sunken");
+
+    const pairs: [string, number][] = [
+      [`${theme} raised vs paper`, contrastRatio(raised.rgb8, paper.rgb8)],
+      [`${theme} sunken vs paper`, contrastRatio(sunken.rgb8, paper.rgb8)],
+      [`${theme} raised vs sunken`, contrastRatio(raised.rgb8, sunken.rgb8)],
+    ];
+
+    for (const [label, ratio] of pairs) {
+      expect(
+        ratio,
+        `${label} measures ${ratio.toFixed(6)} — a paper token now clears 3:1 and could be mistaken for a component-identifying signal, which is what DESIGN-SYSTEM.md §5's over-page level exists to carry`,
+      ).toBeLessThan(3.0);
+      checked++;
+    }
+  }
+  // Three pairs in two themes. A loop that measured fewer would pass the bound
+  // over whatever it happened to reach.
+  expect(checked, "not every raised/sunken pair was measured").toBe(6);
+});
+
+it("E3 — Button's press offset is the shadow offset, read from the stylesheet rather than pinned", () => {
+  // A walk resolving to the wrong path returns an empty list and passes green
+  // over nothing. Seven components ship today; assert the floor first.
+  expect(collectSourceFiles(registryRoot).length).toBeGreaterThanOrEqual(7);
+
+  // The token is the source of truth and this test derives from it. Pinning
+  // `3` here instead would make the pair agree with the test rather than with
+  // each other, and a token edit would then move the shadow while leaving the
+  // press offset behind with nothing red.
+  const offset = pxInBlock(":root", "shadow-offset");
+  const offsetMatch = offset.match(/^([\d.]+)px$/);
+  expect(offsetMatch, `--hc-shadow-offset is not a px length: ${offset}`).not.toBeNull();
+  const offsetPx = Number(offsetMatch![1]);
+  expect(Number.isFinite(offsetPx) && offsetPx > 0, `--hc-shadow-offset is not usable`).toBe(true);
+
+  // Comment-stripped, because the stylesheet comment two files away is not the
+  // only place this number is written in prose and a raw read would eventually
+  // find one.
+  const buttonSrc = registryClasses("ui/button/button.tsx");
+
+  // Extracted and compared numerically rather than checked for containment, so
+  // a failure says which two numbers disagree instead of only that one string
+  // is missing. Nothing in the type system connects a CSS length to a Tailwind
+  // arbitrary value — the same Rule R2 drift shape --hc-stroke-w already
+  // answers for against engine/generator.ts.
+  for (const axis of ["x", "y"] as const) {
+    const match = buttonSrc.match(new RegExp(`active:translate-${axis}-\\[([\\d.]+)px\\]`));
+    expect(match, `button.tsx has no active:translate-${axis}-[<n>px] press offset`).not.toBeNull();
+    expect(
+      Number(match![1]),
+      `button.tsx presses ${match![1]}px on ${axis} but --hc-shadow-offset is ${offsetPx}px, so the button lands beside its own shadow rather than on it`,
+    ).toBe(offsetPx);
+  }
+});
+
+it("E4 — CardFooter ships the gap that SPACING.gapFrame decodes to, not the 8px it collided at", () => {
+  expect(collectSourceFiles(registryRoot).length).toBeGreaterThanOrEqual(7);
+
+  const cardSrc = registryClasses("ui/card/card.tsx");
+  const expectedGap = spacingClass("gap", SPACING.gapFrame);
+  expect(expectedGap, "SPACING.gapFrame no longer decodes to a 4px-grid utility").toBe("gap-6");
+
+  expect(
+    hasClass(cardSrc, expectedGap),
+    `card.tsx is missing ${expectedGap} — DESIGN-SYSTEM.md §3's ${SPACING.gapFrame}px collision floor is what a footer's two facing drawn frames need`,
+  ).toBe(true);
+
+  // The regression guard for the filed bug, and simultaneously a live test of
+  // the comment-stripping reader. card.tsx's shipped comment writes
+  // `className="gap-2"` in prose — it is the documented override for a
+  // text-only footer — so a raw-text read finds `gap-2` whether or not the
+  // element carries it. This assertion is red against an unstripped reader and
+  // green against the real one, which is the only way to know the stripper is
+  // still doing its job.
+  expect(
+    hasClass(cardSrc, "gap-2"),
+    "card.tsx's applied class text contains gap-2 — either the footer regressed to the 8px that measured -2.13px of clearance, or stripComments stopped stripping and this guard is now reading the comment",
+  ).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// E5 — cycle 002c, iteration 2. The composed-token rule.
+//
+// A custom property's `var()` references are substituted where that property is
+// declared, and descendants inherit the already-resolved string. So a token
+// composed only in `:root` freezes whatever `:root` resolved and no theme block
+// downstream can reach it. That shipped: `--hc-shadow` rendered the light ink on
+// the blackboard at 1.0054:1 against a ground where the intended chalk reads
+// 12.9270:1, forced by both colours being authored at 24% lightness.
+//
+// The browser is how a defect of this class gets found once. This is how it
+// stops coming back — the source condition is static, so it is checkable here
+// across the whole class at no runtime cost, rather than one token at a time in
+// a browser.
+// ---------------------------------------------------------------------------
+
+/**
+ * `handicraft.css` with every block comment removed.
+ *
+ * E5 *enumerates* declarations where every other reader in this file looks one
+ * up by name, and that difference is what makes the shared readers unusable
+ * here. `css.indexOf(":root")` lands on the literal `:root` inside the file
+ * header comment at `:6`, so `oklchInBlock` and `pxInBlock` slice from
+ * `@layer base {` rather than from the selector — a superset that happens to
+ * contain the real block whole. Harmless when the caller names its token,
+ * wrong when the caller is counting.
+ *
+ * Stripping first also deletes the two false `:root` hits in the header and the
+ * one inside `.dark`'s own comment at `:190`, which is what lets the uniqueness
+ * guard in `declarationsIn` be an assertion rather than a hope.
+ *
+ * The shared readers are deliberately left alone. Teaching them to strip
+ * comments would close three filed traps at once, and it would also change a
+ * reader fifteen existing assertions depend on, so it needs its own mutation
+ * pass over all of them rather than a ride-along here.
+ */
+const bareCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+/**
+ * Every `--hc-<name>` declared directly inside one selector's block, mapped to
+ * its trimmed value text.
+ *
+ * Known limit, marked rather than hidden: the two block names are hard-coded by
+ * the caller. A third theme block would have to be added to E5's list by hand.
+ * There is exactly one theme block today and adding one is a deliberate act,
+ * where a general block enumerator is how this file's slicing bugs arrived in
+ * the first place.
+ */
+function declarationsIn(selector: ":root" | ".dark"): Map<string, string> {
+  const start = bareCss.indexOf(selector);
+  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+
+  // Ambiguity is the one failure this cannot absorb: a second occurrence would
+  // silently make the slice below depend on which one the file happens to
+  // reach first, which is the Rule V3 shape the readers above already carry.
+  expect(
+    bareCss.lastIndexOf(selector),
+    `${selector} appears more than once outside comments — the slice below is no longer unambiguous`,
+  ).toBe(start);
+
+  const braceOpen = bareCss.indexOf("{", start);
+  const braceClose = bareCss.indexOf("}", braceOpen);
+  const block = bareCss.slice(braceOpen, braceClose);
+  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+
+  const out = new Map<string, string>();
+  for (const m of block.matchAll(/--hc-([a-z0-9-]+):\s*([^;]+);/g)) {
+    out.set(m[1]!, m[2]!.trim());
+  }
+  return out;
+}
+
+it("E5 — a composed token is redeclared, identically, in every theme block whose tokens it reads", () => {
+  const root = declarationsIn(":root");
+  const dark = declarationsIn(".dark");
+
+  // A slice that resolved to the wrong block returns an empty map, and every
+  // check below then passes over nothing. Counted at cycle 002c iteration 2:
+  // :root declares 34 and .dark declares 23, so both floors carry margin for
+  // ordinary token work rather than tripping on the next token anyone adds.
+  expect(root.size, ":root read empty or truncated").toBeGreaterThanOrEqual(30);
+  expect(dark.size, ".dark read empty or truncated").toBeGreaterThanOrEqual(20);
+
+  // A count alone cannot tell a whole block from a truncated one that happens
+  // to be long enough, so both ends are named. --hc-paper opens each block and
+  // --hc-pad-page closes :root. For .dark the end marker is --hc-stroke-w-strong
+  // — the last declaration that predates this cycle's fix — deliberately not
+  // the redeclared shadow tokens, which are the thing under test.
+  expect(root.has("paper") && root.has("pad-page"), ":root slice does not span the block").toBe(
+    true,
+  );
+  expect(
+    dark.has("paper") && dark.has("stroke-w-strong"),
+    ".dark slice does not span the block",
+  ).toBe(true);
+  expect(dark.has("ink"), ".dark no longer overrides --hc-ink").toBe(true);
+
+  // The composed set is discovered, not named: any :root declaration whose
+  // value substitutes another token. A third composed token is then covered on
+  // the day it lands rather than on the day someone remembers it exists.
+  const composed = new Map<string, string[]>();
+  for (const [name, value] of root) {
+    const deps = [...value.matchAll(/var\(\s*--hc-([a-z0-9-]+)\s*\)/g)].map((m) => m[1]!);
+    if (deps.length > 0) composed.set(name, deps);
+  }
+
+  // Measured, not guessed: :root carries exactly two composed declarations,
+  // handicraft.css:148 and :149, and both read --hc-ink. Written as a lower
+  // bound and two names rather than as an exact count, because a third composed
+  // token should join the covered set instead of tripping the floor.
+  expect(
+    composed.size,
+    "no composed declarations found in :root — the scan resolved to the wrong block",
+  ).toBeGreaterThanOrEqual(2);
+  expect(composed.has("shadow"), "--hc-shadow is no longer composed from other tokens").toBe(true);
+  expect(composed.has("shadow-sm"), "--hc-shadow-sm is no longer composed from other tokens").toBe(
+    true,
+  );
+
+  let checked = 0;
+  for (const [name, deps] of composed) {
+    const overridden = deps.filter((dep) => dark.has(dep));
+    if (overridden.length === 0) continue;
+    const reads = overridden.map((dep) => `--hc-${dep}`).join(", ");
+
+    expect(
+      dark.has(name),
+      `--hc-${name} composes ${reads}, which .dark overrides, but .dark does not redeclare --hc-${name}. Its var() references are substituted at :root, so it inherits the light value into the blackboard and this theme's own ink can never reach it`,
+    ).toBe(true);
+
+    // Present is not enough, and this is the clause that matters. A hard-coded
+    // chalk value here would resolve correctly in a browser and look right,
+    // while giving the token a second home to drift from — the fix that
+    // reintroduces, inside the fix, the defect being fixed.
+    expect(
+      dark.get(name),
+      `.dark's --hc-${name} is not textually identical to :root's, so the value now has two homes. Redeclaring must re-run the same composition at this level, never hard-code what it currently resolves to`,
+    ).toBe(root.get(name));
+
+    checked++;
+  }
+
+  // Both shadow tokens depend on --hc-ink, which .dark overrides, so both must
+  // have been reached. A loop that reached neither would satisfy every
+  // assertion above it.
+  expect(
+    checked,
+    "no composed token was actually checked against .dark — the dependency intersection came back empty",
+  ).toBeGreaterThanOrEqual(2);
 });
