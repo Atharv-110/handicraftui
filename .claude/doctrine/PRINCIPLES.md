@@ -249,6 +249,28 @@ on top of it and a full QA pass had run. That is the most expensive place to fin
 The founder approves, amends, or rejects. A brief waiting for review is the system working, not a
 stall to be cleared.
 
+### Pre-approved classes — standing approval, added 2026-08-06
+
+Three classes of cycle proceed without a brief review, because the review was measurably the throughput limit and these classes cannot reach the things the gate exists to protect:
+
+| Class | Touches only |
+|---|---|
+| test-only | `**/*.test.ts`, `**/*.test.tsx`, `e2e/**`, Playwright specs and fixtures |
+| CI-only | `.github/**`, `turbo.json`, lint, format and tsconfig presets |
+| docs-only | `README.md`, `TESTING.md`, `apps/docs/**` content, `CHANGELOG.md` |
+
+**A cycle qualifies only if every file it touches falls inside one class.** One file outside and the
+normal brief gate applies to the whole cycle. Aesthetics, the engine, `registry/default/**`,
+`packages/core/src/**` and any public API are never pre-approved, whatever else the cycle contains.
+
+The bound on this is the merge gate below, which is unchanged. A pre-approved brief still produces a
+pull request the founder reads and merges, so the worst case is wasted agent work, never unreviewed
+code in the product. That asymmetry is the whole reason this relaxation is safe and the merge
+relaxation would not be.
+
+Dispatching under a pre-approved class is recorded in the cycle document, so the choice stays
+auditable rather than implicit.
+
 ---
 
 ## Merging — the founder merges, nobody else
