@@ -87,10 +87,29 @@ For every new assertion:
 
 1. Note the file's exact current state.
 2. Break the invariant the test guards.
-3. Run the suite. Confirm **that test fails, and only that test**. A mutation that fails five tests
-   means the assertion is not isolating what it claims to.
+3. Run the suite. Confirm the mutation fails **exactly its derived count** — the number written down
+   before the run, derived from which assertions read the text the mutation changes. For most
+   mutations that count is 1. Where it is higher, the derivation is the claim being tested, and an
+   undeclared count is a failure whether it is higher or lower than expected.
 4. Revert.
 5. **Verify the revert** — re-run the suite *and* `git diff` the file. Clean diff, green suite.
+
+### Deriving the count — hubs and spokes
+
+A **spoke** is a value only one assertion reads; mutating it fails 1 test. A **hub** is a value
+several assertions read, so mutating it fails every guard that reads it. Neither is a defect. A
+mutation failing 5 tests is only a problem when the count was not derived in advance, because then
+nobody knows whether the extra failures are the shared invariant working or the assertion failing to
+isolate what it claims.
+
+**When a cycle adds an assertion, re-classify every already-named mutation against the new
+assertion's read set before writing the predicted total.** A new assertion that reads text an
+existing mutation changes converts that mutation from spoke to hub. Deriving only the new mutations
+is half the rule.
+
+This is written because the same error occurred twice: cycles 002b and 002c each predicted 1 for a
+mutation that had become a hub, and each was caught by QA against the architect's own brief rather
+than by the architect. The count is cheap to derive and expensive to discover.
 
 ### A filter that matches nothing still exits 0
 
