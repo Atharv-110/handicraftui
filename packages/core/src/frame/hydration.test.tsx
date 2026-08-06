@@ -72,6 +72,13 @@ describe("SSR hydration", () => {
     // here it would be sized from a guess, and the client would disagree.
     expect(html).not.toContain("hc-sketch-svg");
     expect(html).not.toContain('data-hc-fidelity="high"');
+    // Cycle 007. The line above is the original claim and stays for its
+    // legibility; this one subsumes it. At fidelity="high" the server has not
+    // resolved anything — rough.js has not run and may never run — so the
+    // marker publishes no value at all rather than describing what is
+    // painting. Matching the bare attribute name catches a "lite" here, which
+    // the narrower assertion above would let through.
+    expect(html).not.toContain("data-hc-fidelity");
   });
 
   it("assigns a stable seed bucket to server and client markup", async () => {

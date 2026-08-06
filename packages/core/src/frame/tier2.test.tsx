@@ -113,11 +113,18 @@ describe("tier 2 activation", () => {
   });
 
   it("hands over only once geometry exists", async () => {
-    // data-hc-fidelity is what hides the CSS strokes. Setting it before the
-    // SVG is ready would leave the element with no frame at all for a frame or
-    // two — a visible flash of borderless UI.
+    // data-hc-fidelity is what hides the CSS strokes. Setting it to "high"
+    // before the SVG is ready would leave the element with no frame at all for
+    // a frame or two — a visible flash of borderless UI.
+    //
+    // Cycle 007: the lite side now reads "lite" rather than null, because the
+    // attribute publishes the tier the frame resolved to. At fidelity="lite"
+    // the geometry effect clears `paths` unconditionally, so tier 2 can never
+    // run and the answer is final from the first render. "high" still means
+    // what it meant — geometry exists — so the handover claim this test is
+    // named for is unchanged; only tier 1 stopped being silent.
     const lite = await mount("lite");
-    expect(lite.querySelector(".hc-frame")!.getAttribute("data-hc-fidelity")).toBeNull();
+    expect(lite.querySelector(".hc-frame")!.getAttribute("data-hc-fidelity")).toBe("lite");
 
     const high = await mount("high");
     expect(high.querySelector(".hc-frame")!.getAttribute("data-hc-fidelity")).toBe("high");

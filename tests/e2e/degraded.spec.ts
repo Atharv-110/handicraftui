@@ -144,6 +144,34 @@ test.describe("degraded modes", () => {
     expect(process.arch).toBe(SNAPSHOT_ARCH);
   });
 
+  test("D-FID — the server publishes the resolved tier, and only when it is resolved", async ({
+    browser,
+  }) => {
+    const noJsContext = await browser.newContext({ javaScriptEnabled: false });
+    const noJsPage = await noJsContext.newPage();
+
+    // Default fidelity is "high", so on the server the answer is genuinely not
+    // known yet — rough.js has not run and may never run. The attribute stays
+    // off. Publishing "lite" here would describe what is painting and would
+    // make every wait built on the marker true one frame too early.
+    await noJsPage.goto("/");
+    await expect(noJsPage.locator(".hc-frame")).not.toHaveCount(0);
+    await expect(noJsPage.locator(".hc-frame[data-hc-fidelity]")).toHaveCount(0);
+
+    // Pinned to lite, the answer is final before a single byte of script runs,
+    // and that is exactly what makes the fixture's wait a state read rather
+    // than a race.
+    await noJsPage.goto("/?fidelity=lite");
+    const frames = noJsPage.locator(".hc-frame");
+    const count = await frames.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      await expect(frames.nth(i)).toHaveAttribute("data-hc-fidelity", "lite");
+    }
+
+    await noJsContext.close();
+  });
+
   test("D-FC — forced-colors hides both stroke passes and the sketch SVG", async ({ page, hc }) => {
     await page.emulateMedia({ forcedColors: "active" });
     await hc.goto({});
