@@ -118,6 +118,36 @@ describe("tier 1 and tier 2 agree", () => {
     expect(Math.max(...radii)).toBeLessThanOrEqual(6);
   });
 
+  it("T-CSS — keys no rule off the tier-1 resolution value", () => {
+    // Cycle 007 added `data-hc-fidelity="lite"`, and the whole claim that the
+    // change is invisible to all 68 committed baselines rests on zero selectors
+    // matching it: an attribute no rule reads contributes no box, no paint and
+    // no layout. That is load-bearing and it currently rests on nobody having
+    // edited this file, which is not a guarantee.
+    //
+    // Measured rather than assumed — the mutation adding
+    // `.hc-frame[data-hc-fidelity="lite"] { background-image: none; }` moves 7
+    // committed baselines (6 block-B hachure cells plus D-NJS). So this is not
+    // a hypothetical class of edit; it is one line away.
+    //
+    // A future cycle that genuinely wants a `lite`-keyed rule updates this test
+    // and regenerates baselines on purpose, which is the gate working.
+    expect(css).not.toContain('data-hc-fidelity="lite"');
+
+    // The positive half. The negative above would also pass on a stylesheet
+    // that had lost the fidelity rules entirely, which is the opposite defect
+    // and a far louder one — tier 2's geometry would paint on top of tier 1's
+    // strokes and hachure instead of replacing them.
+    //
+    // Asserted as three selector forms rather than as an occurrence count: the
+    // comment at the drawn-mark rule below quotes
+    // `.hc-frame[data-hc-fidelity="high"]` in prose, so a count would read 4
+    // and would move whenever that comment was reworded.
+    expect(css).toContain('.hc-frame[data-hc-fidelity="high"]::before');
+    expect(css).toContain('.hc-frame[data-hc-fidelity="high"]::after');
+    expect(css).toMatch(/\.hc-frame\[data-hc-fidelity="high"\]\s*\{/);
+  });
+
   it("drives turbulence through an inheritable custom property", () => {
     // `filter` does not inherit, so matching the attribute on `.hc-frame` only
     // works if every component re-declares it — which is how this silently did
