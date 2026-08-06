@@ -404,7 +404,20 @@
     background-repeat: repeat;
   }
 
-  .hc-frame[data-hc-fill="low"] {
+  /* `:where()` zeroes these selectors' specificity, which is the whole point.
+     The fill attribute is a filter — "which density is this frame" — and never a
+     claim to outrank anything. Without it each of these is (0,2,0), exactly
+     tying `.hc-frame[data-hc-fidelity="high"]` above, and equal specificity in
+     one layer falls through to source order: these are later, so they won, and
+     `background-image: none` never applied to a single filled tier-2 frame from
+     the day these rules landed. The lattice painted underneath the rough.js
+     hachure on every one of them.
+
+     Raising the handover rule instead would fix today and not the class: a
+     themed rule such as `.dark .hc-frame[data-hc-fill="low"]` would tie again at
+     the next specificity step, and source order would decide again. Keeping
+     these at (0,1,0) means no future fill rule written this way can win. */
+  .hc-frame:where([data-hc-fill="low"]) {
     background-image: repeating-linear-gradient(
       45deg,
       color-mix(in oklab, var(--hc-fill-color) 24%, transparent) 0 0.8px,
@@ -412,7 +425,7 @@
     );
   }
 
-  .hc-frame[data-hc-fill="med"] {
+  .hc-frame:where([data-hc-fill="med"]) {
     background-image: repeating-linear-gradient(
       45deg,
       color-mix(in oklab, var(--hc-fill-color) 50%, transparent) 0 1.2px,
@@ -421,7 +434,7 @@
   }
 
   /* `high` is cross-hatch in tier 2, so it is two gradients here as well. */
-  .hc-frame[data-hc-fill="high"] {
+  .hc-frame:where([data-hc-fill="high"]) {
     background-image:
       repeating-linear-gradient(
         45deg,

@@ -300,6 +300,34 @@ test.describe("matrix guards", () => {
     expect(process.platform).toBe(SNAPSHOT_PLATFORM);
     expect(process.arch).toBe(SNAPSHOT_ARCH);
   });
+
+  test("M12 — a filled tier-2 frame paints no CSS background-image, and tier 1 still does", async ({
+    page,
+  }) => {
+    // Both directions, deliberately. The positive half alone would pass if the
+    // gradient stopped rendering for some unrelated reason — the A0 lesson:
+    // a guard that has never been observed to fail proves nothing about the
+    // instrument. The tier-1 read is the negative control, and it is also the
+    // standing check that this fix did not overshoot into tier 1, which paints
+    // the lattice correctly and must keep painting it.
+    for (const level of ["low", "med", "high"] as const) {
+      await page.goto(`/matrix?c=badge&sfill=${level}&fill=${level}`);
+      await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+      const high = await page
+        .locator(".hc-frame")
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundImage);
+      expect(high, `tier 2 at fill=${level}`).toBe("none");
+
+      await page.goto(`/matrix?c=badge&sfill=${level}&fill=${level}&fidelity=lite`);
+      await expect(page.locator('.hc-frame:not([data-hc-fidelity="lite"])')).toHaveCount(0);
+      const lite = await page
+        .locator(".hc-frame")
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundImage);
+      expect(lite, `tier 1 at fill=${level}`).not.toBe("none");
+    }
+  });
 });
 
 test.describe("matrix screenshots", () => {
