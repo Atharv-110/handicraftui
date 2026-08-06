@@ -276,6 +276,14 @@ test.describe("matrix guards", () => {
     expect(tally(tier2Hands)).toEqual({ natural: 20, steady: 13, loose: 13, hurried: 13 });
   });
 
+  test("M11 — a tier-1 specimen publishes data-hc-fidelity=lite on every frame", async ({
+    page,
+  }) => {
+    await page.goto("/matrix?c=button&fidelity=lite");
+    await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-fidelity", "lite");
+    await expect(page.locator(".hc-sketch-svg")).toHaveCount(0);
+  });
+
   // Cycle 004a. The old rule — real baselines only ever committed from
   // inside `mcr.microsoft.com/playwright:v1.62.1-noble` — was satisfied on
   // both sides of cycle 004's first CI failure. `docker manifest inspect` on

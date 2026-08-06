@@ -78,7 +78,19 @@ export interface SketchFrameProps {
   "data-hc-seed": number;
   /** Lets tier 1 draw gradient hachure at the same density tier 2 will. */
   "data-hc-fill": FillLevel;
-  "data-hc-fidelity"?: "high";
+  /**
+   * The tier this frame has **resolved** to, which is not the same as the tier
+   * currently painting. `"lite"` means the provider decided tier 2 will not
+   * run and nothing can change that; `"high"` means geometry exists and the
+   * CSS strokes have stepped aside. Absent is the one honest gap: tier 2 was
+   * asked for and has not arrived, so the answer is not known yet.
+   *
+   * Publishing `"lite"` during that gap would read better and test worse — it
+   * would make "every frame is on tier 1" true at first paint on a page that
+   * is about to hand over, which is a claim a test can pass on and then be
+   * wrong about a frame later.
+   */
+  "data-hc-fidelity"?: "lite" | "high";
   "data-hc-focus-within"?: "";
   style?: React.CSSProperties;
   onPointerEnter?: () => void;
@@ -106,6 +118,12 @@ export interface UseSketchFrameResult {
  * Since tier 2 became the default, that swap happens on every page load rather
  * than only when opted in — hence the synchronous generate path, which lets
  * every component after the first swap *before* paint instead of after it.
+ *
+ * The attribute is a three-state marker, and the third state is the absence.
+ * `"lite"` says the answer is tier 1 and is final; `"high"` says geometry
+ * exists; nothing at all says tier 2 was asked for and has not arrived. Server
+ * and client agree on all three, so the marker is readable before hydration —
+ * which is what lets a test wait on the answer rather than on a frame counter.
  */
 export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFrameResult {
   const config = useHandicraft();
@@ -266,7 +284,24 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     // Feeds the CSS hachure gradients, so tier 1 tints its texture the same way
     // tier 2 will rather than defaulting to ink on a highlighter-yellow button.
     ...(fillColor ? { style: { "--hc-fill-color": fillColor } as React.CSSProperties } : {}),
-    ...(active ? ({ "data-hc-fidelity": "high" } as const) : {}),
+    // Resolution, not paint. `lite` is only ever published once the provider
+    // has decided tier 2 will not run, so a test waiting on it is waiting on an
+    // answer instead of on a clock. During the one window where the answer is
+    // still open — tier 2 requested, geometry not yet generated — the attribute
+    // stays off on purpose. Publishing `lite` there would be truer to what is on
+    // screen and would silently break every wait built on it, because "every
+    // frame is lite" would be true at first paint on a page that is one frame
+    // away from handing over.
+    //
+    // Written as one expression rather than two spreads because `active` can
+    // only be true at `fidelity === "high"` (the geometry effect clears `paths`
+    // otherwise), and a nested ternary makes that exclusivity something the
+    // compiler enforces rather than something the next reader has to prove.
+    ...(fidelity === "lite"
+      ? ({ "data-hc-fidelity": "lite" } as const)
+      : active
+        ? ({ "data-hc-fidelity": "high" } as const)
+        : {}),
     ...(focusWithin ? ({ "data-hc-focus-within": "" } as const) : {}),
     ...(rescribble && fidelity === "high"
       ? {
