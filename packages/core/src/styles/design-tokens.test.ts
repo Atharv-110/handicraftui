@@ -1,8 +1,32 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+/**
+ * `packages/eslint-config` is plain ESM JavaScript with no `.d.ts` beside it
+ * and no `types` condition on its `exports` map, so TypeScript resolves this
+ * specifier to an untyped `.js` and reports TS7016 under `strict`. An
+ * in-file `declare module` cannot fix it either — TS2665, an untyped module
+ * cannot be augmented — so the suppression is the only route that keeps this
+ * import inside a test file. It is deliberately `@ts-expect-error` rather
+ * than `@ts-ignore`: the moment `packages/eslint-config` grows declarations,
+ * TypeScript reports the directive as unused and this line fails the gate
+ * until it is removed. A suppression that cannot outlive its cause.
+ *
+ * Filed as cycle 005 finding M2. The shape below is asserted at runtime by
+ * R6 itself, which is what stops the local cast from quietly agreeing with a
+ * renamed export.
+ */
+// @ts-expect-error `packages/eslint-config` ships plain ESM with no type declarations.
+import * as handicraftRules from "@handicraft/eslint-config/handicraft-rules";
 import { describe, expect, it } from "vitest";
 import { FILL_LEVELS, taperForSize } from "../engine/generator";
-import { CONTROL_RAMP, HAND_FACE_EXCEPTIONS, SPACING, TOKEN_RAMP, TYPE_SCALE } from "./ramps";
+import {
+  CONTROL_RAMP,
+  GEOMETRY_PINS,
+  HAND_FACE_EXCEPTIONS,
+  SPACING,
+  TOKEN_RAMP,
+  TYPE_SCALE,
+} from "./ramps";
 
 /**
  * The contrast instrument for cycle 002a. Reproduces the model
@@ -442,7 +466,21 @@ it("D6 — every colour token renders in gamut, no channel clips before rounding
 });
 
 // ---------------------------------------------------------------------------
-// D7 — no text-hc-ink-faint in shipped or playground source
+// collectSourceFiles — the shared source walker, read by D9, R3 and R4
+//
+// D7 lived here and asserted that no `text-hc-ink-faint` token appeared in
+// registry or playground source. Cycle 005 deleted it: `hc/no-ink-faint-text`
+// in `packages/eslint-config/handicraft-rules.js` makes the same assertion
+// from inside the lint task of the package that owns each file.
+// `QA-CONTRACT.md` Rule V1b names D7's runtime `readFileSync` walk as the one
+// escape left open after cycle 003a — `@handicraft/core#test` hashes 45
+// inputs and zero of them are under `apps/playground`, so a warm local
+// `pnpm test` replayed green over a regression this test would have caught
+// cold. `@handicraft/playground#lint` hashes 16 inputs, all of them under
+// `apps/playground`. The check moved to the task whose hash is exactly what
+// it reads.
+//
+// The walker outlives its own test because three others read it.
 // ---------------------------------------------------------------------------
 
 /**
@@ -468,26 +506,6 @@ function collectSourceFiles(dir: string): string[] {
   walk(dir);
   return out;
 }
-
-it("D7 — no text-hc-ink-faint in registry/default or apps/playground/app source", () => {
-  const registryDir = resolve(process.cwd(), "../../registry/default");
-  const playgroundDir = resolve(process.cwd(), "../../apps/playground/app");
-
-  const registryFiles = collectSourceFiles(registryDir);
-  const playgroundFiles = collectSourceFiles(playgroundDir);
-
-  // A walk resolving to the wrong path returns an empty list and passes
-  // green over nothing — QA-CONTRACT.md's "a filter matching nothing still
-  // exits 0", in file-walk form. Assert real floors before the negative
-  // check below can mean anything.
-  expect(registryFiles.length).toBeGreaterThanOrEqual(7);
-  expect(playgroundFiles.length).toBeGreaterThanOrEqual(6);
-
-  for (const file of [...registryFiles, ...playgroundFiles]) {
-    const content = readFileSync(file, "utf8");
-    expect(content, `${file} still uses text-hc-ink-faint`).not.toContain("text-hc-ink-faint");
-  }
-});
 
 // ---------------------------------------------------------------------------
 // D8 — --hc-focus against plain paper
@@ -787,9 +805,13 @@ it("R4 — Badge decodes to TOKEN_RAMP, and 24px stays on the quiet side of the 
   expect(taperForSize(26, 999).k).toBeGreaterThan(0.55);
 
   // Checkbox's drawn box is the same shape with 4.2px more room. 20 is not a
-  // ramp value on either ramp; it is a geometry pin, named here so nobody
-  // tidies `size-5` up to a ramp height.
-  const CHECKBOX_BOX_PX = 20;
+  // ramp value on either ramp; it is a geometry pin, and cycle 005 moved it
+  // out of this local literal into `ramps.ts`'s `GEOMETRY_PINS` so that
+  // `hc/no-off-scale-class`'s allowance list has a home a test can read. Read
+  // from there rather than repeated here: a local `20` would let the exported
+  // pin drift away from the number this assertion actually checks, which is
+  // the drift R6 below exists to catch one level further out.
+  const CHECKBOX_BOX_PX = GEOMETRY_PINS.checkboxBox;
   expect(hasClass(checkboxSrc, spacingClass("size", CHECKBOX_BOX_PX))).toBe(true);
   expect(taperForSize(CHECKBOX_BOX_PX, CHECKBOX_BOX_PX).k).toBeCloseTo(0.454545, 5);
   expect(taperForSize(CHECKBOX_BOX_PX, CHECKBOX_BOX_PX).k).toBeLessThan(0.55);
@@ -807,6 +829,84 @@ it("R5 — the two spacing floors agree between handicraft.css and ramps.ts", ()
   // system connects the two, which is the Rule R2 drift shape.
   expect(pxInBlock(":root", "gap-frame")).toBe(`${SPACING.gapFrame}px`);
   expect(pxInBlock(":root", "pad-page")).toBe(`${SPACING.padPage}px`);
+});
+
+// ---------------------------------------------------------------------------
+// R6 — cycle 005. `hc/no-off-scale-class`'s constants against `ramps.ts`.
+//
+// `packages/eslint-config/handicraft-rules.js` hand-copies these five tables
+// rather than importing `ramps.ts`, and its own header says why: importing
+// would make one file the source of truth for both sides of the comparison
+// and erase the drift this test exists to catch. So the copy is deliberate
+// and this is what pays for it — the same shape as R5 and
+// `tier-agreement.test.ts`, two independently authored homes for one number
+// with nothing in the type system connecting them.
+//
+// The tables are compared rather than spot-checked, so a value added to
+// either side without the other fails here rather than at whichever component
+// happens to use it next.
+// ---------------------------------------------------------------------------
+
+it("R6 — hc/no-off-scale-class's constants agree with ramps.ts", () => {
+  const { SIZE_PX, PAD_X_PX, TYPE_UTILITIES, SUB_18_TYPE_UTILITIES, HAND_FACE_EXCEPTION_FILES } =
+    handicraftRules as {
+      SIZE_PX: number[];
+      PAD_X_PX: number[];
+      TYPE_UTILITIES: string[];
+      SUB_18_TYPE_UTILITIES: string[];
+      HAND_FACE_EXCEPTION_FILES: string[];
+    };
+
+  /** The rules file stores each table sorted ascending with duplicates
+   *  collapsed — `SPACING.padPage` is 12 and so is `CONTROL_RAMP.sm.padX`.
+   *  Derive the same normal form here rather than hand-writing the expected
+   *  array, or this test would be a third home for the numbers instead of a
+   *  comparison of the two that exist. */
+  const sortedUnique = (values: number[]): number[] => [...new Set(values)].sort((a, b) => a - b);
+
+  expect(SIZE_PX, "SIZE_PX is not the ramps' heights plus the two geometry pins").toEqual(
+    sortedUnique([
+      ...Object.values(CONTROL_RAMP).map((row) => row.height),
+      TOKEN_RAMP.xs.height,
+      ...Object.values(GEOMETRY_PINS),
+    ]),
+  );
+
+  expect(PAD_X_PX, "PAD_X_PX is not the ramps' padX plus the page padding floor").toEqual(
+    sortedUnique([
+      ...Object.values(CONTROL_RAMP).map((row) => row.padX),
+      TOKEN_RAMP.xs.padX,
+      SPACING.padPage,
+    ]),
+  );
+
+  // Order matters here and is asserted rather than normalised: TYPE_SCALE is
+  // declared smallest to largest, and a rules-file copy that lost that order
+  // would still lint correctly today while reading as a different table to
+  // the next person who diffs the two files.
+  expect(TYPE_UTILITIES, "TYPE_UTILITIES is not every TYPE_SCALE step's utility").toEqual(
+    Object.values(TYPE_SCALE).map((step) => step.utility),
+  );
+
+  expect(
+    SUB_18_TYPE_UTILITIES,
+    "SUB_18_TYPE_UTILITIES is not exactly the TYPE_SCALE steps whose hand is false",
+  ).toEqual(
+    Object.values(TYPE_SCALE)
+      .filter((step) => !step.hand)
+      .map((step) => step.utility),
+  );
+
+  // Compared by length, not by value. `HAND_FACE_EXCEPTIONS` names surfaces
+  // ("badge-text") and `HAND_FACE_EXCEPTION_FILES` names path fragments
+  // ("ui/badge/") — different vocabularies for one closed list, so the only
+  // thing that can be checked mechanically is that neither grew without the
+  // other. DESIGN-SYSTEM.md §2 says a fourth entry is a doctrine amendment;
+  // this is what makes adding one to the lint rule alone fail a gate.
+  expect(
+    HAND_FACE_EXCEPTION_FILES.length,
+    "the lint rule's exception list and ramps.ts's disagree on how many exceptions exist",
+  ).toBe(HAND_FACE_EXCEPTIONS.length);
 });
 
 // ---------------------------------------------------------------------------

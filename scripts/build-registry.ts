@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SRC = join(ROOT, "registry", "default", "ui");
 const OUT = join(ROOT, "registry", "public", "r");
+const DEPENDENCIES_FILE = join(ROOT, "registry", "dependencies.json");
 
 const REGISTRY = {
   name: "handicraft-ui",
@@ -28,6 +29,10 @@ interface ComponentMeta {
   title?: string;
   description?: string;
   registryDependencies?: string[];
+}
+
+interface DependenciesManifest {
+  components: Record<string, string[]>;
 }
 
 /** Bare npm specifiers a file imports, collapsed to package names. */
@@ -100,6 +105,58 @@ function buildItem(name: string) {
   };
 }
 
+/**
+ * `registry/dependencies.json` is a second, human-authored statement of the
+ * same fact `buildItem` already derives — not a second derivation, which
+ * would put the same regex in two homes, the exact defect this repository
+ * has a rule against. `PRINCIPLES.md` makes any import beyond `react` and
+ * `@handicraft/core` a DECISION-REQUIRED; comparing the two is what makes
+ * that decision reviewable, since adding a dependency to a shipped
+ * component now needs a matching line in this file or the build fails
+ * loudly instead of shipping a silently-widened install requirement.
+ *
+ * Both directions checked, not just one: a stale entry left behind by a
+ * deleted component is as wrong as a missing one, and a name present on
+ * both sides with a mismatched array is the case an equality check on the
+ * whole manifest would miss if it only checked "for every real component,
+ * is there an entry" — a manifest could still pass that with the wrong
+ * dependencies for a name it happens to share with a directory.
+ */
+function checkDeclaredDependencies(names: string[], items: ReturnType<typeof buildItem>[]) {
+  const manifest = JSON.parse(readFileSync(DEPENDENCIES_FILE, "utf8")) as DependenciesManifest;
+  const declaredNames = new Set(Object.keys(manifest.components));
+  const realNames = new Set(names);
+
+  for (const name of names) {
+    if (!declaredNames.has(name)) {
+      throw new Error(
+        `registry/dependencies.json is missing an entry for "${name}" — every ` +
+          `registry/default/ui directory needs one.`,
+      );
+    }
+  }
+
+  for (const name of declaredNames) {
+    if (!realNames.has(name)) {
+      throw new Error(
+        `registry/dependencies.json declares "${name}", which is not a real ` +
+          `registry/default/ui directory. Remove the stale entry.`,
+      );
+    }
+  }
+
+  for (const item of items) {
+    const declared = [...(manifest.components[item.name] ?? [])].sort();
+    const derived = [...item.dependencies].sort();
+    if (JSON.stringify(declared) !== JSON.stringify(derived)) {
+      throw new Error(
+        `registry/dependencies.json's "${item.name}" entry ${JSON.stringify(declared)} ` +
+          `does not match its derived dependencies ${JSON.stringify(derived)}.`,
+      );
+    }
+  }
+}
+
 function main() {
   if (!existsSync(SRC)) throw new Error(`No component source at ${SRC}`);
 
@@ -115,6 +172,8 @@ function main() {
   mkdirSync(OUT, { recursive: true });
 
   const items = names.map(buildItem);
+
+  checkDeclaredDependencies(names, items);
 
   for (const item of items) {
     writeFileSync(join(OUT, `${item.name}.json`), `${JSON.stringify(item, null, 2)}\n`);

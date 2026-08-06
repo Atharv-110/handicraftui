@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   HandicraftProvider,
+  HandicraftSurface,
   type Fidelity,
   type FillLevel,
   type Hand,
@@ -59,7 +60,13 @@ export function Harness({
   const [drawMs, setDrawMs] = useState(initialDrawMs);
 
   return (
-    <div className={dark ? "dark" : undefined}>
+    // HandicraftSurface (cycle 005) — same div, same position, the class and
+    // the paint now emitted together instead of by hand. The inner div below
+    // keeps its own bg-hc-paper/text-hc-ink/min-h-screen unchanged on
+    // purpose: removing it is a second change with its own baseline risk,
+    // and this migration's claim is that the surface adds a guarantee, not
+    // that it relocates responsibility.
+    <HandicraftSurface dark={dark}>
       <div className="bg-hc-paper text-hc-ink min-h-screen px-6 py-10">
         <div className="mx-auto max-w-3xl">
           <PerfReadout />
@@ -258,7 +265,7 @@ export function Harness({
           </HandicraftProvider>
         </div>
       </div>
-    </div>
+    </HandicraftSurface>
   );
 }
 

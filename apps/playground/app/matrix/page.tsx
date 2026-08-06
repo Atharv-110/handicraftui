@@ -1,5 +1,4 @@
-import { cn } from "@handicraft/core/utils";
-import { HandicraftProvider, type FillLevel } from "@handicraft/core";
+import { HandicraftProvider, HandicraftSurface, type FillLevel } from "@handicraft/core";
 import { parseHcParams } from "../hc-params";
 import { Specimen } from "./specimens";
 // Fix F7, cycle 004 iteration 2. The direct import from `specimens.tsx`
@@ -42,29 +41,35 @@ export default async function MatrixPage({
   const sfill = SFILLS.find((f) => f === sfillRaw);
 
   return (
-    <main
-      // Fix F1, cycle 004 iteration 2. `.dark` sits on this element, so the
-      // themed paint has to sit here too — `body { background-color:
-      // var(--hc-paper) }` (`globals.css:14-17`) resolves outside `.dark`
-      // whenever `.dark` lands on a descendant of `body`, which `<main>`
-      // always is. Measured live at 1.1924:1 (chalk ink on light paper)
-      // before this line existed; `harness.tsx:62-63` never hit the defect
-      // because it puts `.dark` on the *outer* div and the paint on an
-      // *inner* one. Painting `<main>` itself instead of adding a wrapper
-      // keeps the specimen's box origin — and every committed light
-      // baseline's geometry — provably unchanged: nothing is inserted into
-      // the tree. `--color-hc-paper` is declared `@theme inline`
-      // (`handicraft.css:231`), which is what makes `bg-hc-paper` resolve
-      // its `var()` against *this* element's own computed custom
-      // properties rather than against `:root`'s — so `.dark`'s
-      // redeclaration on the same element is enough, with no composed-token
-      // trap of the kind that froze `--hc-shadow` in cycle 002c.
-      // `text-hc-ink` is not decoration: the `separator` specimen's inline
-      // `<span>`s declare no colour of their own and would otherwise
-      // inherit `body`'s light ink. `min-h-screen` is cosmetic only — it
-      // cannot move a block container's first in-flow child, so it carries
-      // no risk to any clip.
-      className={cn("bg-hc-paper text-hc-ink min-h-screen", hc.dark && "dark")}
+    <HandicraftSurface
+      as="main"
+      dark={hc.dark}
+      // Fix F1, cycle 004 iteration 2, made structural in cycle 005.
+      // `.dark` sits on this element, so the themed paint has to sit here
+      // too — `body { background-color: var(--hc-paper) }`
+      // (`globals.css:14-17`) resolves outside `.dark` whenever `.dark`
+      // lands on a descendant of `body`, which `<main>` always is. Measured
+      // live at 1.1924:1 (chalk ink on light paper) before F1 existed;
+      // `harness.tsx:62-63` never hit the defect because it puts `.dark` on
+      // the *outer* div and the paint on an *inner* one. Painting this
+      // element rather than adding a wrapper keeps the specimen's box
+      // origin — and every committed light baseline's geometry — provably
+      // unchanged: nothing is inserted into the tree. `--color-hc-paper` is
+      // declared `@theme inline` (`handicraft.css:231`), which is what
+      // makes `bg-hc-paper` resolve its `var()` against *this* element's
+      // own computed custom properties rather than against `:root`'s.
+      // `HandicraftSurface` (cycle 005) is what makes that coupling
+      // structural instead of a convention held by hand across three call
+      // sites: the class and the paint now come from one prop and one call,
+      // so they cannot be applied separately the way this element and
+      // `harness.tsx`'s once could, with no composed-token trap of the kind
+      // that froze `--hc-shadow` in cycle 002c. `text-hc-ink` is not
+      // decoration: the `separator` specimen's inline `<span>`s declare no
+      // colour of their own and would otherwise inherit `body`'s light ink
+      // — `HandicraftSurface`'s inline `color` carries that now.
+      // `min-h-screen` is cosmetic only — it cannot move a block
+      // container's first in-flow child, so it carries no risk to any clip.
+      className="min-h-screen"
       // Functional, not introspection — `handicraft.css:513` keys the
       // turbulence filter off this exact attribute on any ancestor
       // (`[data-hc-texture="on"]`), the same mechanism `harness.tsx:98`
@@ -114,6 +119,6 @@ export default async function MatrixPage({
           <p data-testid="hc-specimen-unknown">{cRaw || "(missing c)"}</p>
         )}
       </HandicraftProvider>
-    </main>
+    </HandicraftSurface>
   );
 }

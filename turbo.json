@@ -3,7 +3,8 @@
   "globalDependencies": [
     ".prettierrc.json",
     "packages/typescript-config/*.json",
-    "packages/eslint-config/*.js"
+    "packages/eslint-config/*.js",
+    "packages/eslint-config/fixtures/*.tsx"
   ],
   "tasks": {
     "build": {
