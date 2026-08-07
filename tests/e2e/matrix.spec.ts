@@ -328,6 +328,69 @@ test.describe("matrix guards", () => {
       expect(lite, `tier 1 at fill=${level}`).not.toBe("none");
     }
   });
+
+  test("M13 — data-hc-state resolves from the URL; disabled dots respect cycle 008's cascade fix at both tiers", async ({
+    page,
+  }) => {
+    // Rest state, both tiers, before checking a real state actually moves it.
+    await page.goto("/matrix?c=button");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-state", "default");
+
+    await page.goto("/matrix?c=button&fidelity=lite");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="lite"])')).toHaveCount(0);
+    await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-state", "default");
+
+    await page.goto("/matrix?c=input&state=error");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    await expect(page.locator(".hc-frame")).toHaveAttribute("data-hc-state", "error");
+
+    // Both directions of §2.3's cascade claim, on M12's own pattern: the
+    // three disabled-dots rules must lose to the tier-2 handover rule
+    // (:where() keeps them at (0,1,0) against the handover's (0,2,0)) and
+    // must win at tier 1, where the handover rule does not match at all.
+    await page.goto("/matrix?c=button&state=disabled&sfill=low");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    const high = await page
+      .locator(".hc-frame")
+      .first()
+      .evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(high, "tier 2 disabled dots must stay hidden behind the handover rule").toBe("none");
+
+    await page.goto("/matrix?c=button&state=disabled&sfill=low&fidelity=lite");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="lite"])')).toHaveCount(0);
+    const lite = await page
+      .locator(".hc-frame")
+      .first()
+      .evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(lite, "tier 1 disabled dots must paint").toContain("radial-gradient");
+  });
+
+  test("M14 — a real hover moves data-hc-state and tier-2 geometry while data-hc-seed stays fixed", async ({
+    page,
+  }) => {
+    await page.goto("/matrix?c=button&state=hover");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+
+    const frame = page.locator(".hc-frame").first();
+    await expect(frame).toHaveAttribute("data-hc-state", "default");
+    const seedBefore = await frame.getAttribute("data-hc-seed");
+    const pathsBefore = await page
+      .locator(".hc-sketch-svg path")
+      .evaluateAll((paths) => paths.map((p) => p.getAttribute("d")).join("|"));
+
+    await frame.hover();
+    await expect(frame).toHaveAttribute("data-hc-state", "hover");
+    const pathsAfter = await page
+      .locator(".hc-sketch-svg path")
+      .evaluateAll((paths) => paths.map((p) => p.getAttribute("d")).join("|"));
+
+    // Same seed, different parameters — the whole claim §2.1 makes: a state
+    // is a parameter shift on the same pool member, not a swap to a
+    // different one.
+    expect(await frame.getAttribute("data-hc-seed")).toBe(seedBefore);
+    expect(pathsAfter).not.toBe(pathsBefore);
+  });
 });
 
 test.describe("matrix screenshots", () => {

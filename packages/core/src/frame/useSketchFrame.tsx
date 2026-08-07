@@ -20,6 +20,7 @@ import {
 } from "../engine/generator";
 import { measureBorderBox, observeResize } from "../engine/resize-bus";
 import { poolIndex, seedBucket, seedFrom } from "../engine/seed";
+import { applyStateDelta, resolveState, type SketchState } from "../engine/state";
 import { useHandicraft, HANDS, type Fidelity } from "../theme/context";
 
 /** `useLayoutEffect` warns during SSR; there is no layout to read on a server anyway. */
@@ -49,12 +50,37 @@ export interface UseSketchFrameOptions {
   hachureAngle?: number;
   chalk?: boolean;
   /**
-   * Redraw with different geometry on hover/press, so the component looks
-   * re-inked. Free — the alternate geometry is already in the cache. Off by
-   * default: twenty things redrawing as a cursor crosses a toolbar reads as
-   * noise rather than as craft.
+   * Redraw with different parameters on hover/press, so the component looks
+   * re-inked. Free — the alternate parameters are already in the cache. Off
+   * by default: twenty things redrawing as a cursor crosses a toolbar reads
+   * as noise rather than as craft.
+   *
+   * Shifts state parameters on the *same* pool seed (roughness, bowing,
+   * stroke — see `engine/state.ts`), not the seed itself. The seed used to
+   * move on hover, which meant a hovered frame's geometry could swap into an
+   * adjacent pool member's shape at the same size — a correctness defect
+   * against the state model's own definition ("state variants are parameter
+   * shifts on the same pool seed"), not merely a naming one.
    */
   rescribble?: boolean;
+  /**
+   * Explicit state override. A component passes what only it can know —
+   * `"disabled"` from its own prop, `"error"` from `aria-invalid` — and
+   * leaves hover and press undefined, since those are derived here from real
+   * pointer events. `"default"` (or omitting the option) means "derive from
+   * the pointer": an explicit non-default value always wins over a
+   * pointer-derived one. See `engine/state.ts`'s `STATE_PRECEDENCE`.
+   */
+  state?: SketchState;
+  /**
+   * Stagger this element's draw-on entrance by this many milliseconds. Rides
+   * the same emission path as the provider's `drawOnDuration` (see
+   * `SketchLayer`) but has no provider-level twin: one page-wide delay would
+   * stagger nothing, it would just make the whole page arrive late. Only the
+   * caller knows an element's position in a sequence, so only the caller can
+   * supply this. Inert unless the provider's `drawOn` is also on.
+   */
+  drawDelay?: number;
   /** Stable string to derive geometry from. Defaults to `useId()`. */
   seedKey?: string;
   /**
@@ -92,6 +118,22 @@ export interface SketchFrameProps {
    */
   "data-hc-fidelity"?: "lite" | "high";
   "data-hc-focus-within"?: "";
+  /**
+   * The state this frame resolved to, published unconditionally including
+   * `"default"` — a positive marker beats an inferred absence, the same
+   * argument cycle 007 already made for `data-hc-fidelity`, and there is no
+   * third state here for absence to mean. No CSS selector matches this
+   * attribute; tier-1 state pairs key off real pseudo-classes and
+   * `[aria-invalid="true"]` instead, which is what keeps them correct with no
+   * JavaScript.
+   */
+  "data-hc-state": SketchState;
+  /**
+   * Present only when the `rescribble` option is true. Computed from a prop,
+   * so it is in the server HTML — which is what lets tier-1's hover pair gate
+   * on the same opt-in tier 2 uses.
+   */
+  "data-hc-rescribble"?: "";
   style?: React.CSSProperties;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -134,7 +176,11 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
 
   const [paths, setPaths] = useState<SketchPath[]>([]);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [stateOffset, setStateOffset] = useState(0);
+  // Tracks only what a pointer can tell us. "disabled" and "error" are facts
+  // the component knows and passes through `options.state` instead — see
+  // `resolveState`, which lets an explicit non-default option always beat
+  // this.
+  const [pointerState, setPointerState] = useState<"default" | "hover" | "press">("default");
   const nodeRef = useRef<HTMLElement | null>(null);
 
   const {
@@ -150,7 +196,11 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     chalk = config.chalk,
     rescribble = false,
     focusWithin = false,
+    state: stateOption,
+    drawDelay,
   } = options;
+
+  const resolved = resolveState(stateOption, pointerState);
 
   const fill = capFill(options.fill ?? config.fill, config.fill);
 
@@ -224,14 +274,23 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     }
 
     const geom = { shape, width: size.w, height: size.h, radius };
+    // Delta applied before the taper, not after — `compose()` already tapers
+    // whatever it receives, so a state's roughness/bowing/strokeWidth shift
+    // scales down with the element exactly like every other parameter does.
+    const stated = applyStateDelta({ roughness, bowing, strokeWidth, stroke }, resolved);
     const style = {
-      seed: seedFrom(seedKey, config.handOffset + stateOffset),
-      roughness,
-      bowing,
-      strokeWidth,
-      stroke,
+      // No state term. The seed pool index is now what it always should have
+      // been — a function of the id and the page's hand offset alone — and
+      // every state is a parameter shift on that same seed rather than a
+      // different pool member's geometry. See engine/state.ts's header.
+      seed: seedFrom(seedKey, config.handOffset),
+      roughness: stated.roughness,
+      bowing: stated.bowing,
+      strokeWidth: stated.strokeWidth,
+      stroke: stated.stroke,
       fill: fillColor,
       fillLevel: fill,
+      ...(stated.fillStyle !== undefined ? { fillStyle: stated.fillStyle } : {}),
       hachureAngle,
       ink,
       chalk,
@@ -261,7 +320,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     radius,
     seedKey,
     config.handOffset,
-    stateOffset,
+    resolved,
     roughness,
     bowing,
     strokeWidth,
@@ -303,12 +362,19 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
         ? ({ "data-hc-fidelity": "high" } as const)
         : {}),
     ...(focusWithin ? ({ "data-hc-focus-within": "" } as const) : {}),
-    ...(rescribble && fidelity === "high"
+    "data-hc-state": resolved,
+    // Server-rendered from the prop alone, independent of fidelity — this is
+    // what lets `.hc-frame[data-hc-rescribble]:hover` in the stylesheet gate
+    // tier 1's hover pair on the same opt-in tier 2 uses, with no hydration
+    // gap where a page briefly disagrees with itself about which frames
+    // opted in.
+    ...(rescribble ? ({ "data-hc-rescribble": "" } as const) : {}),
+    ...(rescribble
       ? {
-          onPointerEnter: () => setStateOffset(1),
-          onPointerLeave: () => setStateOffset(0),
-          onPointerDown: () => setStateOffset(2),
-          onPointerUp: () => setStateOffset(1),
+          onPointerEnter: () => setPointerState("hover"),
+          onPointerLeave: () => setPointerState("default"),
+          onPointerDown: () => setPointerState("press"),
+          onPointerUp: () => setPointerState("hover"),
         }
       : {}),
   };
@@ -322,6 +388,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
         height={size.h}
         drawOn={config.drawOn}
         drawOnDuration={config.drawOnDuration}
+        {...(drawDelay !== undefined ? { drawOnDelay: drawDelay } : {})}
       />
     ) : null,
   };
@@ -339,6 +406,14 @@ interface SketchLayerProps {
   height: number;
   drawOn: boolean;
   drawOnDuration: number;
+  /**
+   * Per-element stagger, milliseconds. Undefined for every component except
+   * Button today (see `UseSketchFrameOptions.drawDelay`) — a page-wide
+   * default has nowhere to live here, since staggering is inherently about
+   * one element's position in a sequence, not a value the provider could
+   * broadcast.
+   */
+  drawOnDelay?: number;
 }
 
 /**
@@ -347,7 +422,14 @@ interface SketchLayerProps {
  * wander outside the box (~9px at the default hand) and would otherwise be
  * clipped flat, which is exactly the tell that makes a sketch look fake.
  */
-function SketchLayer({ paths, width, height, drawOn, drawOnDuration }: SketchLayerProps) {
+function SketchLayer({
+  paths,
+  width,
+  height,
+  drawOn,
+  drawOnDuration,
+  drawOnDelay,
+}: SketchLayerProps) {
   return (
     <svg
       className="hc-sketch-svg"
@@ -367,6 +449,14 @@ function SketchLayer({ paths, width, height, drawOn, drawOnDuration }: SketchLay
         color: "inherit",
         // The whole sequence's duration; the stylesheet slices it per pass.
         ...(drawOn ? { "--hc-draw-duration": `${drawOnDuration}ms` } : {}),
+        // Adds to every pass's animation-delay in the stylesheet, uniformly —
+        // shifting four ordered start times by one constant preserves their
+        // order, so this cannot reproduce the out-of-order defect this file's
+        // own comment on the timeline records (that came from passes each
+        // carrying an independent duration, not from a shared delay). Absent
+        // unless both drawOn and a real delay are set, so an undelayed frame
+        // computes exactly what it did before this option existed.
+        ...(drawOn && drawOnDelay ? { "--hc-draw-delay": `${drawOnDelay}ms` } : {}),
       }}
     >
       {paths.map((p, i) => (

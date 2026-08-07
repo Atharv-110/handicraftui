@@ -1,4 +1,9 @@
-import { HandicraftProvider, HandicraftSurface, type FillLevel } from "@handicraft/core";
+import {
+  HandicraftProvider,
+  HandicraftSurface,
+  type FillLevel,
+  type SketchState,
+} from "@handicraft/core";
 import { parseHcParams } from "../hc-params";
 import { Specimen } from "./specimens";
 // Fix F7, cycle 004 iteration 2. The direct import from `specimens.tsx`
@@ -11,6 +16,15 @@ import { Specimen } from "./specimens";
 import { SPECIMEN_IDS } from "./specimen-ids";
 
 const SFILLS: readonly FillLevel[] = ["no", "low", "med", "high"];
+
+// Cycle 009. `state` is a matrix-only key exactly like `c` and `sfill` above
+// — parsed here, not in hc-params.ts, whose own header calls itself "the
+// nine-key URL vocabulary `/` and `/matrix` both read". Adding a tenth key
+// that only this route reads would falsify that docstring. "focus" and
+// "default" are both legal values that render the plain specimen — focus is
+// keyboard-driven, not markup-driven, and encoding it as a render branch
+// would be a seam that tests itself rather than the real thing.
+const STATES: readonly SketchState[] = ["default", "hover", "press", "focus", "disabled", "error"];
 
 /**
  * One specimen per navigation — cycle 004 §3.3. A Server Component, mirroring
@@ -39,6 +53,9 @@ export default async function MatrixPage({
 
   const sfillRaw = typeof params.sfill === "string" ? params.sfill : "";
   const sfill = SFILLS.find((f) => f === sfillRaw);
+
+  const stateRaw = typeof params.state === "string" ? params.state : "";
+  const state = STATES.find((s) => s === stateRaw);
 
   return (
     <HandicraftSurface
@@ -110,7 +127,7 @@ export default async function MatrixPage({
         chalk={hc.dark}
       >
         {c ? (
-          <Specimen c={c} {...(sfill ? { sfill } : {})} />
+          <Specimen c={c} {...(sfill ? { sfill } : {})} {...(state ? { state } : {})} />
         ) : (
           // Not `null`. A route rendering nothing for a bad id is
           // QA-CONTRACT.md's "a filter that matches nothing still exits 0"

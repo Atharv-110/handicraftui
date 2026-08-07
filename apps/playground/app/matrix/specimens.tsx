@@ -24,7 +24,7 @@ import { Checkbox } from "@/ui/checkbox/checkbox";
 import { Input } from "@/ui/input/input";
 import { Label } from "@/ui/label/label";
 import { Separator } from "@/ui/separator/separator";
-import type { FillLevel } from "@handicraft/core";
+import type { FillLevel, SketchState } from "@handicraft/core";
 // `verbatimModuleSyntax: true` requires the `type` modifier on a
 // type-only import — `ReactElement` is used only in the return
 // annotation below, never as a value.
@@ -44,6 +44,12 @@ export interface SpecimenProps {
    * ignored there by construction rather than by a branch here.
    */
   sfill?: FillLevel;
+  /**
+   * Cycle 009. Only the button and input cases below branch on it — the two
+   * components this cycle wired. `"focus"` and `"default"` (or omitting the
+   * prop) both render the plain specimen unchanged.
+   */
+  state?: SketchState;
 }
 
 /**
@@ -53,10 +59,10 @@ export interface SpecimenProps {
  * `overflow: visible`, so a tighter clip would crop the very overshoot the
  * aesthetic depends on. 24px clears that floor by 10.19px.
  */
-export function Specimen({ c, sfill }: SpecimenProps) {
+export function Specimen({ c, sfill, state }: SpecimenProps) {
   return (
     <div data-testid="hc-specimen" className="inline-flex p-6">
-      {renderSpecimen(c, sfill)}
+      {renderSpecimen(c, sfill, state)}
     </div>
   );
 }
@@ -67,9 +73,33 @@ export function Specimen({ c, sfill }: SpecimenProps) {
 // nothing — silently. With it, a non-exhaustive switch fails to satisfy
 // `ReactElement` and `tsc` raises `TS2366` at build time. See
 // `specimen-ids.ts`'s header comment, direction 2, for the full mechanism.
-function renderSpecimen(c: SpecimenId, sfill: FillLevel | undefined): ReactElement {
+function renderSpecimen(
+  c: SpecimenId,
+  sfill: FillLevel | undefined,
+  state: SketchState | undefined,
+): ReactElement {
   switch (c) {
     case "button":
+      // "disabled" is a real, static state regardless of any pointer.
+      // "hover"/"press" instead render with `rescribble` — the URL cannot
+      // force a pointer position, so this only enables the frame's own
+      // hover/press tracking for a subsequent real `hover()` in a Playwright
+      // spec (M14) to drive. Any other state value (including "focus" and
+      // "default") renders the plain specimen unchanged.
+      if (state === "disabled") {
+        return (
+          <Button disabled {...(sfill ? { fill: sfill } : {})}>
+            Save changes
+          </Button>
+        );
+      }
+      if (state === "hover" || state === "press") {
+        return (
+          <Button rescribble {...(sfill ? { fill: sfill } : {})}>
+            Save changes
+          </Button>
+        );
+      }
       return <Button {...(sfill ? { fill: sfill } : {})}>Save changes</Button>;
 
     case "badge":
@@ -105,9 +135,20 @@ function renderSpecimen(c: SpecimenId, sfill: FillLevel | undefined): ReactEleme
       // shrink-wrapping `inline-flex`, which `w-full` resolves to zero
       // inside. The fixed-width parent below is what gives it something real
       // to fill — required, not cosmetic.
+      //
+      // Error is `aria-invalid="true"`, the same real ARIA idiom the
+      // component itself derives its state from — not a synthetic prop this
+      // route invented. "disabled" is the native attribute. Any other state
+      // value renders the plain specimen.
       return (
         <div className="w-[280px]">
-          <Input placeholder="you@example.com" />
+          {state === "error" ? (
+            <Input aria-invalid="true" placeholder="you@example.com" />
+          ) : state === "disabled" ? (
+            <Input disabled placeholder="you@example.com" />
+          ) : (
+            <Input placeholder="you@example.com" />
+          )}
         </div>
       );
 

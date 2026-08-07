@@ -34,6 +34,17 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
  * belongs in the hook.
  */
 export function Input({ className, disabled, ref, ...props }: InputProps) {
+  // Error is derived from `aria-invalid="true"` in the component's own props
+  // rather than a new boolean prop — `<Input aria-invalid="true" />` is the
+  // standard HTML idiom, it already reaches the inner <input> through the
+  // `...props` spread below, and tier 1's CSS keys off the same attribute
+  // through `:has(> [aria-invalid="true"])`. Checking `=== true` alongside
+  // `=== "true"` covers both a literal string prop and a boolean passed
+  // through a spread of already-typed attributes; every other value
+  // (including "false") is not an error, since "false" is ARIA's own way of
+  // saying "checked and valid".
+  const invalid = props["aria-invalid"] === "true" || props["aria-invalid"] === true;
+
   const { frameProps, sketchLayer } = useSketchFrame({
     shape: "rect",
     // No fill, ever. A text field is the one surface where the user's own
@@ -41,6 +52,7 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
     // is exactly the wrong trade.
     fill: "no",
     focusWithin: true,
+    ...(disabled ? { state: "disabled" as const } : invalid ? { state: "error" as const } : {}),
   });
 
   return (
@@ -52,7 +64,7 @@ export function Input({ className, disabled, ref, ...props }: InputProps) {
       // cycle 002b — a disagreement nobody chose. DESIGN-SYSTEM.md §4 is the ramp.
       className={cn(
         "hc-frame bg-hc-paper-raised relative flex h-11 w-full items-center px-4",
-        disabled && "pointer-events-none opacity-50",
+        disabled && "pointer-events-none opacity-[var(--hc-opacity-disabled)]",
         className,
       )}
     >

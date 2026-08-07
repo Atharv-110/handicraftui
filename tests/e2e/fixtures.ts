@@ -112,10 +112,12 @@ export const test = base.extend<{ hc: HcFixture }>({
         }
 
         // Button carries `hover:bg-hc-paper-sunken` and a 100ms transition,
-        // and `rescribble` shifts the pool seed on `pointerenter`. A cursor
-        // left over a specimen from the previous test would change both the
-        // paint and the geometry of whatever the next test measures — the
-        // single likeliest source of a flaky screenshot, for one line.
+        // and `rescribble` shifts state parameters on the pool seed on
+        // `pointerenter` (cycle 009 — it used to shift the seed itself). A
+        // cursor left over a specimen from the previous test would change
+        // both the paint and the geometry of whatever the next test
+        // measures — the single likeliest source of a flaky screenshot, for
+        // one line.
         await page.mouse.move(0, 0);
       },
       async frameCount() {

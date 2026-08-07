@@ -103,12 +103,24 @@ export function Harness({
             chalk={dark}
           >
             <section className="mt-10 space-y-10" data-hc-texture={texture ? "on" : undefined}>
+              {/* drawDelay values are illustrative, not derived — their only
+                  job is five distinct, non-zero-or-zero, machine-readable
+                  numbers for D-STAGGER to read. The real stagger step is a
+                  landing-page design decision, ROADMAP §6.8's own cycle. */}
               <Group title="Buttons — variants">
-                <Button>Save changes</Button>
-                <Button variant="primary">Publish</Button>
-                <Button variant="danger">Delete</Button>
-                <Button variant="ghost">Cancel</Button>
-                <Button disabled>Disabled</Button>
+                <Button drawDelay={0}>Save changes</Button>
+                <Button variant="primary" drawDelay={120}>
+                  Publish
+                </Button>
+                <Button variant="danger" drawDelay={240}>
+                  Delete
+                </Button>
+                <Button variant="ghost" drawDelay={360}>
+                  Cancel
+                </Button>
+                <Button disabled drawDelay={480}>
+                  Disabled
+                </Button>
               </Group>
 
               <Group title="Buttons — sizes">

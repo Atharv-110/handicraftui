@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sketchCacheStats } from "@handicraft/core";
 
 /**
  * Time from first paint to the point where every sketch frame has mounted its
@@ -10,8 +11,16 @@ import { useEffect, useState } from "react";
  * (110 ms → 1.6 ms for 500 components) and that number says nothing about
  * rasterization. This measures the thing the benchmark could not.
  */
+interface Stats {
+  ms: number;
+  svgs: number;
+  paths: number;
+  /** Absent at tier 1, where no geometry — and therefore no cache — exists. */
+  cache?: string;
+}
+
 export function PerfReadout() {
-  const [stats, setStats] = useState<{ ms: number; svgs: number; paths: number } | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     const start = performance.now();
@@ -35,10 +44,18 @@ export function PerfReadout() {
       if (svgs === lastCount && svgs > 0) {
         frames += 1;
         if (frames >= 3) {
+          // Appended, never inserted — perf.spec.ts's H1/H2 match
+          // `/settled in (\d+)ms/` and assert the element never reads
+          // "measuring…", so both existing strings stay byte-identical and
+          // this is purely additive.
+          const { hits, misses } = sketchCacheStats().frame;
+          const total = hits + misses;
+          const pct = total > 0 ? Math.round((hits / total) * 100) : 0;
           setStats({
             ms: Math.round(performance.now() - start),
             svgs,
             paths: document.querySelectorAll(".hc-sketch-svg path").length,
+            cache: `cache ${pct}% (${hits}/${total})`,
           });
           return;
         }
@@ -58,7 +75,7 @@ export function PerfReadout() {
       {stats
         ? stats.svgs === 0
           ? "tier 1 — CSS frame only, no geometry mounted"
-          : `settled in ${stats.ms}ms · ${stats.svgs} frames · ${stats.paths} paths`
+          : `settled in ${stats.ms}ms · ${stats.svgs} frames · ${stats.paths} paths · ${stats.cache}`
         : "measuring…"}
     </div>
   );
