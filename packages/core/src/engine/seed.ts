@@ -71,8 +71,14 @@ export function hashString(input: string): number {
 }
 
 /**
- * Pool index for a component. `offset` lets the provider shift a whole page to a
- * different "hand", and lets a component shift on hover/active to look re-inked.
+ * Pool index for a component. `offset` lets the provider shift a whole page to
+ * a different "hand" through `handOffset` — the only caller of the second
+ * argument today. It no longer shifts on hover/active: cycle 009 moved state
+ * to a parameter shift on this same pool index (engine/state.ts) rather than
+ * a seed shift, because a hovered component swapping into an adjacent pool
+ * member's geometry at the same size was a correctness defect against the
+ * state model's own definition, not merely a naming one. FB-5, cycle 009
+ * iteration 2.
  */
 export function poolIndex(id: string, offset = 0): number {
   return (((hashString(id) + offset) % POOL_SIZE) + POOL_SIZE) % POOL_SIZE;

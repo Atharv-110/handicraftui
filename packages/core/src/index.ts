@@ -23,6 +23,8 @@ export {
   type UseSketchFrameResult,
 } from "./frame/useSketchFrame";
 
+export { type SketchState } from "./engine/state";
+
 export { SketchMark, type SketchMarkProps } from "./frame/SketchMark";
 export {
   MARK_STROKES,
@@ -38,6 +40,7 @@ export {
   preloadSketchEngine,
   taperForSize,
   __resetSketchEngine,
+  sketchCacheStats,
   BASE_ROUGHNESS,
   BASE_BOWING,
   BASE_STROKE_WIDTH,
@@ -46,6 +49,7 @@ export {
   capFill,
   type FillLevel,
   type InkStyle,
+  type SketchCacheStats,
   type SketchFillStyle,
   type SketchGeometry,
   type SketchPath,

@@ -67,6 +67,14 @@ export function Checkbox({
     // The input's own ring is opacity-0 along with the rest of it, so the frame
     // has to carry it.
     focusWithin: true,
+    // §3.6's `:has(> :disabled)` rule already reaches this frame at tier 1 —
+    // Checkbox's real control is a direct child, the one wrapper-framed shape
+    // that rule was written for. Passing `state` is the other half: without
+    // it the frame published `data-hc-state="default"` and full opacity while
+    // its border drew dashed, the one disabled frame on the harness that
+    // disagreed with itself. Same edit already made on Button and Input. F-3,
+    // cycle 009 iteration 2.
+    ...(disabled ? { state: "disabled" as const } : {}),
   });
   const { ref: frameRef, ...frameAttrs } = frameProps;
 
@@ -80,7 +88,7 @@ export function Checkbox({
       className={cn(
         "font-hand text-hc-ink inline-flex min-h-11 cursor-pointer items-center gap-2 select-none",
         !label && "min-w-11 justify-center",
-        disabled && "pointer-events-none opacity-50",
+        disabled && "pointer-events-none opacity-[var(--hc-opacity-disabled)]",
         className,
       )}
     >

@@ -22,11 +22,20 @@ export function quantize(value: number): number {
 
 export function createCache<V>(maxEntries: number = MAX_ENTRIES) {
   const map = new Map<string, V>();
+  // Counted alongside the map rather than derived from it — a Map cannot
+  // answer "how many gets missed" after the fact, and cycle 009's cache-hit
+  // readout needs exactly that question answered live.
+  let hits = 0;
+  let misses = 0;
 
   return {
     get(key: string): V | undefined {
       const hit = map.get(key);
-      if (hit === undefined) return undefined;
+      if (hit === undefined) {
+        misses += 1;
+        return undefined;
+      }
+      hits += 1;
       // Refresh recency: delete + re-set moves it to the end of the iteration order.
       map.delete(key);
       map.set(key, hit);
@@ -42,8 +51,13 @@ export function createCache<V>(maxEntries: number = MAX_ENTRIES) {
     get size(): number {
       return map.size;
     },
+    get stats(): { hits: number; misses: number; entries: number } {
+      return { hits, misses, entries: map.size };
+    },
     clear(): void {
       map.clear();
+      hits = 0;
+      misses = 0;
     },
   };
 }

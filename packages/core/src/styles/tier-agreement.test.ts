@@ -7,7 +7,9 @@ import {
   FILL_LEVELS,
   type FillLevel,
 } from "../engine/generator";
+import { ERROR_STROKE_RATIO } from "../engine/state";
 import { SEED_BUCKETS } from "../engine/seed";
+import { MOTION } from "./ramps";
 
 /**
  * Tier 1 and tier 2 describe the same drawing in two languages — CSS and
@@ -299,5 +301,222 @@ describe("the focus-within rule stays unlayered and separate", () => {
     // intervening comment cannot satisfy this on a merged list.
     const between = CSS_CODE.slice(listIndex, focusWithinIndex);
     expect(between).toContain("}");
+  });
+});
+
+/**
+ * Cycle 009 — the state parameter model's CSS half.
+ *
+ * Same instrument and the same reach limit as everything above: this file reads
+ * the stylesheet as text, so it can prove a rule exists and never that it wins.
+ * The cascade half of each claim below is `matrix.spec.ts`'s M13, in a browser,
+ * and the no-JavaScript half is `degraded.spec.ts`'s D-STATE. Every assertion
+ * reads `CSS_CODE`, comments stripped, per cycle 008 Amendment 1 — this cycle's
+ * new rules are heavily commented and several of those comments quote the very
+ * selectors being counted.
+ */
+describe("the state parameter model in CSS", () => {
+  /**
+   * One `--hc-motion-*` token per `MOTION` key that has a CSS home.
+   *
+   * `stateMaxMs` is deliberately absent: it is a ceiling from ROADMAP §5.3, not
+   * a value, and giving it a custom property would put a number in the
+   * stylesheet that nothing may ever read. T-CAP is what holds it.
+   */
+  const MOTION_HOMES: ReadonlyArray<[keyof typeof MOTION, string]> = [
+    ["markMs", "mark"],
+    ["stateMs", "state"],
+    ["popupMs", "popup"],
+    ["tooltipMs", "tooltip"],
+    ["boilStepMs", "boil-step"],
+  ];
+
+  it("T-MOTION — every motion token in ramps.ts has an identical home in :root", () => {
+    // Rule R2's mechanism, applied to a fourth quantity. Stroke weight, corner
+    // radii and hachure gaps already live in both a `.ts` and a `.css` file with
+    // nothing in the type system connecting them; the motion table is the same
+    // shape and gets the same guard on the day it lands rather than after the
+    // first drift.
+    for (const [key, token] of MOTION_HOMES) {
+      expect(
+        cssNumberInBlock(":root", new RegExp(`--hc-motion-${token}:\\s*([\\d.]+)ms`)),
+        `--hc-motion-${token} disagrees with MOTION.${key}`,
+      ).toBe(MOTION[key]);
+    }
+
+    // The ceiling has no home, asserted rather than assumed — a
+    // `--hc-motion-state-max` appearing later would be a number in the
+    // stylesheet with no consumer and no way to stay honest.
+    expect(CSS_CODE).not.toContain("--hc-motion-state-max");
+  });
+
+  it("T-CAP — the shipped state duration stays under §5.3's 220ms ceiling", () => {
+    // A ceiling and a value are different claims, so this is `<=` and not `===`.
+    // 100ms is what button.tsx already shipped as a literal `duration-100`; this
+    // cycle gave that number a home rather than retuning how the library feels.
+    // What the ceiling exists to stop is a later cycle quietly raising the token
+    // past the point where a state change stops reading as instant.
+    const stateMs = cssNumberInBlock(":root", /--hc-motion-state:\s*([\d.]+)ms/);
+    expect(stateMs).toBeLessThanOrEqual(MOTION.stateMaxMs);
+  });
+
+  it("T-STATE — no rule keys off data-hc-state, and every tier-1 pair keys off something real", () => {
+    // The negative half is the whole reason 67 of 68 baselines can be predicted
+    // byte-identical: an attribute no selector reads contributes no box, no
+    // paint and no layout. Cycle 007's T-CSS makes the identical argument for
+    // `data-hc-fidelity="lite"`, and this is its generalisation.
+    //
+    // It is also what keeps tier 1 correct with JavaScript off. `data-hc-state`
+    // is written by a React hook; a script-off browser has no hook, so a rule
+    // keyed off it would silently do nothing exactly where tier 1 is the only
+    // tier there is.
+    expect(CSS_CODE).not.toContain("data-hc-state");
+
+    // The positive half. The negative above would pass just as happily on a
+    // stylesheet that had lost every state rule, which is the louder defect.
+    // Each family is named by the selector that carries its meaning.
+    expect(CSS_CODE, "hover's second-pass rule").toContain(".hc-frame[data-hc-rescribble]:hover");
+    expect(CSS_CODE, "hover's lift shadow").toContain(".hc-lift[data-hc-rescribble]:hover");
+    expect(CSS_CODE, "disabled's dashed border, self form").toContain(
+      ".hc-frame:where(:disabled)::before",
+    );
+    expect(CSS_CODE, "disabled's dashed border, direct-child form").toContain(
+      ".hc-frame:has(> :disabled)::before",
+    );
+    // Either spelling, deliberately — the same reason `fillSelector` above
+    // tolerates both. What this line claims is that a dots rule exists at all;
+    // whether it spends its specificity budget correctly is T-DOTS's claim, and
+    // a `:where()` written here as well would make this test a second hub for
+    // every spelling mutation in the file and stop T-DOTS isolating its own.
+    expect(CSS_CODE, "disabled's dots lattice").toMatch(
+      /\.hc-frame:where\(:disabled\):where\(\[data-hc-fill="low"\]\)|\.hc-frame:disabled\[data-hc-fill="low"\]/,
+    );
+    expect(CSS_CODE, "error, self form").toContain('.hc-frame[aria-invalid="true"]::before');
+    expect(CSS_CODE, "error, direct-child form").toContain(
+      '.hc-frame:has(> [aria-invalid="true"])::before',
+    );
+
+    // Matched exactly, never as a bare `[aria-invalid]`. "false" is a legal
+    // value meaning valid, so a bare-attribute selector would flag a field that
+    // had just passed validation — the opposite of the state's meaning.
+    expect(CSS_CODE).not.toMatch(/\[aria-invalid\]/);
+  });
+
+  it("T-BG — exactly seven .hc-frame rules declare a background-image", () => {
+    // 1 (the tier-2 handover rule) + 3 (the fill hachures) + 3 (the disabled
+    // dots) = 7. Cycle 008's defect was a specificity contest between the first
+    // two groups; this cycle adds a third group into the same contest, and the
+    // count is what notices a fourth group arriving without anyone re-deriving
+    // that cascade.
+    //
+    // A count and nothing more, deliberately. Whether the dots spell themselves
+    // with `:where()` is T-DOTS's claim and whether the fill rules do is
+    // T-WHERE's — folding either into this test would make it a hub for every
+    // spelling mutation in the file and stop it isolating what it counts.
+    const rules = [...CSS_CODE.matchAll(/\.hc-frame[^{]*\{[^}]*background-image/g)];
+    expect(rules).toHaveLength(1 + 3 + 3);
+  });
+
+  it("T-DOTS — the disabled dots are specificity-zeroed and mirror the engine's own gaps", () => {
+    // Written bare, `.hc-frame:disabled[data-hc-fill="low"]` sits at (0,3,0),
+    // beats `.hc-frame[data-hc-fidelity="high"] { background-image: none }` at
+    // (0,2,0), and paints a dot lattice under every *tier-2* disabled frame —
+    // cycle 008's defect reproduced one state over. `:where()` on both the
+    // pseudo-class and the attribute drops it to (0,1,0): later in source than
+    // the three fill rules, so it wins at tier 1, and below the handover rule,
+    // so it loses at tier 2.
+    for (const level of ["low", "med", "high"] as FillLevel[]) {
+      expect(CSS_CODE, `disabled dots at fill="${level}" must stay specificity-zeroed`).toContain(
+        `.hc-frame:where(:disabled):where([data-hc-fill="${level}"])`,
+      );
+
+      // The gap is the level's own `hachureGap`, read from FILL_LEVELS rather
+      // than restated, so tier 1's lattice and tier 2's dots land at the same
+      // density and the handover does not announce itself. Same mirroring
+      // discipline the hachure gradients above already carry.
+      const gap = FILL_LEVELS[level]!.hachureGap;
+      const block =
+        CSS_CODE.split(`.hc-frame:where(:disabled):where([data-hc-fill="${level}"])`)[1]?.split(
+          "}",
+        )[0] ?? "";
+      expect(block, `disabled dots at fill="${level}" gap`).toContain(
+        `background-size: ${gap}px ${gap}px`,
+      );
+    }
+  });
+
+  it("T-RM — reduced motion zeroes all four animatable motion tokens", () => {
+    // `--hc-motion-tooltip` is already 0ms and is deliberately not repeated, so
+    // four rather than five. The block is unlayered, which is what lets it
+    // outrank `@layer base`'s `:root` regardless of specificity.
+    //
+    // Text only, and that is the whole limit of this instrument: it proves the
+    // declarations exist, never that they win. `degraded.spec.ts`'s D-MOT reads
+    // the resolved `<time>` in a real browser under `reducedMotion: "reduce"`
+    // and owns that half.
+    const block =
+      CSS_CODE.split("@media (prefers-reduced-motion: reduce)")[1]?.split("@media")[0] ?? "";
+    expect(block.length, "reduced-motion block not found").toBeGreaterThan(0);
+
+    for (const token of ["mark", "state", "popup", "boil-step"]) {
+      expect(block, `--hc-motion-${token} not zeroed under reduced motion`).toMatch(
+        new RegExp(`--hc-motion-${token}:\\s*0ms`),
+      );
+    }
+  });
+
+  it("T-ERR — error's tier-2 stroke width resolves to tier 1's own --hc-stroke-w-strong", () => {
+    // Rule R2's exact mechanism, for a number that now lives in a `.ts` and a
+    // `.css` file with nothing in the type system joining them. Tier 1 draws an
+    // error border at `--hc-stroke-w-strong`; tier 2 multiplies the hand's own
+    // width by `ERROR_STROKE_RATIO`. On the natural hand — the hand
+    // BASE_STROKE_WIDTH *is* — the two must land on the same number, or the
+    // frame visibly changes weight at the handover on the one state where a
+    // weight change is the signal.
+    //
+    // Asserted through the ratio's product rather than against a literal 3, so
+    // retuning BASE_STROKE_WIDTH fails here instead of silently re-anchoring
+    // what the test claims to prove.
+    const strong = cssNumberInBlock(":root", /--hc-stroke-w-strong:\s*([\d.]+)px/);
+    expect(ERROR_STROKE_RATIO * BASE_STROKE_WIDTH).toBeCloseTo(strong, 10);
+
+    // The dark residual, stated rather than discovered. `.dark` carries its own
+    // heavier stroke and tier 2 composes the same ratio with CHALK_STROKE_WIDTH,
+    // so the two sides land 1.6% apart there — `2.4 * 1.25 * (2.6 / 2.4) = 3.25`
+    // against tier 1's 3.2px. Asserted as a bound, not as equality: this is the
+    // same class of accepted gap CHALK_STROKE_WIDTH already carries, and a bound
+    // is what notices it growing into a visible one.
+    const strongDark = cssNumberInBlock(".dark", /--hc-stroke-w-strong:\s*([\d.]+)px/);
+    const tier2Dark = CHALK_STROKE_WIDTH * ERROR_STROKE_RATIO;
+    expect(Math.abs(tier2Dark - strongDark) / strongDark).toBeLessThan(0.02);
+  });
+
+  it("T-DELAY — all four draw-on passes add the delay, and every fallback is 0ms", () => {
+    // Amendment 1. The delay is one constant added to four already-ordered
+    // start times, so it cannot reorder them — which is the difference from the
+    // out-of-order defect this timeline's own comment records, where each pass
+    // carried an independent duration.
+    //
+    // The `0ms` fallback is what makes the marginal baseline cost zero: an
+    // element with no `--hc-draw-delay` computes `calc(0ms + 1100ms * 0.26)`,
+    // which serializes to exactly the `0.286s` this file shipped before the
+    // amendment. A non-zero fallback anywhere would shift every undelayed frame
+    // on the page and move committed baselines.
+    const passes = ["under", "ink", "fill", "pool"];
+    for (const kind of passes) {
+      const block = CSS_CODE.split(`path[data-hc-kind="${kind}"]`)[1]?.split("}")[0] ?? "";
+      expect(block.length, `no timeline rule for the ${kind} pass`).toBeGreaterThan(0);
+      expect(block, `${kind} pass does not add the draw delay`).toMatch(
+        /animation-delay:[^;]*var\(--hc-draw-delay,\s*0ms\)/,
+      );
+    }
+
+    // Counted across the whole stylesheet as well, so a fifth pass added later
+    // without the term fails here rather than staggering out of step with the
+    // other four. Every occurrence carries the same fallback.
+    const withFallback = [...CSS_CODE.matchAll(/var\(--hc-draw-delay,\s*0ms\)/g)];
+    const all = [...CSS_CODE.matchAll(/var\(--hc-draw-delay/g)];
+    expect(withFallback).toHaveLength(passes.length);
+    expect(all).toHaveLength(withFallback.length);
   });
 });

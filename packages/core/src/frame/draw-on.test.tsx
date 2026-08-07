@@ -46,12 +46,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function Box() {
+function Box({ drawDelay }: { drawDelay?: number }) {
   const { frameProps, sketchLayer } = useSketchFrame({
     shape: "rect",
     fill: "med",
     fillColor: "#F2C14E",
     seedKey: "«r1»",
+    ...(drawDelay !== undefined ? { drawDelay } : {}),
   });
   return (
     <div className="hc-frame" {...frameProps}>
@@ -60,14 +61,14 @@ function Box() {
   );
 }
 
-async function mount(drawOn: boolean) {
+async function mount(drawOn: boolean, drawDelay?: number) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   await act(async () => {
     createRoot(container).render(
       <StrictMode>
         <HandicraftProvider drawOn={drawOn}>
-          <Box />
+          <Box {...(drawDelay !== undefined ? { drawDelay } : {})} />
         </HandicraftProvider>
       </StrictMode>,
     );
@@ -172,5 +173,41 @@ describe("draw-on entrance", () => {
     expect(svg.hasAttribute("data-hc-draw")).toBe(false);
     expect(svg.querySelector("path[data-hc-kind]")).toBeNull();
     expect(svg.querySelector("path[pathLength]")).toBeNull();
+  });
+
+  it("D1 — emits the per-element delay only when drawOn and drawDelay are both set", async () => {
+    // Amendment 1. The delay rides `--hc-draw-duration`'s exact emission path,
+    // and it is gated on the same `drawOn` for the same reason: the four
+    // timeline rules that read it all require `[data-hc-draw]`, so a delay
+    // emitted without the entrance would be a custom property nothing can ever
+    // read. That is also the first of the two independent reasons the amendment
+    // costs zero baselines — no committed baseline renders with `drawOn` on.
+    const both = (await mount(true, 240)).querySelector(".hc-sketch-svg") as SVGElement;
+    expect(both.style.getPropertyValue("--hc-draw-delay")).toBe("240ms");
+
+    // Entrance on, no delay asked for: the undelayed frame must emit nothing at
+    // all, so it computes exactly what it computed before this option existed.
+    const noDelay = (await mount(true)).querySelector(".hc-sketch-svg") as SVGElement;
+    expect(noDelay.style.getPropertyValue("--hc-draw-delay")).toBe("");
+
+    // Delay asked for, entrance off: inert, and silent in the DOM rather than
+    // merely inert in the cascade.
+    const noDrawOn = (await mount(false, 240)).querySelector(".hc-sketch-svg") as SVGElement;
+    expect(noDrawOn.style.getPropertyValue("--hc-draw-delay")).toBe("");
+  });
+
+  it("D2 — the delay is milliseconds, and the duration still sits beside it", async () => {
+    // Both properties on one inline style, because the stylesheet composes them
+    // in a single `calc()` per pass: `calc(var(--hc-draw-delay, 0ms) +
+    // var(--hc-draw-duration, 1100ms) * 0.26)`. A delay that landed without the
+    // duration would silently fall back to the stylesheet's own 1100ms and stop
+    // tracking the provider.
+    const svg = (await mount(true, 480)).querySelector(".hc-sketch-svg") as SVGElement;
+
+    expect(svg.hasAttribute("data-hc-draw")).toBe(true);
+    expect(svg.style.getPropertyValue("--hc-draw-delay")).toBe("480ms");
+    // 1100ms is HandicraftConfig's own default drawOnDuration, unchanged by the
+    // amendment — the delay adds a term, it does not rescale any pass.
+    expect(svg.style.getPropertyValue("--hc-draw-duration")).toBe("1100ms");
   });
 });

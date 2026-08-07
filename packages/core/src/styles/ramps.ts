@@ -154,3 +154,24 @@ export const GEOMETRY_PINS = {
   checkboxBox: 20,
   ruleThickness: 2,
 } as const;
+
+/**
+ * State-motion durations, cycle 009. Same contract as SPACING and
+ * GEOMETRY_PINS above: no component imports this, it is the doctrine's
+ * numbers once, for T-MOTION to cross-check against handicraft.css's
+ * `--hc-motion-*` tokens.
+ *
+ * `stateMs` is not a retune — it is the 100ms button.tsx already shipped as a
+ * literal `duration-100`, given a home. `stateMaxMs` is a ceiling from
+ * ROADMAP §5.3, not a value in its own right; T-CAP asserts
+ * `--hc-motion-state <= stateMaxMs` rather than `===`, since a ceiling and a
+ * value are different claims.
+ */
+export const MOTION = {
+  markMs: 150,
+  stateMs: 100,
+  stateMaxMs: 220,
+  popupMs: 150,
+  tooltipMs: 0,
+  boilStepMs: 100,
+} as const;

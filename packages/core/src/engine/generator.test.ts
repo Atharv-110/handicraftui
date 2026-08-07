@@ -4,11 +4,14 @@ import {
   generateSketch,
   generateSketchSync,
   generateMarkSync,
+  sketchCacheStats,
   BASE_STROKE_WIDTH,
   CHALK_STROKE_WIDTH,
 } from "./generator";
 import { quantize, QUANT } from "./cache";
-import { seedFrom } from "./seed";
+import { POOL_SIZE, seedFrom } from "./seed";
+import { applyStateDelta } from "./state";
+import { HANDS } from "../theme/context";
 
 const geom = { shape: "rounded", width: 160, height: 44, radius: 8 } as const;
 
@@ -195,5 +198,160 @@ describe("quantize", () => {
     expect(quantize(160.4)).toBe(160);
     expect(quantize(161.2)).toBe(QUANT * Math.round(161.2 / QUANT));
     expect(quantize(-5)).toBe(0);
+  });
+});
+
+/**
+ * Cycle 009. The cache's own counters, the mark key's new params dimension, and
+ * the one assertion that can tell the parameter model from the seed model it
+ * replaced.
+ *
+ * Every test here calls `__resetSketchEngine()` first: the caches are module
+ * scope, so a count taken without a reset measures whatever the file above it
+ * happened to generate.
+ */
+describe("cache instrumentation and the state parameter model", () => {
+  const frameGeom = { shape: "rect", width: 160, height: 44 } as const;
+  /** The resolved `natural` hand, which is what `useSketchFrame` feeds the engine. */
+  const hand = { ...HANDS.natural, stroke: "var(--hc-ink)" };
+
+  beforeEach(() => {
+    __resetSketchEngine();
+  });
+
+  it("C1 — the frame cache counts a miss then a hit for the same geometry and style", async () => {
+    // A rate is only interpretable if both halves are counted, and a Map cannot
+    // answer "how many gets missed" after the fact. `perf-readout.tsx` reports
+    // this figure live on the harness, so a hit counter that never moved would
+    // read as a 0% hit rate rather than as a broken instrument.
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 0, entries: 0 });
+
+    const style = { seed: seedFrom("«r1»"), ...hand };
+    const first = await generateSketch(frameGeom, style);
+    expect(first.length).toBeGreaterThan(0);
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 1, entries: 1 });
+
+    const second = await generateSketch(frameGeom, style);
+    expect(second.map((p) => p.d)).toEqual(first.map((p) => p.d));
+    expect(sketchCacheStats().frame).toEqual({ hits: 1, misses: 1, entries: 1 });
+  });
+
+  it("C2 — two marks differing only in roughness are two cache entries, not one", async () => {
+    // The live defect §2.2 found by reading source. `SketchMark` passes
+    // `roughness` and `bowing` from the hand profile and lists both in its
+    // effect's dependency array, but neither was in this key — so a warm page
+    // switching `hand` re-ran the effect, hit the previous hand's entry, and
+    // drew the tick in the old hand while the frame beside it drew in the new
+    // one. Same shape as any state that shifts roughness on a mark-bearing
+    // component.
+    // `generateMarkSync` returns null until roughjs has finished loading, and
+    // `__resetSketchEngine()` above deliberately drops the loaded module. One
+    // awaited frame generation is what puts it back — the same warm-up the
+    // chalk stroke-width test further up this file already uses.
+    await generateSketch(frameGeom, { seed: 1, ...hand });
+
+    const base = { seed: 4242, size: 24, chalk: false };
+    const calm = generateMarkSync("check", { ...base, roughness: 1.0 });
+    const rough = generateMarkSync("check", { ...base, roughness: 3.0 });
+
+    expect(calm, "the mark generator did not run").not.toBeNull();
+    expect(rough).not.toBeNull();
+    expect(calm!.length).toBeGreaterThan(0);
+    expect(rough!.map((p) => p.d)).not.toEqual(calm!.map((p) => p.d));
+    expect(sketchCacheStats().mark.entries).toBe(2);
+  });
+
+  it("C3 — resetting the engine zeroes both caches, counters included", async () => {
+    await generateSketch(frameGeom, { seed: seedFrom("«r1»"), ...hand });
+    await generateSketch(frameGeom, { seed: seedFrom("«r1»"), ...hand });
+    generateMarkSync("check", { seed: 7, size: 24, chalk: false });
+
+    const warm = sketchCacheStats();
+    expect(warm.frame.hits + warm.frame.misses).toBeGreaterThan(0);
+    expect(warm.mark.entries).toBeGreaterThan(0);
+
+    __resetSketchEngine();
+
+    expect(sketchCacheStats()).toEqual({
+      frame: { hits: 0, misses: 0, entries: 0 },
+      mark: { hits: 0, misses: 0, entries: 0 },
+    });
+  });
+
+  it("C4 — 500 frames cost 12 cache entries per state, not 500", async () => {
+    // ROADMAP §5.2's headline claim, proven where it is deterministic and free
+    // rather than by adding `rescribble` to the 500-frame stress grid, which
+    // would change the conditions `perf.spec.ts`'s trend line is measured under.
+    //
+    // The bound is structural: every seed key resolves through `seedFrom` into
+    // one of `POOL_SIZE` pool members, so distinct ids collapse onto distinct
+    // seeds only up to 12. A state is a parameter shift, so it adds one more
+    // full pool — never one entry per component.
+    const keys = Array.from({ length: 500 }, (_, i) => `«r${i}»`);
+
+    for (const key of keys) {
+      await generateSketch(frameGeom, { seed: seedFrom(key), ...hand });
+    }
+    expect(sketchCacheStats().frame.entries).toBe(POOL_SIZE);
+
+    const hovered = applyStateDelta(hand, "hover");
+    for (const key of keys) {
+      await generateSketch(frameGeom, { seed: seedFrom(key), ...hovered });
+    }
+    expect(sketchCacheStats().frame.entries).toBe(POOL_SIZE + POOL_SIZE);
+
+    // The counters say the same thing from the other side: 1000 gets, 24 of
+    // which missed. A cache that merely capped its size would show the same
+    // entry count and a far worse miss count.
+    const { hits, misses } = sketchCacheStats().frame;
+    expect(hits + misses).toBe(1000);
+    expect(misses).toBe(POOL_SIZE + POOL_SIZE);
+  });
+
+  it("C6 — a sync call before roughjs loads records neither a hit nor a miss", () => {
+    // FB-4. `cache.get` increments `misses` unconditionally, and
+    // `generateSketchSync` used to probe the cache *before* checking whether
+    // the generator existed. On a cold page that is one counted miss per frame
+    // for a lookup that could never have hit, plus a second on the same key
+    // from the async fallback — so §3.11's readout printed `cache 0% (0/64)`
+    // on the harness and `0% (0/1064)` under stress, every single load. The
+    // counters were not wrong about the cache; they were counting something
+    // that is not a cache decision.
+    //
+    // Behaviour-preserving by construction: an entry can only exist once a
+    // generation has succeeded, so any entry implies a loaded generator, and
+    // `__resetSketchEngine` clears both together. There is no state in which
+    // the moved check can skip a lookup that would have hit.
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 0, entries: 0 });
+
+    const cold = generateSketchSync(frameGeom, { seed: seedFrom("«r1»"), ...hand });
+    expect(cold, "the generator was already loaded — this test measures the cold path").toBeNull();
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 0, entries: 0 });
+  });
+
+  it("C5 — hover geometry matches no pool member's default geometry", async () => {
+    // This is the assertion that distinguishes the parameter model from the seed
+    // model, and in this file nothing else does. Under the old model a hovered
+    // frame was simply the *next pool member* drawn at rest, so its geometry was
+    // by construction some default geometry — one of the twelve below. Under the
+    // parameter model it is a shape no seed can produce, because the roughness
+    // it was drawn at is not any hand's roughness.
+    //
+    // The hook-level half of the same claim is `state.test.tsx`'s H4, which is
+    // where a mutation to `useSketchFrame`'s seed line gets caught; this one
+    // guards the engine's side of it.
+    const hovered = applyStateDelta(hand, "hover");
+    const hoverPaths = await generateSketch(frameGeom, { seed: seedFrom("«r1»"), ...hovered });
+    expect(hoverPaths.length, "the generator did not run").toBeGreaterThan(0);
+    const hoverD = hoverPaths.map((p) => p.d).join("|");
+
+    for (let offset = 0; offset < POOL_SIZE; offset++) {
+      const atRest = await generateSketch(frameGeom, { seed: seedFrom("«r1»", offset), ...hand });
+      expect(atRest.length).toBeGreaterThan(0);
+      expect(
+        atRest.map((p) => p.d).join("|"),
+        `hover reproduced the default geometry at pool offset ${offset}`,
+      ).not.toBe(hoverD);
+    }
   });
 });

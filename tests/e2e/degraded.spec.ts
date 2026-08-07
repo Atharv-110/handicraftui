@@ -172,6 +172,58 @@ test.describe("degraded modes", () => {
     await noJsContext.close();
   });
 
+  test("D-STATE — tier-1 disabled and error render correctly with JavaScript disabled", async ({
+    browser,
+  }) => {
+    const noJsContext = await browser.newContext({ javaScriptEnabled: false });
+    const noJsPage = await noJsContext.newPage();
+
+    await noJsPage.goto("/matrix?c=button&state=disabled&sfill=low");
+    const disabledCheck = await noJsPage
+      .locator(".hc-frame")
+      .first()
+      .evaluate((el) => ({
+        beforeStyle: getComputedStyle(el, "::before").borderStyle,
+        afterStyle: getComputedStyle(el, "::after").borderStyle,
+        backgroundImage: getComputedStyle(el).backgroundImage,
+      }));
+    expect(disabledCheck.beforeStyle).toBe("dashed");
+    expect(disabledCheck.afterStyle).toBe("dashed");
+    expect(disabledCheck.backgroundImage).not.toBe("none");
+
+    await noJsPage.goto("/matrix?c=input&state=error");
+    const errorCheck = await noJsPage
+      .locator(".hc-frame")
+      .first()
+      .evaluate((el) => ({
+        beforeWidth: getComputedStyle(el, "::before").borderTopWidth,
+        afterWidth: getComputedStyle(el, "::after").borderTopWidth,
+        beforeColor: getComputedStyle(el, "::before").borderTopColor,
+        afterColor: getComputedStyle(el, "::after").borderTopColor,
+      }));
+    // --hc-stroke-w-strong resolves to 3px in light mode — the same computed
+    // value degraded.spec.ts's own D-NJS test already reasons about for the
+    // unrelated [data-hc-weight="strong"] rule.
+    expect(errorCheck.beforeWidth).toBe("3px");
+    expect(errorCheck.afterWidth).toBe("3px");
+
+    // Read via a probe element rather than the raw custom-property text, so
+    // this compares the actual resolved colour a border paints with — the
+    // same colour --hc-danger-ink resolves to anywhere else it is used.
+    const dangerRgb = await noJsPage.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.color = "var(--hc-danger-ink)";
+      document.body.appendChild(probe);
+      const rgb = getComputedStyle(probe).color;
+      probe.remove();
+      return rgb;
+    });
+    expect(errorCheck.beforeColor).toBe(dangerRgb);
+    expect(errorCheck.afterColor).toBe(dangerRgb);
+
+    await noJsContext.close();
+  });
+
   test("D-FC — forced-colors hides both stroke passes and the sketch SVG", async ({ page, hc }) => {
     await page.emulateMedia({ forcedColors: "active" });
     await hc.goto({});
@@ -243,6 +295,112 @@ test.describe("degraded modes", () => {
       // that: kept only because it has a real mutation (changing the
       // `opacity: revert-layer !important` fallback to `opacity: 0
       // !important`), not because it is decoration.
+      expect(r.strokeDashoffset).toBe("0px");
+      expect(Number(r.opacity)).toBeGreaterThan(0);
+    }
+  });
+
+  test("D-MOT — reduced motion zeroes the four animatable state-motion tokens", async ({
+    page,
+    hc,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await hc.goto({});
+
+    // Read through a probe's own transition-duration rather than the raw
+    // custom-property text, since three of the four tokens (mark, popup,
+    // boil-step) have no shipped consumer yet this cycle — this is the only
+    // way to observe what they resolve to as an actual CSS <time>, serialized
+    // in seconds the way a real animation-duration or transition-duration
+    // would be.
+    const durations = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.transitionProperty = "opacity";
+      document.body.appendChild(probe);
+      const read = (token: string) => {
+        probe.style.transitionDuration = `var(${token})`;
+        return getComputedStyle(probe).transitionDuration;
+      };
+      const out = {
+        mark: read("--hc-motion-mark"),
+        state: read("--hc-motion-state"),
+        popup: read("--hc-motion-popup"),
+        boilStep: read("--hc-motion-boil-step"),
+      };
+      probe.remove();
+      return out;
+    });
+    expect(durations.mark).toBe("0s");
+    expect(durations.state).toBe("0s");
+    expect(durations.popup).toBe("0s");
+    expect(durations.boilStep).toBe("0s");
+  });
+
+  test("D-STAGGER — draw-on delay values compose additively with each pass's own timeline fraction", async ({
+    page,
+    hc,
+  }) => {
+    await hc.goto({ drawOn: true });
+
+    // The harness's "Buttons — variants" group, in source order, carrying
+    // harness.tsx's drawDelay={0, 120, 240, 360, 480}. The first entry is the
+    // positive case for "a frame with no drawDelay computes exactly the
+    // fraction" — 0 added to a fraction is the fraction. "Cancel" is the
+    // `ghost` variant, whose FILL_LEVELS entry is "no" — compose() never runs
+    // a fill pass at all when fillLevel is "no", so that one button carries
+    // no `data-hc-kind="fill"` path and is checked on the other three passes.
+    const group: Array<{ name: string; delayMs: number; kinds: readonly string[] }> = [
+      { name: "Save changes", delayMs: 0, kinds: ["under", "ink", "fill", "pool"] },
+      { name: "Publish", delayMs: 120, kinds: ["under", "ink", "fill", "pool"] },
+      { name: "Delete", delayMs: 240, kinds: ["under", "ink", "fill", "pool"] },
+      { name: "Cancel", delayMs: 360, kinds: ["under", "ink", "pool"] },
+      { name: "Disabled", delayMs: 480, kinds: ["under", "ink", "fill", "pool"] },
+    ];
+    // Fractions read from handicraft.css's own draw-on timeline comment.
+    const fractions: Record<string, number> = { under: 0, ink: 0.26, fill: 0.55, pool: 0.88 };
+    const durationMs = 1100; // HandicraftConfig's own default drawOnDuration.
+
+    for (const { name, delayMs, kinds } of group) {
+      const button = page.getByRole("button", { name });
+      for (const kind of kinds) {
+        const path = button.locator(`path[data-hc-kind="${kind}"]`).first();
+        const computed = await path.evaluate((el) => getComputedStyle(el).animationDelay);
+        const expected = (delayMs + fractions[kind]! * durationMs) / 1000;
+        expect(parseFloat(computed), `${name} — ${kind}`).toBeCloseTo(expected, 2);
+      }
+    }
+  });
+
+  test("D-DELAY — a delayed frame stays fully visible under reduced motion, no invisible window", async ({
+    page,
+    hc,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await hc.goto({ drawOn: true });
+
+    // "Disabled" carries the group's largest delay (480ms) — the frame most
+    // likely to expose a window if the reduced-motion reset ever missed the
+    // delay term, since `animation: none !important` is a shorthand that
+    // resets animation-delay to its initial 0s along with everything else.
+    const button = page.getByRole("button", { name: "Disabled" });
+    const paths = button.locator(".hc-sketch-svg[data-hc-draw] path");
+    await expect(paths.first()).toBeAttached();
+
+    const results = await paths.evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        return {
+          animationName: cs.animationName,
+          strokeDasharray: cs.strokeDasharray,
+          strokeDashoffset: cs.strokeDashoffset,
+          opacity: cs.opacity,
+        };
+      }),
+    );
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      expect(r.animationName).toBe("none");
+      expect(r.strokeDasharray).toBe("none");
       expect(r.strokeDashoffset).toBe("0px");
       expect(Number(r.opacity)).toBeGreaterThan(0);
     }

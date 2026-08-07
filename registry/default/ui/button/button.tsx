@@ -62,6 +62,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   fill?: FillLevel;
   /** Redraw the frame on hover and press, so it looks re-inked. */
   rescribble?: boolean;
+  /**
+   * Stagger this button's draw-on entrance by this many milliseconds, when
+   * the provider's `drawOn` is on. Button-only for now rather than a prop on
+   * every component: the landing hero (ROADMAP §6.8) is the one planned
+   * consumer, and a prop shipped on all seven components with one consumer
+   * is API ahead of its own evidence. Widening it later is additive.
+   */
+  drawDelay?: number;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
@@ -71,6 +79,8 @@ export function Button({
   size = "md",
   fill,
   rescribble,
+  drawDelay,
+  disabled,
   children,
   ref,
   ...props
@@ -91,21 +101,24 @@ export function Button({
     // forgetting a branch. DESIGN-SYSTEM.md §1.
     stroke: "var(--hc-ink)",
     ...(rescribble !== undefined ? { rescribble } : {}),
+    ...(disabled ? { state: "disabled" as const } : {}),
+    ...(drawDelay !== undefined ? { drawDelay } : {}),
   });
   const { ref: frameRef, ...frameAttrs } = frameProps;
 
   return (
     <button
       {...frameAttrs}
+      disabled={disabled}
       ref={composeRefs(frameRef as React.Ref<HTMLButtonElement>, ref)}
       className={cn(
         "hc-frame hc-lift font-hand inline-flex items-center justify-center",
-        "select-none transition-[transform,background-color] duration-100",
+        "select-none transition-[transform,background-color,box-shadow] duration-[var(--hc-motion-state)]",
         // Pressing moves the button onto its own shadow, like pressing a pen
         // down. Uses translate rather than animating box-shadow so it stays on
         // the compositor.
         "active:translate-x-[3px] active:translate-y-[3px] active:shadow-none",
-        "disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none",
+        "disabled:pointer-events-none disabled:opacity-[var(--hc-opacity-disabled)] disabled:shadow-none",
         VARIANTS[variant],
         SIZES[size],
         className,

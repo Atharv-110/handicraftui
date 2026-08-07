@@ -82,6 +82,13 @@ export interface SketchStyle {
   /** Colour of the hachure. Ignored when `fillLevel` is `no`. */
   fill?: string;
   fillLevel?: FillLevel;
+  /**
+   * Overrides the level's own fillStyle — a state's expression (disabled's
+   * `dots`), never a way for a caller to raise density above what fillLevel
+   * already caps. `capFill`'s ceiling contract stays intact: the level still
+   * supplies `fillWeight` and `hachureGap` regardless of this override.
+   */
+  fillStyle?: SketchFillStyle;
   hachureAngle?: number;
   ink?: InkStyle;
   /** Chalk needs a wide faint dust pass; ink on paper does not. */
@@ -247,6 +254,7 @@ function cacheKey(geom: SketchGeometry, style: SketchStyle, w: number, h: number
     style.hachureAngle ?? "",
     style.ink ?? "",
     style.chalk ? "chalk" : "",
+    style.fillStyle ?? "",
   ].join("|");
 }
 
@@ -288,11 +296,20 @@ export function generateSketchSync(geom: SketchGeometry, style: SketchStyle): Sk
   const h = quantize(geom.height);
   if (w <= 0 || h <= 0) return [];
 
+  // Checked before the cache lookup, not after — a cache entry can only
+  // exist once a generation has already succeeded, so any entry implies a
+  // loaded generator, and __resetSketchEngine clears both together. Moved
+  // above cache.get because probing a cache that could never have been
+  // filled still counted as a real miss (cache.ts's get() increments misses
+  // unconditionally), which made every cold page's first frame log two
+  // misses — this sync probe and the async fallback that follows on the same
+  // key — regardless of whether roughjs was actually warm. §3.11's cache-hit
+  // readout printed 0% on every load as a result. FB-4, cycle 009 iteration 2.
+  if (!loadedGenerator) return null;
+
   const key = cacheKey(geom, style, w, h);
   const cached = cache.get(key);
   if (cached) return cached;
-
-  if (!loadedGenerator) return null;
 
   const paths = compose(loadedGenerator, geom, style, w, h);
   cache.set(key, paths);
@@ -460,7 +477,11 @@ function compose(
           {
             ...base,
             fill: style.fill,
-            fillStyle: fillConfig.fillStyle,
+            // A state override (disabled's `dots`) beats the level's own
+            // fillStyle; capFill's density ceiling is untouched either way,
+            // since fillWeight and hachureGap below always come from the
+            // level, never from the override.
+            fillStyle: style.fillStyle ?? fillConfig.fillStyle,
             fillWeight: fillConfig.fillWeight,
             // Chalk does not hatch finely.
             hachureGap: style.chalk ? fillConfig.hachureGap * 1.3 : fillConfig.hachureGap,
@@ -546,6 +567,16 @@ export function generateMarkSync(name: MarkName, style: MarkStyle): SketchPath[]
   // cache key: without it, a theme toggle that keeps every other style field
   // identical would hit the light mark's cache entry and serve it under dark,
   // stroke weight and all.
+  //
+  // `roughness` and `bowing` joined this key in cycle 009. Before that, a
+  // state shifting either one — hover raising a checked Checkbox's tick
+  // roughness, say — re-ran this function but still hit the previous state's
+  // cache entry, since neither value was part of the key. A warm page
+  // switching `hand` hit the identical gap: the tick kept drawing in the old
+  // hand while the frame beside it drew in the new one. Both `SketchMark`'s
+  // effect dependency array and this key must list every field that reaches
+  // `compose`'s options object, or the two silently disagree about what
+  // "the same mark" means.
   const key = [
     name,
     size,
@@ -553,6 +584,8 @@ export function generateMarkSync(name: MarkName, style: MarkStyle): SketchPath[]
     style.stroke ?? "",
     style.strokeWidth ?? "",
     style.chalk ? "chalk" : "",
+    style.roughness ?? "",
+    style.bowing ?? "",
   ].join("|");
   const cached = markCache.get(key);
   if (cached) return cached;
@@ -617,9 +650,24 @@ export async function generateMark(name: MarkName, style: MarkStyle): Promise<Sk
   return generateMarkSync(name, style) ?? [];
 }
 
+/**
+ * Live hit/miss/entry counts for both caches — what lets `perf-readout.tsx`
+ * report a real cache-hit rate instead of only a settle time, and what C1/C3/
+ * C4 read directly rather than reaching into module-private state.
+ */
+export interface SketchCacheStats {
+  frame: { hits: number; misses: number; entries: number };
+  mark: { hits: number; misses: number; entries: number };
+}
+
+export function sketchCacheStats(): SketchCacheStats {
+  return { frame: cache.stats, mark: markCache.stats };
+}
+
 /** Test/HMR escape hatch. */
 export function __resetSketchEngine(): void {
   cache.clear();
+  markCache.clear();
   generatorPromise = null;
   loadedGenerator = null;
   warnedMissing = false;

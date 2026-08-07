@@ -155,6 +155,10 @@
     --hc-drift-y: -0.5px;
     --hc-second-pass-opacity: 0.5;
 
+    /* Tier-1 error's rotation, cycle 009. Rotates the drawn pseudo-elements,
+       never .hc-frame itself — see the error rule family below for why. */
+    --hc-error-skew: 0.3deg;
+
     --hc-space-unit: 0.25rem;
 
     /* Two spacing floors, not a spacing scale. The scale is Tailwind's own 4px
@@ -169,6 +173,36 @@
        measurement. */
     --hc-gap-frame: 24px;
     --hc-pad-page: 12px;
+
+    /* State motion, cycle 009. --hc-motion-mark is the midpoint of ROADMAP
+       §5.3's 120-180ms band: (120 + 180) / 2 = 150. --hc-motion-popup and
+       --hc-motion-tooltip are that section verbatim. --hc-motion-boil-step is
+       10fps: 1000 / 10 = 100. Cross-checked against ramps.ts's MOTION table by
+       T-MOTION, the same two-homes-for-one-value mechanism R2 already runs for
+       stroke weight and corner radii. --hc-motion-state is not a retune — it
+       is the 100ms button.tsx already shipped as a literal duration-100,
+       given a home. §5.3's 220ms is a ceiling, not a value: it lives in
+       ramps.ts as MOTION.stateMaxMs and T-CAP asserts this token never
+       exceeds it. */
+    --hc-motion-mark: 150ms;
+    --hc-motion-state: 100ms;
+    --hc-motion-popup: 150ms;
+    --hc-motion-tooltip: 0ms;
+    --hc-motion-boil-step: 100ms;
+
+    /* ROADMAP §5.1's "ink at 45%" for the disabled state. One home — the
+       component applies this to text, the tier-1 pseudo-elements and the
+       tier-2 SVG identically, rather than each layer carrying its own opacity
+       and multiplying together the way cycle 008's hachure doubling did. */
+    --hc-opacity-disabled: 0.45;
+
+    /* Hover's tier-1 expression: the lift shadow steps out by 1px, like a
+       sheet nudged before it is picked up. Composes --hc-ink and
+       --hc-shadow-offset, so it needs the same .dark redeclaration --hc-shadow
+       already carries below — see that token's comment for the substitution-
+       order trap this repeats verbatim. */
+    --hc-shadow-hover: calc(var(--hc-shadow-offset) + 1px) calc(var(--hc-shadow-offset) + 1px) 0
+      var(--hc-ink);
   }
 
   /* Dark mode is a blackboard, not a dimmed version of the light theme:
@@ -222,6 +256,14 @@
        one here would be a drift pair with no reason to exist. */
     --hc-shadow: var(--hc-shadow-offset) var(--hc-shadow-offset) 0 var(--hc-ink);
     --hc-shadow-sm: 2px 2px 0 var(--hc-ink);
+
+    /* Redeclared for the same reason --hc-shadow is, immediately above:
+       composing var(--hc-ink) resolves it where the property is declared, so
+       a :root-only copy would freeze this theme's hover shadow to the light
+       ink. --hc-shadow-offset stays single-homed, same as --hc-shadow's own
+       comment argues — it carries no theme variance. */
+    --hc-shadow-hover: calc(var(--hc-shadow-offset) + 1px) calc(var(--hc-shadow-offset) + 1px) 0
+      var(--hc-ink);
   }
 }
 
@@ -514,6 +556,121 @@
   }
 
   /*
+   * Tier-1 state pairs, cycle 009. Every rule below keys off a real
+   * pseudo-class or a real ARIA attribute — never `data-hc-state`, which no
+   * selector in this file matches (T-STATE guards the negative). That is what
+   * keeps every one of these correct with JavaScript disabled: a script-off
+   * browser can still hover, and `[aria-invalid]` is server-rendered markup.
+   */
+
+  /* Hover. Gated on data-hc-rescribble, the same opt-in tier 2's redraw
+     already requires — ROADMAP §5.1's tier-1 row reads unconditional, but an
+     ungated rule here would make a plain Button's frame change at tier 1
+     while tier 2 stays inert, which is a tier disagreement on the one axis
+     this whole two-tier design exists to close. Two rules, never a comma
+     list, so `.hc-lift` components without the frame class (there are none
+     today) cannot silently inherit the stroke rule or vice versa. */
+  .hc-frame[data-hc-rescribble]:hover {
+    /* "Stroke one step darker" delivered by raising the second pass rather
+       than by a new colour: 0.5 + (1.0 - 0.5) / 2 = 0.75, halfway from the
+       shipped default to full. Two overlapping passes at a higher opacity
+       read denser on paper and brighter on the blackboard, automatically and
+       with zero new palette tokens — DESIGN-SYSTEM.md §1 is locked, and a
+       literal darker ink would need a new colour per theme. */
+    --hc-second-pass-opacity: 0.75;
+  }
+  .hc-lift[data-hc-rescribble]:hover {
+    box-shadow: var(--hc-shadow-hover);
+  }
+
+  /* Disabled, the dashed pseudo-border. Two selector shapes, each its own
+     pair of rules rather than one comma-separated list — one unsupported
+     selector invalidates an entire list, so a browser without :has() would
+     lose the direct :disabled half along with the wrapper half. The
+     direct-child :has() form needs no focusWithin-style opt-in: a frame whose
+     *direct child* is a disabled control is unambiguously that control's
+     frame, unlike a bare :has(:disabled) which would also match a Card
+     merely containing one two levels down. */
+  .hc-frame:where(:disabled)::before,
+  .hc-frame:where(:disabled)::after {
+    border-style: dashed;
+  }
+  .hc-frame:has(> :disabled)::before,
+  .hc-frame:has(> :disabled)::after {
+    border-style: dashed;
+  }
+
+  /* Disabled, the dots lattice at all three fill levels. :where()-wrapped per
+     cycle 008's cascade fix — bare, these would sit at (0,3,0), beat the
+     three hachure rules above, and paint under `.hc-frame[data-hc-fidelity=
+     "high"]`'s background-image: none at tier 2, reproducing cycle 008's
+     defect one state over. At (0,1,0) they land later in source than the
+     fill rules (so they win at tier 1) and below the handover rule's (0,2,0)
+     (so they lose to it at tier 2). Radii are half the level's own
+     fillWeight, gaps are its hachureGap — read from generator.ts's
+     FILL_LEVELS, not invented, and T-DOTS cross-checks the gap against it. */
+  .hc-frame:where(:disabled):where([data-hc-fill="low"]) {
+    background-image: radial-gradient(
+      circle,
+      color-mix(in oklab, var(--hc-fill-color) 24%, transparent) 0 0.4px,
+      transparent 0.4px
+    );
+    background-size: 9px 9px;
+  }
+  .hc-frame:where(:disabled):where([data-hc-fill="med"]) {
+    background-image: radial-gradient(
+      circle,
+      color-mix(in oklab, var(--hc-fill-color) 50%, transparent) 0 0.6px,
+      transparent 0.6px
+    );
+    background-size: 5.5px 5.5px;
+  }
+  .hc-frame:where(:disabled):where([data-hc-fill="high"]) {
+    background-image: radial-gradient(
+      circle,
+      color-mix(in oklab, var(--hc-fill-color) 70%, transparent) 0 0.65px,
+      transparent 0.65px
+    );
+    background-size: 5px 5px;
+  }
+
+  /* Error. [aria-invalid="true"] is the selector, matched exactly rather than
+     as a bare [aria-invalid] — "false" is a legal value meaning valid, and a
+     bare-attribute match would flag a field that just passed validation.
+     Real ARIA, so tier 1 is correct with no JavaScript and the state is
+     announced, not only drawn. Rotates the pseudo-elements, never .hc-frame
+     itself: rotating the element would rotate its own text, change its
+     getBoundingClientRect and create a containing block, where rotating the
+     drawn layers reads as "the drawn box is askew" — the signal §5.1 asks
+     for — at zero layout cost. Tier 2 does not rotate; it has bowing instead,
+     and reaches for that — two expressions of one state, not two copies of
+     one instruction. Four rules, two selector shapes x two pseudo-elements,
+     declarations duplicated on purpose for the same :has() reason as the
+     disabled border above. */
+  .hc-frame[aria-invalid="true"]::before {
+    border-color: var(--hc-danger-ink);
+    border-width: var(--hc-stroke-w-strong);
+    transform: rotate(var(--hc-error-skew));
+  }
+  .hc-frame[aria-invalid="true"]::after {
+    border-color: var(--hc-danger-ink);
+    border-width: var(--hc-stroke-w-strong);
+    transform: rotate(calc(var(--hc-skew) + var(--hc-error-skew)))
+      translate(var(--hc-drift-x), var(--hc-drift-y));
+  }
+  .hc-frame:has(> [aria-invalid="true"])::before {
+    border-color: var(--hc-danger-ink);
+    border-width: var(--hc-stroke-w-strong);
+    transform: rotate(var(--hc-error-skew));
+  }
+  .hc-frame:has(> [aria-invalid="true"])::after {
+    border-color: var(--hc-danger-ink);
+    border-width: var(--hc-stroke-w-strong);
+    transform: rotate(calc(var(--hc-skew) + var(--hc-error-skew)))
+      translate(var(--hc-drift-x), var(--hc-drift-y));
+  }
+
+  /*
    * Turbulence, set on any ancestor so a provider can switch it on for a whole
    * subtree. Declared as a custom property because custom properties inherit
    * and `filter` does not — the earlier `.hc-frame[data-hc-texture="on"]` form
@@ -566,6 +723,18 @@
    *   ink    0.26 → 0.82   inked over while the guideline is still going
    *   fill   0.55 → 0.88   fades in; revealing it would wipe
    *   pool   0.88 → 1.0    the pen lands last
+   *
+   * `--hc-draw-delay` (cycle 009, Amendment 1) adds one constant to all four
+   * passes' delays — never to a duration. That is the difference from the
+   * defect above: adding one constant `D` to four already-ordered numbers
+   * preserves their order for every `D` (`D+0 < D+0.26T < D+0.55T < D+0.88T`
+   * holds identically to the un-delayed case), where the original defect came
+   * from passes carrying *independent* durations that did not compose. A
+   * page-wide delay would stagger nothing — it would just make the whole page
+   * arrive late — so this has no provider-level twin; only the element
+   * carries it, via `useSketchFrame`'s `drawDelay` option. Defaults to `0ms`
+   * in every one of the four rules below, so an element with no delay
+   * computes exactly the value this file shipped before Amendment 1 existed.
    */
   .hc-sketch-svg[data-hc-draw] path {
     animation-fill-mode: both;
@@ -576,25 +745,26 @@
   .hc-sketch-svg[data-hc-draw] path[data-hc-kind="dust"] {
     stroke-dasharray: 1;
     animation-name: hc-draw-stroke;
+    animation-delay: var(--hc-draw-delay, 0ms);
     animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.42);
   }
 
   .hc-sketch-svg[data-hc-draw] path[data-hc-kind="ink"] {
     stroke-dasharray: 1;
     animation-name: hc-draw-stroke;
-    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.26);
+    animation-delay: calc(var(--hc-draw-delay, 0ms) + var(--hc-draw-duration, 1100ms) * 0.26);
     animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.56);
   }
 
   .hc-sketch-svg[data-hc-draw] path[data-hc-kind="fill"] {
     animation-name: hc-draw-fade;
-    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.55);
+    animation-delay: calc(var(--hc-draw-delay, 0ms) + var(--hc-draw-duration, 1100ms) * 0.55);
     animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.33);
   }
 
   .hc-sketch-svg[data-hc-draw] path[data-hc-kind="pool"] {
     animation-name: hc-draw-fade;
-    animation-delay: calc(var(--hc-draw-duration, 1100ms) * 0.88);
+    animation-delay: calc(var(--hc-draw-delay, 0ms) + var(--hc-draw-duration, 1100ms) * 0.88);
     animation-duration: calc(var(--hc-draw-duration, 1100ms) * 0.12);
   }
 
@@ -682,6 +852,24 @@
     stroke-dasharray: none !important;
     stroke-dashoffset: 0 !important;
     opacity: revert-layer !important;
+  }
+
+  /* The four animatable state-motion tokens, zeroed at the document root —
+     unlayered, so this outranks @layer base's :root regardless of source
+     order or specificity (an unlayered normal declaration always beats a
+     layered one). Written as `html` rather than a second `:root` selector:
+     functionally identical for a custom property in an HTML document, and it
+     keeps `:root` a literal once-only string in this file, which is what
+     design-tokens.test.ts's E5 depends on to slice the token block
+     unambiguously. --hc-motion-tooltip is already 0ms and is not repeated
+     here for that reason. Every consumer of these tokens is therefore
+     already motionless under this media query without needing its own
+     reduced-motion rule. */
+  html {
+    --hc-motion-mark: 0ms;
+    --hc-motion-state: 0ms;
+    --hc-motion-popup: 0ms;
+    --hc-motion-boil-step: 0ms;
   }
 }
 

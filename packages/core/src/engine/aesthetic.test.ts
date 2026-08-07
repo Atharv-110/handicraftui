@@ -160,7 +160,12 @@ describe("seed pool", () => {
     expect(seen.size).toBeGreaterThanOrEqual(POOL_SIZE - 2);
   });
 
-  it("offsets to a different geometry, which is what rescribble rides on", () => {
+  it("offsets to a different geometry, which is what handOffset rides on", () => {
+    // The consumer is the provider's `handOffset`, and after cycle 009 it is the
+    // only one: `rescribble` used to shift this offset on `pointerenter`, which
+    // meant a hovered frame swapped into an adjacent pool member's geometry. It
+    // now shifts state parameters on the same seed instead, so the offset serves
+    // one purpose — drawing a whole page as if by one hand.
     expect(seedFrom("«r1»", 1)).not.toBe(seedFrom("«r1»"));
   });
 });
