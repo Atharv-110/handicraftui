@@ -315,10 +315,22 @@ at 14px and 7.6% at 30px.
   nobody watches. Measured on `main` at `4132afa`: the rule reads severity 0 for `apps/**` under
   `react-library.js`, and `"error"` only under `registry/eslint.config.mjs`.
 
-  The two steps are on-ratio rather than chosen by eye: `30 → 36` is 1.20 and `36 → 48` is 1.333,
-  both inside the existing scale's own spread. An arbitrary value would have defeated §6's whole
-  argument for enumerability, which is that the scale is lintable precisely because it is a closed
-  list.
+  **`hero` is on-ratio. `heroLg` is not, and the trade is deliberate.** The shipped scale runs
+  12 · 14 · 16 · 18 · 20 · 24 · 30, whose step ratios span 1.111 to 1.25. `30 → 36` is **1.20** and
+  sits inside that spread exactly. `36 → 48` is **1.333 and sits outside it** — the on-ratio
+  successors would be 43.2px at 1.20 or 45px at 1.25, and **neither has a Tailwind utility class**.
+  48px is `text-5xl`.
+
+  The ratio was traded for the class on purpose. §6's whole argument for enumerability is that the
+  scale is lintable *because* it is a closed list of utilities; a step with no class cannot be
+  enforced by `hc/no-off-scale-class`, and an arbitrary pixel value defeats the same rule twice
+  over. An unenforceable on-ratio step is worth less here than an enforceable off-ratio one.
+
+  **This paragraph claimed both steps were on-ratio when it was first written on 2026-08-07, and
+  that was false on the second step.** `hc-planner` caught it against this file within the hour.
+  The error is recorded rather than silently corrected, because a design system whose own doctrine
+  misstates its arithmetic is exactly how the rounded-oklch column shipped five fills below their
+  floor — see §1's full-precision note.
 
   Both steps are hand face and both clear the 18px floor by a wide margin, so §2's interference
   table does not bind them. Neither step is used by any component; they exist for marketing
