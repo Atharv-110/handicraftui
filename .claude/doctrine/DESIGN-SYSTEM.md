@@ -305,14 +305,53 @@ at 14px and 7.6% at 30px.
 
 - **Display scale** — hand face, **18px and up**.
 - **UI scale** — body face, 12–18px.
-- **Exception list** — the hand face may appear below 18px in exactly three places: **badge text,
-  label text, and button labels at any control-ramp size.** Nothing else. Adding a fourth is a
-  doctrine amendment, not a component decision.
+- **Marketing scale — added 2026-08-07**, two steps above the display scale for landing and docs
+  headings: **`hero` 36px** and **`heroLg` 48px**.
+
+  Why the scale grew rather than the landing being exempted. `TYPE_SCALE` stopped at `displayLg`
+  30px, which is a *subheading* at 1280px, so a marketing page had to reach outside the system for
+  its largest type — and `hc/no-off-scale-class` is deliberately scoped to `registry/default/**`,
+  so a landing shipping `text-5xl` would lint green while fracturing the scale in the one place
+  nobody watches. Measured on `main` at `4132afa`: the rule reads severity 0 for `apps/**` under
+  `react-library.js`, and `"error"` only under `registry/eslint.config.mjs`.
+
+  **`hero` is on-ratio. `heroLg` is not, and the trade is deliberate.** The shipped scale runs
+  12 · 14 · 16 · 18 · 20 · 24 · 30, whose step ratios span 1.111 to 1.25. `30 → 36` is **1.20** and
+  sits inside that spread exactly. `36 → 48` is **1.333 and sits outside it** — the on-ratio
+  successors would be 43.2px at 1.20 or 45px at 1.25, and **neither has a Tailwind utility class**.
+  48px is `text-5xl`.
+
+  The ratio was traded for the class on purpose. §6's whole argument for enumerability is that the
+  scale is lintable *because* it is a closed list of utilities; a step with no class cannot be
+  enforced by `hc/no-off-scale-class`, and an arbitrary pixel value defeats the same rule twice
+  over. An unenforceable on-ratio step is worth less here than an enforceable off-ratio one.
+
+  **This paragraph claimed both steps were on-ratio when it was first written on 2026-08-07, and
+  that was false on the second step.** `hc-planner` caught it against this file within the hour.
+  The error is recorded rather than silently corrected, because a design system whose own doctrine
+  misstates its arithmetic is exactly how the rounded-oklch column shipped five fills below their
+  floor — see §1's full-precision note.
+
+  Both steps are hand face and both clear the 18px floor by a wide margin, so §2's interference
+  table does not bind them. Neither step is used by any component; they exist for marketing
+  surfaces, and a component reaching for `hero` is a defect.
+- **Exception list** — the hand face may appear below 18px in exactly **four** places: **badge text,
+  label text, button labels at any control-ramp size, and marketing marginalia at 14px.** Nothing
+  else. Adding a fifth is a doctrine amendment, not a component decision.
 
   The button entry covers `sm` (14px) and `md` (16px); `lg` is 18px and needs no exception. An
   earlier draft of this file said "button `sm` label", which was unsatisfiable — `button.tsx` carries
   `font-hand` on the root for every size, and `PRINCIPLES.md` locks buttons as a hand-face surface.
   Three locked statements, no two of which could all hold.
+
+  **The fourth entry — marginalia — was added 2026-08-07** with the marketing design direction
+  (`ROADMAP.md` §6.8). It covers the kicker lines above section headings and the scattered
+  annotations beside specimens: a handful of words, unwrapped, read as a shape. That is the same
+  token argument the other three rest on, which is why it belongs on this list rather than becoming
+  a second unwatched system. It is capped at 14px and it is the **only** hand-face use permitted
+  outside a component. Body copy on a marketing page is the body face at every size, without
+  exception — the interference table below is a statement about reading, and a landing page is still
+  reading.
 
 The exception list exists because all three are *tokens* — short, unwrapped, scanned as a shape
 rather than tracked across a line. That is what "an all-handwritten UI fails at 14px in a table"
