@@ -308,6 +308,27 @@ describe("cache instrumentation and the state parameter model", () => {
     expect(misses).toBe(POOL_SIZE + POOL_SIZE);
   });
 
+  it("C6 — a sync call before roughjs loads records neither a hit nor a miss", () => {
+    // FB-4. `cache.get` increments `misses` unconditionally, and
+    // `generateSketchSync` used to probe the cache *before* checking whether
+    // the generator existed. On a cold page that is one counted miss per frame
+    // for a lookup that could never have hit, plus a second on the same key
+    // from the async fallback — so §3.11's readout printed `cache 0% (0/64)`
+    // on the harness and `0% (0/1064)` under stress, every single load. The
+    // counters were not wrong about the cache; they were counting something
+    // that is not a cache decision.
+    //
+    // Behaviour-preserving by construction: an entry can only exist once a
+    // generation has succeeded, so any entry implies a loaded generator, and
+    // `__resetSketchEngine` clears both together. There is no state in which
+    // the moved check can skip a lookup that would have hit.
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 0, entries: 0 });
+
+    const cold = generateSketchSync(frameGeom, { seed: seedFrom("«r1»"), ...hand });
+    expect(cold, "the generator was already loaded — this test measures the cold path").toBeNull();
+    expect(sketchCacheStats().frame).toEqual({ hits: 0, misses: 0, entries: 0 });
+  });
+
   it("C5 — hover geometry matches no pool member's default geometry", async () => {
     // This is the assertion that distinguishes the parameter model from the seed
     // model, and in this file nothing else does. Under the old model a hovered

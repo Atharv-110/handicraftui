@@ -3,11 +3,13 @@ import {
   applyStateDelta,
   resolveState,
   BOWING_CAP,
+  ERROR_STROKE_RATIO,
   PRESS_STROKE_RATIO,
   STATE_DELTAS,
   STATE_PRECEDENCE,
   type SketchState,
 } from "./state";
+import { FILL_LEVELS } from "./generator";
 import { HANDS, type Hand } from "../theme/context";
 
 /**
@@ -144,6 +146,69 @@ describe("the state parameter table", () => {
     expect(out.bowing).toBe(base.bowing);
     expect(out.strokeWidth).toBe(base.strokeWidth);
     expect(out.stroke).toBe(base.stroke);
+  });
+
+  it("S7 — error thickens the stroke, and natural lands on tier 1's own 3px token", () => {
+    // FB-1. The shipped ratio was 1, which left tier 2 saying nothing at all
+    // about weight while tier 1's ::before/::after already drew
+    // --hc-stroke-w-strong. That was survivable only for as long as anyone
+    // believed the pseudo-elements rendered at tier 2; they compute
+    // `display: none` there, so error was carried by colour alone — the defect
+    // PRINCIPLES.md forbids outright, whatever the contrast ratio.
+    //
+    // Written as a ratio for the same reason `press` is: an absolute would
+    // flatten every hand to one error weight and delete the hand's own
+    // character exactly where the user most needs the drawing to stay legible.
+    expect(applyStateDelta(baseFor("natural"), "error").strokeWidth).toBeCloseTo(3.0, 10);
+    expect(applyStateDelta(baseFor("loose"), "error").strokeWidth).toBeCloseTo(3.25, 10);
+    expect(applyStateDelta(baseFor("steady"), "error").strokeWidth).toBeCloseTo(
+      HANDS.steady.strokeWidth * ERROR_STROKE_RATIO,
+      10,
+    );
+
+    // Every hand thickens, not just the two named above. A ratio above 1
+    // guarantees it arithmetically, but the guarantee is what the assertion is
+    // for — `loose` and `hurried` are the hands where the bowing half of error
+    // is a no-op against BOWING_CAP, so stroke weight is the whole non-colour
+    // signal there.
+    for (const hand of Object.keys(HANDS) as Hand[]) {
+      const base = baseFor(hand);
+      expect(
+        applyStateDelta(base, "error").strokeWidth,
+        `error must be heavier than default on ${hand}`,
+      ).toBeGreaterThan(applyStateDelta(base, "default").strokeWidth);
+    }
+  });
+
+  it("S8 — disabled is the only state that dashes, at the dots' own pitch", () => {
+    // FB-2. The tier-1 dashed pseudo-border had no tier-2 counterpart, so a
+    // disabled frame read dashed before the handover and solid after it. The
+    // dash is the tier-2 half of one state, not a second idea.
+    //
+    // The pitch is not a new number: it is the gap the disabled dots already
+    // draw at, halved so a dash and its gap together span one dot period.
+    // Reading it from FILL_LEVELS rather than restating 4.5 is what stops the
+    // two drifting the way DESIGN-SYSTEM.md's three two-homes defects did.
+    const pitch = FILL_LEVELS.low!.hachureGap / 2;
+    expect(STATE_DELTAS.disabled.strokeDasharray).toBe(`${pitch} ${pitch}`);
+
+    for (const state of ALL_STATES) {
+      if (state === "disabled") continue;
+      expect(
+        STATE_DELTAS[state].strokeDasharray,
+        `${state} must not dash — the dash is disabled's tier-2 signal alone`,
+      ).toBeUndefined();
+    }
+
+    // Kept out of the composed style on purpose, and this is the assertion that
+    // holds it there. `applyStateDelta` feeds `generateSketch`'s style
+    // argument, and `cacheKey` hashes every field of it — a dash that leaked
+    // in would split the cache in two for a value that changes no geometry at
+    // all, which is the opposite of what a presentation attribute costs.
+    expect(
+      Object.keys(applyStateDelta(baseFor("natural"), "disabled")),
+      "the dash reached the geometry style object and is now a cache-key term",
+    ).not.toContain("strokeDasharray");
   });
 
   it("S6 — every state except default and focus is a real parameter shift", () => {

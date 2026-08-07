@@ -248,6 +248,46 @@ describe("data-hc-state", () => {
     expect(atRest).not.toBe(hovered);
   });
 
+  it("H6 — a disabled frame dashes its drawn stroke, and the dash costs no geometry", async () => {
+    // FB-2. Tier 1 draws a disabled frame with `border-style: dashed` on both
+    // pseudo-elements; before this, tier 2 drew it solid, so the frame changed
+    // appearance the moment the handover landed — the permanent floor's "no
+    // visible flash at handover", failed on a state this cycle shipped.
+    const disabled = await mount({ frame: { state: "disabled" } });
+    const disabledSvg = disabled.querySelector(".hc-sketch-svg") as SVGElement;
+
+    // Rule V3's precondition first. Without real geometry the style read below
+    // is a read of an element that drew nothing, and would pass just as well on
+    // a broken engine.
+    expect(
+      disabled.querySelectorAll(".hc-sketch-svg path").length,
+      "tier 2 did not activate — the stubs above are not working",
+    ).toBeGreaterThan(0);
+    expect(disabledSvg.style.strokeDasharray).toBe("4.5 4.5");
+
+    // The negative half, and it is the half that makes the positive mean
+    // something: a dash unconditionally present would read as correct here and
+    // dash every frame on the page.
+    const plain = await mount({});
+    const plainSvg = plain.querySelector(".hc-sketch-svg") as SVGElement;
+    expect(plain.querySelectorAll(".hc-sketch-svg path").length).toBeGreaterThan(0);
+    expect(plainSvg.style.strokeDasharray).toBe("");
+
+    // The dash is a presentation value on the <svg>, not a geometry input, and
+    // this is what holds it there. At `fill: "no"` the only field `disabled`
+    // otherwise moves is `fillStyle`, which cannot change a drawing with no
+    // fill pass — so if the dash had leaked into the style object that reaches
+    // `generateSketch`, these two path sets would differ and the cache would
+    // have split in two for a value that draws nothing new.
+    const unfilledDefault = await mount({ frame: { fill: "no" } });
+    const unfilledDisabled = await mount({ frame: { fill: "no", state: "disabled" } });
+    expect(ds(unfilledDefault).length).toBeGreaterThan(0);
+    expect(
+      ds(unfilledDisabled),
+      "disabled redrew the geometry — the dash reached the cache key",
+    ).toBe(ds(unfilledDefault));
+  });
+
   it("H5 — the server HTML already carries the state, and the opt-in only when asked", async () => {
     // Server-rendered rather than hydrated-in. A `data-hc-rescribble` that
     // appeared only on the client would leave a window where the page disagrees

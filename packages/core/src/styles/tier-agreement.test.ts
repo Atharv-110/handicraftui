@@ -7,6 +7,7 @@ import {
   FILL_LEVELS,
   type FillLevel,
 } from "../engine/generator";
+import { ERROR_STROKE_RATIO } from "../engine/state";
 import { SEED_BUCKETS } from "../engine/seed";
 import { MOTION } from "./ramps";
 
@@ -462,6 +463,32 @@ describe("the state parameter model in CSS", () => {
         new RegExp(`--hc-motion-${token}:\\s*0ms`),
       );
     }
+  });
+
+  it("T-ERR — error's tier-2 stroke width resolves to tier 1's own --hc-stroke-w-strong", () => {
+    // Rule R2's exact mechanism, for a number that now lives in a `.ts` and a
+    // `.css` file with nothing in the type system joining them. Tier 1 draws an
+    // error border at `--hc-stroke-w-strong`; tier 2 multiplies the hand's own
+    // width by `ERROR_STROKE_RATIO`. On the natural hand — the hand
+    // BASE_STROKE_WIDTH *is* — the two must land on the same number, or the
+    // frame visibly changes weight at the handover on the one state where a
+    // weight change is the signal.
+    //
+    // Asserted through the ratio's product rather than against a literal 3, so
+    // retuning BASE_STROKE_WIDTH fails here instead of silently re-anchoring
+    // what the test claims to prove.
+    const strong = cssNumberInBlock(":root", /--hc-stroke-w-strong:\s*([\d.]+)px/);
+    expect(ERROR_STROKE_RATIO * BASE_STROKE_WIDTH).toBeCloseTo(strong, 10);
+
+    // The dark residual, stated rather than discovered. `.dark` carries its own
+    // heavier stroke and tier 2 composes the same ratio with CHALK_STROKE_WIDTH,
+    // so the two sides land 1.6% apart there — `2.4 * 1.25 * (2.6 / 2.4) = 3.25`
+    // against tier 1's 3.2px. Asserted as a bound, not as equality: this is the
+    // same class of accepted gap CHALK_STROKE_WIDTH already carries, and a bound
+    // is what notices it growing into a visible one.
+    const strongDark = cssNumberInBlock(".dark", /--hc-stroke-w-strong:\s*([\d.]+)px/);
+    const tier2Dark = CHALK_STROKE_WIDTH * ERROR_STROKE_RATIO;
+    expect(Math.abs(tier2Dark - strongDark) / strongDark).toBeLessThan(0.02);
   });
 
   it("T-DELAY — all four draw-on passes add the delay, and every fallback is 0ms", () => {
