@@ -696,8 +696,15 @@ it("R2 — touch, denseDesktopOnly and hand are derived from their own numbers, 
   }
 
   // Closed on purpose — a list that can grow is not lintable, and
-  // DESIGN-SYSTEM.md §2 says adding a fourth is a doctrine amendment.
-  expect(HAND_FACE_EXCEPTIONS).toEqual(["badge-text", "label-text", "button-label"]);
+  // DESIGN-SYSTEM.md §2 says adding a fourth is a doctrine amendment. Cycle
+  // 012 is that amendment: "marketing-marginalia" is the fourth and the list
+  // is closed again at four.
+  expect(HAND_FACE_EXCEPTIONS).toEqual([
+    "badge-text",
+    "label-text",
+    "button-label",
+    "marketing-marginalia",
+  ]);
 });
 
 it("R3 — Button, Input and Checkbox ship class strings that decode to CONTROL_RAMP", () => {
@@ -907,6 +914,58 @@ it("R6 — hc/no-off-scale-class's constants agree with ramps.ts", () => {
     HAND_FACE_EXCEPTION_FILES.length,
     "the lint rule's exception list and ramps.ts's disagree on how many exceptions exist",
   ).toBe(HAND_FACE_EXCEPTIONS.length);
+});
+
+// ---------------------------------------------------------------------------
+// R7 — cycle 012. The two marketing type steps, and the off-ratio compromise
+// between them.
+//
+// DESIGN-SYSTEM.md §2 extends the scale for the landing and states outright
+// that `36 -> 48` is off-ratio on purpose: the on-ratio successors are 43.2px
+// at 1.20 and 45px at 1.25, and neither has a Tailwind utility class. The
+// whole reason TYPE_SCALE is a closed list of utilities is that
+// `hc/no-off-scale-class` can read it, so an unenforceable on-ratio step is
+// worth less than an enforceable off-ratio one.
+//
+// That compromise is asserted rather than left in prose, because a paragraph
+// is what someone "corrects" and a failing test is not. Both halves are
+// checked: `30 -> 36` sits inside the shipped spread, and `36 -> 48` sits
+// outside it.
+//
+// Reads `ramps.ts` only. `handicraftRules` is deliberately not imported here
+// — R6 owns the two-file comparison, and a rules-file read in this test would
+// make every `TYPE_UTILITIES` mutation fail two tests instead of one.
+// ---------------------------------------------------------------------------
+
+it("R7 — hero and heroLg are the marketing steps, and 36 -> 48 is off-ratio on purpose", () => {
+  expect(TYPE_SCALE.hero).toEqual({ px: 36, utility: "text-4xl", hand: true });
+  expect(TYPE_SCALE.heroLg).toEqual({ px: 48, utility: "text-5xl", hand: true });
+
+  // The ceiling is derived from the shipped steps rather than written as
+  // 1.25, so this stays a comparison between two things the file already says
+  // instead of becoming a third home for the number. `caption` through
+  // `displayLg` are the seven steps that existed before cycle 012.
+  const shipped = Object.values(TYPE_SCALE).filter((step) => step.px <= TYPE_SCALE.displayLg.px);
+  expect(shipped.length, "the pre-cycle-012 spread is not seven steps").toBe(7);
+
+  const ratios = shipped.slice(1).map((step, i) => step.px / shipped[i]!.px);
+  const ceiling = Math.max(...ratios);
+  expect(ceiling, "the shipped spread's widest step is not 24 -> 30 at 1.25").toBeCloseTo(1.25, 10);
+
+  // 30 -> 36 continues the shipped 20 -> 24 -> 30 progression exactly, so it
+  // is on-ratio and inside the ceiling.
+  expect(TYPE_SCALE.hero.px / TYPE_SCALE.displayLg.px).toBeCloseTo(1.2, 10);
+  expect(TYPE_SCALE.hero.px / TYPE_SCALE.displayLg.px).toBeLessThanOrEqual(ceiling);
+
+  // 36 -> 48 is 1.333 and is outside it. Asserted as a strict inequality
+  // against the derived ceiling, not against a literal, so a future step that
+  // widens the spread makes this claim false loudly rather than quietly.
+  const heroRatio = TYPE_SCALE.heroLg.px / TYPE_SCALE.hero.px;
+  expect(heroRatio).toBeCloseTo(48 / 36, 10);
+  expect(
+    heroRatio,
+    "36 -> 48 is meant to be the one off-ratio step; it now sits inside the spread",
+  ).toBeGreaterThan(ceiling);
 });
 
 // ---------------------------------------------------------------------------
