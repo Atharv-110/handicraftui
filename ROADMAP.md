@@ -307,6 +307,58 @@ All seven components against the new design system and the §5.1 state pairs. Th
 the built 7", which assumed Badge, Label and Separator had never been QA'd. They were, in cycle 1,
 mutation-verified and browser-verified. _(qa)_
 
+### 6.8 Marketing design direction — NEW 2026-08-07, runs parallel to 6.3
+
+The look and feel for every marketing surface — landing, docs pages, install page — locked before a
+line of `apps/docs` is written, so eleven docs-lite pages inherit one direction instead of inventing
+eleven. Founder-initiated from a reference the founder supplied: sticklly.com, analysed live on
+2026-08-07.
+
+**What is taken from the reference — composition patterns, not pixels:**
+
+- **The product is the page.** Every card, frame, button and mark on our landing is rendered by our
+  own components through the registry. The reference decorates with static sticker art; we decorate
+  with the live engine, which is the one thing no competitor's landing can do. This was already
+  Phase 3's architecture; it now starts at the first landing shell.
+- **Kicker-plus-boxed-heading rhythm.** A small handwritten kicker line above each section heading,
+  the heading inside a drawn frame. Ours: Kalam kicker, heading framed by `useSketchFrame` at a
+  looser hand than body chrome.
+- **Feature cards as tilted specimens.** The reference tilts pastel sticky notes; we tilt drawn
+  Cards, each rendered with a different `hand` preset — the feature grid doubles as a live hand
+  demo. Rotation stays inside ±1 degree except the sticky-note Alert variant's locked 1 degree.
+- **Scattered marginalia.** Hand-drawn arrows, margin-red underlines, highlighter swipes behind key
+  phrases (background-only, per doctrine), small Kalam annotations. All engine-drawn or CSS —
+  **zero raster art, zero sticker PNGs, zero Lucide.**
+- Generous whitespace, one big closing CTA carrying the install command.
+
+**What is deliberately different — the locked identity wins every conflict:**
+
+- Ground stays near-neutral paper `oklch(97.8% 0.006 90)` and ink stays blue-black ballpoint. The
+  reference's white-plus-black-marker is close but not ours; its **six-pastel rainbow is rejected**
+  — accents come from the five semantic roles at `low` hachure plus highlighter, per
+  `DESIGN-SYSTEM.md` §1. A pastel wash is the recognisable template default doctrine already warns
+  against.
+- **Blackboard dark mode is a differentiator the reference does not have.** The landing ships a
+  theme flip in the hero, drawn in chalk.
+- Copy follows `VOICE.md`: measured numbers, decisions with reasons, zero marketing adjectives. The
+  playfulness lives in the drawing, not the prose — the reference does the opposite and that
+  difference is the brand.
+- Motion is the five laws: draw-on on scroll-in, `rescribble` on hover for interactive specimens
+  only, idle is still. No parallax, no float loops.
+
+**Deliverables of the 6.8 cycle:** a one-page `MARKETING-DESIGN.md` direction doc (hero wireframe,
+section rhythm, palette mapping, type roles, motion table) written by `hc-planner` and `hc-writer`,
+locked by the founder · the Excalifont-versus-Kalam decision **pulled forward from Phase 1.5 item
+6**, because the face becomes public at the first landing shell · a landing-shell cycle brief ready
+for the architect. _(planner, writer, founder — no dev, parallels 6.3's build)_
+
+**Placement cost:** zero critical-path cycles (parallels 6.3), plus a 1–2 cycle **landing shell**
+(`apps/docs` scaffold + landing v1: hero with live specimen strip and hand-switcher v0, feature
+grid, closing CTA) that may run interleaved with Phase 1 any time after 6.8 locks. Net deviation
+against the pre-amendment plan: **at most 2 cycles**, inside the founder's stated 2–3 budget.
+Phase 1.5 then deploys what exists instead of building from zero, and Phase 3's full landing
+(the hand-switcher that redraws the page) polishes rather than invents.
+
 ---
 
 ## 7. Phase 1 — the plain four · est. 4–6 cycles
@@ -335,6 +387,10 @@ suite's break-one-test style · docs-page skeleton in `apps/docs`.
 ## 8. Phase 1.5 — beta ship · est. 2–3 cycles
 
 Beta lands at 11 components, which is why this is its own phase.
+
+0. **Landing v1 already exists** — built in the §6.8 landing-shell cycle against the locked
+   `MARKETING-DESIGN.md` direction. This phase wires the real install command into it and finishes
+   the docs-lite pages in the same direction; it does not design from zero.
 
 1. **Versioning starts.** `@handicraft/core` at `0.1.0-beta` on npm. `CHANGELOG.md` begins. Semver
    posture documented: 0.x may break, but **registry items are additive-only from here**. A schema
