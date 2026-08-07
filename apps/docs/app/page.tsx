@@ -1,5 +1,6 @@
 import { Hero } from "./_landing/hero";
 import { BlackboardToggle } from "./_landing/blackboard-toggle";
+import { SkipLink, SiteHeader } from "./_landing/site-header";
 import {
   ComponentsAtWork,
   FourHands,
@@ -29,15 +30,19 @@ import {
  */
 export default function Page() {
   return (
-    <main>
-      <Hero />
-      <TheHandover />
-      <FourHands />
-      <ComponentsAtWork />
-      <BlackboardToggle />
-      <TheNumbers />
-      <WhatExists />
-      <LandingFooter />
-    </main>
+    <>
+      <SkipLink />
+      <SiteHeader />
+      <main id="main">
+        <Hero />
+        <TheHandover />
+        <FourHands />
+        <ComponentsAtWork />
+        <BlackboardToggle />
+        <TheNumbers />
+        <WhatExists />
+        <LandingFooter />
+      </main>
+    </>
   );
 }

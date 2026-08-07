@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { HandicraftProvider, type Hand } from "@handicraft/core";
 import { Badge } from "@/ui/badge/badge";
 import { Button } from "@/ui/button/button";
@@ -141,30 +142,41 @@ export function FourHands() {
  * kicker per section plus the numbers panel's four) both total 70 only
  * without it. Built to the number, which is checked twice; the extra
  * Separator is a prose/table mismatch in the brief, not implemented.
+ *
+ * FB-2, cycle 012 architect verdict §9.3 (F-5). The description used to sit
+ * inside `CardHeader`, on the Card's own `low` hachure — 14px `font-body`
+ * squarely inside `DESIGN-SYSTEM.md` §2's 0.7-1.6 interference band (the
+ * table reads 1.75 at 30px, which is why a boxed heading is legal and this
+ * was not). It now renders before the `Card`, on bare paper. Zero frame
+ * change: `CardDescription` carries no `useSketchFrame` call either way.
  */
 export function ComposedForm() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add a project</CardTitle>
-        <CardDescription>The same seven components, doing an actual job.</CardDescription>
-      </CardHeader>
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="hc-project-name">Name</Label>
-          <Input id="hc-project-name" placeholder="Handicraft UI" />
+    <div>
+      <CardDescription className="mb-3">
+        The same seven components, doing an actual job.
+      </CardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Add a project</CardTitle>
+        </CardHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="hc-project-name">Name</Label>
+            <Input id="hc-project-name" placeholder="Handicraft UI" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="hc-project-owner">Owner</Label>
+            <Input id="hc-project-owner" placeholder="you@example.com" />
+          </div>
+          <Checkbox label="Notify me when this ships" defaultChecked />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="hc-project-owner">Owner</Label>
-          <Input id="hc-project-owner" placeholder="you@example.com" />
-        </div>
-        <Checkbox label="Notify me when this ships" defaultChecked />
-      </div>
-      <CardFooter>
-        <Button variant="primary">Create project</Button>
-        <Badge variant="marked">Draft</Badge>
-      </CardFooter>
-    </Card>
+        <CardFooter>
+          <Button variant="primary">Create project</Button>
+          <Badge variant="marked">Draft</Badge>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }
 
@@ -187,6 +199,15 @@ export function ComponentsAtWork() {
  * itself names the 34.3ms handover as the worked example of its own
  * "state the condition" rule, so its exact wording is reused for the
  * `Marginalia` note beneath the panel rather than paraphrased.
+ *
+ * FB-2, cycle 012 architect verdict §9.3 (F-5). The five 14px labels used to
+ * sit inside the `Card` beside their values, on the same `low` hachure the
+ * `ComposedForm` fix above names. Values stay in the `Card` — `displayLg`
+ * 30px, hand-bold, at the interference table's own boundary — and the
+ * labels now render in their own row beneath it, on bare paper. The `Card`
+ * still holds exactly what it held before (itself, four vertical
+ * `Separator`s, one `Badge`): zero frame change, only where the label text
+ * sits in the DOM.
  */
 export function TheNumbers() {
   return (
@@ -194,22 +215,29 @@ export function TheNumbers() {
       <SectionChrome kicker="The numbers" heading="Measured, not adjectived" />
       <Card>
         <div className="flex flex-col gap-6 sm:flex-row sm:flex-wrap">
-          <Figure value="12" label="seeds in the pool" />
+          <FigureValue>12</FigureValue>
           <Separator orientation="vertical" className="hidden sm:block" />
-          <Figure value="1.6ms" label="500 frames, from the pool (110ms without)" />
+          <FigureValue>1.6ms</FigureValue>
           <Separator orientation="vertical" className="hidden sm:block" />
           <div>
-            <Figure value="34.3ms" label="handover" />
+            <FigureValue>34.3ms</FigureValue>
             <Badge variant="marked" className="mt-2">
               budget: 110ms
             </Badge>
           </div>
           <Separator orientation="vertical" className="hidden sm:block" />
-          <Figure value="13.81px" label="worst-case stroke excursion" />
+          <FigureValue>13.81px</FigureValue>
           <Separator orientation="vertical" className="hidden sm:block" />
-          <Figure value="44px" label="minimum touch target" />
+          <FigureValue>44px</FigureValue>
         </div>
       </Card>
+      <div className="mt-3 flex flex-wrap gap-6">
+        <FigureLabel>seeds in the pool</FigureLabel>
+        <FigureLabel>500 frames, from the pool (110ms without)</FigureLabel>
+        <FigureLabel>handover</FigureLabel>
+        <FigureLabel>worst-case stroke excursion</FigureLabel>
+        <FigureLabel>minimum touch target</FigureLabel>
+      </div>
       <div className="mt-4">
         <Marginalia>
           The 34.3ms figure is measured against <code>next build &amp;&amp; next start</code>, Fast
@@ -221,13 +249,12 @@ export function TheNumbers() {
   );
 }
 
-function Figure({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <p className="font-hand font-bold text-hc-ink text-3xl">{value}</p>
-      <p className="font-body text-hc-ink-soft text-sm">{label}</p>
-    </div>
-  );
+function FigureValue({ children }: { children: ReactNode }) {
+  return <p className="font-hand font-bold text-hc-ink text-3xl">{children}</p>;
+}
+
+function FigureLabel({ children }: { children: ReactNode }) {
+  return <p className="font-body text-hc-ink-soft text-sm">{children}</p>;
 }
 
 /** Every planned component, Badge and Wave order from `ROADMAP.md` §7 to
@@ -276,21 +303,34 @@ export function WhatExists() {
   );
 }
 
-/** Licence and repository, nothing else — no CTA, no waitlist, no install
- * command, no playground link (§1.0). */
+/**
+ * Licence and repository, nothing else — no CTA, no waitlist, no install
+ * command, no playground link (§1.0).
+ *
+ * FB-3, cycle 012 architect verdict §9.3 (F-2). The repository link used to
+ * sit inline in a sentence ("MIT licensed. github.com/…") and measured
+ * 16.5px tall — the WCAG 2.5.8 Inline exception covers a link's size being
+ * constrained by surrounding line-height, but a footer link list is
+ * navigation, not a sentence, so the house 44px rule binds. Rendered as a
+ * list now; the link itself carries `inline-flex items-center min-h-11`,
+ * which decodes to 44px and is clean on `SIZE_PX`. No new frame — `ul`,
+ * `li` and `a` are plain elements.
+ */
 export function LandingFooter() {
   return (
     <footer className={SECTION}>
       <Separator className="mb-6" />
-      <p className="font-body text-hc-ink-soft text-sm">
-        MIT licensed.{" "}
-        <a
-          href="https://github.com/Atharv-110/handicraftui"
-          className="text-hc-ink underline underline-offset-2"
-        >
-          github.com/Atharv-110/handicraftui
-        </a>
-      </p>
+      <ul className="flex flex-wrap items-center gap-6">
+        <li className="font-body text-hc-ink-soft text-sm">MIT licensed.</li>
+        <li>
+          <a
+            href="https://github.com/Atharv-110/handicraftui"
+            className="font-body text-hc-ink inline-flex min-h-11 items-center text-sm underline underline-offset-2"
+          >
+            github.com/Atharv-110/handicraftui
+          </a>
+        </li>
+      </ul>
     </footer>
   );
 }
