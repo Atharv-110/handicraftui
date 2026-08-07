@@ -391,6 +391,79 @@ test.describe("matrix guards", () => {
     expect(await frame.getAttribute("data-hc-seed")).toBe(seedBefore);
     expect(pathsAfter).not.toBe(pathsBefore);
   });
+
+  test("M15 — at tier 2 an error frame's ink-pass stroke-width is strictly greater than the same frame's default, on all four hands", async ({
+    page,
+  }) => {
+    // No `data-hc-kind` to filter the six emitted paths on — that attribute
+    // exists only under `drawOn` (SketchLayer.tsx), and drawOn never reaches
+    // this route (M4a). The ink pass is identifiable without it anyway:
+    // `under`'s stroke-width is a hardcoded 1.1 regardless of state or hand
+    // (generator.ts's own literal, never derived from `style.strokeWidth`),
+    // and `fill`/`pool` carry `stroke: "none"` or a near-zero width — ink is
+    // the only pass whose width tracks the hand and the state's own ratio,
+    // so the widest stroke among the six paths is always the ink pass, on
+    // every hand and every state this cycle ships.
+    const inkStrokeWidth = () =>
+      page
+        .locator(".hc-sketch-svg path")
+        .evaluateAll((paths) =>
+          Math.max(...paths.map((p) => parseFloat(getComputedStyle(p).strokeWidth))),
+        );
+
+    for (const hand of ["steady", "natural", "loose", "hurried"] as const) {
+      await page.goto(`/matrix?c=input&hand=${hand}`);
+      await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+      const defaultWidth = await inkStrokeWidth();
+
+      await page.goto(`/matrix?c=input&hand=${hand}&state=error`);
+      await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+      const errorWidth = await inkStrokeWidth();
+
+      expect(errorWidth, `${hand}: error ink stroke-width vs default`).toBeGreaterThan(
+        defaultWidth,
+      );
+    }
+  });
+
+  test("M16 — disabled is discontinuous at both tiers: the sketch SVG dashes at tier 2, ::before dashes at tier 1", async ({
+    page,
+  }) => {
+    // Tier 2, both directions on M12's own pattern — a positive-only check
+    // would pass if the dash rendered unconditionally for some unrelated
+    // reason. `stroke-dasharray` is set on the <svg> itself and inherited by
+    // every stroked path (FB-2), so reading it off the svg is sufficient.
+    await page.goto("/matrix?c=button&state=disabled&sfill=low");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    const disabledDash = await page
+      .locator(".hc-sketch-svg")
+      .first()
+      .evaluate((el) => getComputedStyle(el).strokeDasharray);
+    expect(disabledDash, "tier 2 disabled must dash").not.toBe("none");
+
+    await page.goto("/matrix?c=button");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    const defaultDash = await page
+      .locator(".hc-sketch-svg")
+      .first()
+      .evaluate((el) => getComputedStyle(el).strokeDasharray);
+    expect(defaultDash, "tier 2 default must not dash").toBe("none");
+
+    // Tier 1, same fixture URL M13 already uses for the disabled-dots half of
+    // this same state, pinned to lite so the answer is final before a script
+    // runs.
+    await page.goto("/matrix?c=button&state=disabled&sfill=low&fidelity=lite");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="lite"])')).toHaveCount(0);
+    const before = await page
+      .locator(".hc-frame")
+      .first()
+      .evaluate((el) => ({
+        style: getComputedStyle(el, "::before").borderStyle,
+        display: getComputedStyle(el, "::before").display,
+      }));
+    expect(before.style, "tier 1 disabled must dash").toBe("dashed");
+    expect(before.display, "tier 1 disabled pseudo-element must paint").toBe("block");
+  });
 });
 
 test.describe("matrix screenshots", () => {
