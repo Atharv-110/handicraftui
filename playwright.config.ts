@@ -59,12 +59,36 @@ export default defineConfig({
    * busts that task's hash directly and `.next` tracks registry source like
    * every other input.
    */
-  webServer: {
-    command: "pnpm build && pnpm --filter @handicraft/playground exec next start --port 4322",
-    url: "http://localhost:4322",
-    reuseExistingServer: false,
-    timeout: 180_000,
-  },
+  /**
+   * Cycle 012 amendment. Array of two — the existing entry above is
+   * unchanged, byte for byte. `webServer` array entries start in
+   * **parallel**, so the second entry cannot depend on the first entry's
+   * build having finished; it repeats `pnpm build` rather than assuming it,
+   * and the second `turbo run build` is a cache replay of the first, not a
+   * second real build. Named fallback if two concurrent `turbo run build`
+   * invocations against one `.turbo` cache ever contend rather than replay:
+   * drop `pnpm build &&` from this entry and add a standalone
+   * `- run: pnpm build` step to `e2e.yml`'s `e2e` job, the way the `visual`
+   * job already does. Not needed today — this shipped as the `pnpm build &&`
+   * form.
+   *
+   * Port 4323, never 4321 (the founder's `next dev`) or 4322 (this file's
+   * own playground entry above).
+   */
+  webServer: [
+    {
+      command: "pnpm build && pnpm --filter @handicraft/playground exec next start --port 4322",
+      url: "http://localhost:4322",
+      reuseExistingServer: false,
+      timeout: 180_000,
+    },
+    {
+      command: "pnpm build && pnpm --filter @handicraft/docs exec next start --port 4323",
+      url: "http://localhost:4323",
+      reuseExistingServer: false,
+      timeout: 180_000,
+    },
+  ],
 
   // Drops the platform suffix Playwright appends by default (`-darwin`,
   // `-linux`). Only one platform ever writes a baseline — see §2.3 — so the
@@ -83,10 +107,17 @@ export default defineConfig({
 
   projects: [
     {
-      // Tier parity, degraded modes, axe and the overflow sweep. Parallel,
-      // default worker count — none of these four families measures time.
+      // Tier parity, degraded modes, axe and the overflow sweep, plus the
+      // landing (cycle 012) — one more entry, not a fifth project. Parallel,
+      // default worker count — none of these five families measures time.
       name: "e2e",
-      testMatch: ["tier-parity.spec.ts", "degraded.spec.ts", "a11y.spec.ts", "overflow.spec.ts"],
+      testMatch: [
+        "tier-parity.spec.ts",
+        "degraded.spec.ts",
+        "a11y.spec.ts",
+        "overflow.spec.ts",
+        "landing.spec.ts",
+      ],
       use: { ...devices["Desktop Chrome"] },
     },
     {

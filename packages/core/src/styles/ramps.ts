@@ -110,19 +110,39 @@ export const TYPE_SCALE = {
   title: { px: 20, utility: "text-xl", hand: true },
   display: { px: 24, utility: "text-2xl", hand: true },
   displayLg: { px: 30, utility: "text-3xl", hand: true },
+  // 30 -> 36 is 1.20 and continues the shipped 20 -> 24 -> 30 progression
+  // exactly.
+  // 36 -> 48 is 1.333 and is OFF-RATIO on purpose. The on-ratio successors
+  // are 43.2px at 1.20 and 45px at 1.25, and neither has a Tailwind utility
+  // class. An unenforceable on-ratio step is worth less here than an
+  // enforceable off-ratio one — the whole reason this table is a closed
+  // list of utilities is that `hc/no-off-scale-class` can read it.
+  // DESIGN-SYSTEM.md §2.
+  hero: { px: 36, utility: "text-4xl", hand: true },
+  heroLg: { px: 48, utility: "text-5xl", hand: true },
 } as const;
 
 /**
- * The three surfaces where the hand face may appear below 18px, per
- * DESIGN-SYSTEM.md §2 as corrected by PR #8. Closed on purpose — that is
- * what makes it lintable, and §2 says outright that lintability is why the
- * two-scales option beat the run-length rule that describes the physics
- * more precisely but cannot be checked. "label-text" covers any element
- * labelling a control, not the Label component alone — Checkbox's inline
- * label included, per the same reading PR #8 already applied to "button
- * labels at any control-ramp size".
+ * The surfaces where the hand face may appear below 18px, per
+ * DESIGN-SYSTEM.md §2 as corrected by PR #8 and extended by cycle 012.
+ * Closed on purpose — that is what makes it lintable, and §2 says outright
+ * that lintability is why the two-scales option beat the run-length rule
+ * that describes the physics more precisely but cannot be checked.
+ * "label-text" covers any element labelling a control, not the Label
+ * component alone — Checkbox's inline label included, per the same reading
+ * PR #8 already applied to "button labels at any control-ramp size".
+ *
+ * "marketing-marginalia" is the fourth entry, cycle 012 — the landing's one
+ * hand-face-below-18px surface, capped at 14px and living in exactly one
+ * file (`apps/docs/app/_marginalia/marginalia.tsx`), matched by
+ * `HAND_FACE_EXCEPTION_FILES`'s `"_marginalia/"` fragment below.
  */
-export const HAND_FACE_EXCEPTIONS = ["badge-text", "label-text", "button-label"] as const;
+export const HAND_FACE_EXCEPTIONS = [
+  "badge-text",
+  "label-text",
+  "button-label",
+  "marketing-marginalia",
+] as const;
 
 /**
  * Two spacing floors, not a spacing scale — DESIGN-SYSTEM.md §3. Strokes

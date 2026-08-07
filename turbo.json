@@ -65,6 +65,21 @@
         "$TURBO_ROOT$/registry/default/**",
         "$TURBO_ROOT$/registry/tests/**"
       ]
+    },
+
+    // Cycle 012. Same alias, same reasoning as @handicraft/playground's pair
+    // above — the landing imports registry components through the
+    // `@/ui/*` path alias in apps/docs/tsconfig.json, and turbo's
+    // package-graph hashing cannot see through a path alias.
+    "@handicraft/docs#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", ".next-dev/**", "!.next-dev/cache/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/registry/default/**"]
+    },
+
+    "@handicraft/docs#typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/registry/default/**"]
     }
   },
   "globalEnv": ["NODE_ENV"]

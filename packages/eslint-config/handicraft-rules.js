@@ -37,8 +37,12 @@ export const SIZE_PX = [2, 20, 24, 36, 44, 48];
 export const PAD_X_PX = [8, 12, 16, 24];
 
 /**
- * Every `TYPE_SCALE` step's Tailwind utility, caption through displayLg.
- * Seven values.
+ * Every `TYPE_SCALE` step's Tailwind utility, caption through heroLg. Nine
+ * values as of cycle 012, which appended `text-4xl` (`hero`, 36px) and
+ * `text-5xl` (`heroLg`, 48px) in that order — R6 asserts order, not set
+ * membership, because a copy that lost the ascending order would still lint
+ * correctly today and read as a different table to the next person who
+ * diffs the two files.
  */
 export const TYPE_UTILITIES = [
   "text-xs",
@@ -48,6 +52,8 @@ export const TYPE_UTILITIES = [
   "text-xl",
   "text-2xl",
   "text-3xl",
+  "text-4xl",
+  "text-5xl",
 ];
 
 /**
@@ -59,13 +65,19 @@ export const TYPE_UTILITIES = [
 export const SUB_18_TYPE_UTILITIES = ["text-xs", "text-sm", "text-base"];
 
 /**
- * `DESIGN-SYSTEM.md` §2's closed three-item exception, as path fragments
- * rather than component names — a lint rule reads `context.filename`, not an
+ * `DESIGN-SYSTEM.md` §2's closed exception list, as path fragments rather
+ * than component names — a lint rule reads `context.filename`, not an
  * exported identifier. Closed on purpose: §2 says outright that closing the
  * list is what makes the exception lintable instead of a per-component
  * judgment call.
+ *
+ * `"_marginalia/"` is cycle 012's fourth entry, matching the existing
+ * three's directory-fragment shape. R6 compares this list and
+ * `HAND_FACE_EXCEPTIONS` by length, so a fourth entry on one side without
+ * the other fails a gate — the whole reason the fourth entry is added here
+ * explicitly rather than left implicit.
  */
-export const HAND_FACE_EXCEPTION_FILES = ["ui/badge/", "ui/label/", "ui/button/"];
+export const HAND_FACE_EXCEPTION_FILES = ["ui/badge/", "ui/label/", "ui/button/", "_marginalia/"];
 
 /**
  * Strips every Tailwind variant prefix down to the base utility — a single

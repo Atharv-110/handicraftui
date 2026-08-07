@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "@handicraft/core/styles.css";
+
+/* Tailwind v4 only generates classes it can see. The registry components live
+   outside this app, so their class names have to be pointed at explicitly. */
+@source "../../../registry/default";
+
+:root {
+  /* `sans-serif`, never `cursive`. The generic keyword resolves to a formal
+     serif italic on macOS, which reads as an accident rather than a choice.
+     Kalam is the permanent hand face; this stack has no reason to fall
+     through to a generic that misrepresents it. */
+  --hc-font-hand: var(--font-kalam), ui-rounded, sans-serif;
+}
+
+body {
+  background-color: var(--hc-paper);
+  color: var(--hc-ink);
+}
