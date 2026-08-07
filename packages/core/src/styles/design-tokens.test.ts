@@ -1136,10 +1136,17 @@ it("E5 — a composed token is redeclared, identically, in every theme block who
   expect(dark.size, ".dark read empty or truncated").toBeGreaterThanOrEqual(20);
 
   // A count alone cannot tell a whole block from a truncated one that happens
-  // to be long enough, so both ends are named. --hc-paper opens each block and
-  // --hc-pad-page closes :root. For .dark the end marker is --hc-stroke-w-strong
-  // — the last declaration that predates this cycle's fix — deliberately not
-  // the redeclared shadow tokens, which are the thing under test.
+  // to be long enough, so both ends are named. --hc-paper opens each block, and
+  // --hc-pad-page is the marker for :root. For .dark the end marker is
+  // --hc-stroke-w-strong — the last declaration that predates cycle 002c's fix —
+  // deliberately not the redeclared shadow tokens, which are the thing under test.
+  //
+  // --hc-pad-page stopped being the *last* :root declaration in cycle 009, which
+  // appended the motion tokens, --hc-opacity-disabled and --hc-shadow-hover after
+  // it. The assertion is unaffected — the slice runs to the block's closing brace
+  // and this only has to land inside it — but "closes :root" was the wrong word
+  // for what it does, and a marker described as an end marker is one someone will
+  // eventually move to keep it last.
   expect(root.has("paper") && root.has("pad-page"), ":root slice does not span the block").toBe(
     true,
   );
