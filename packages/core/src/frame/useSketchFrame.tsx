@@ -20,7 +20,7 @@ import {
 } from "../engine/generator";
 import { measureBorderBox, observeResize } from "../engine/resize-bus";
 import { poolIndex, seedBucket, seedFrom } from "../engine/seed";
-import { applyStateDelta, resolveState, type SketchState } from "../engine/state";
+import { applyStateDelta, resolveState, STATE_DELTAS, type SketchState } from "../engine/state";
 import { useHandicraft, HANDS, type Fidelity } from "../theme/context";
 
 /** `useLayoutEffect` warns during SSR; there is no layout to read on a server anyway. */
@@ -379,6 +379,13 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
       : {}),
   };
 
+  // Read directly off the state table rather than through applyStateDelta —
+  // the dash is a presentation value for the <svg> layer, not a geometry
+  // input, and keeping it out of `stated` (above) is what keeps it out of
+  // generateSketch's style argument and therefore out of the cache key.
+  // FB-2, cycle 009 iteration 2.
+  const strokeDasharray = STATE_DELTAS[resolved].strokeDasharray;
+
   return {
     frameProps,
     sketchLayer: active ? (
@@ -389,6 +396,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
         drawOn={config.drawOn}
         drawOnDuration={config.drawOnDuration}
         {...(drawDelay !== undefined ? { drawOnDelay: drawDelay } : {})}
+        {...(strokeDasharray !== undefined ? { strokeDasharray } : {})}
       />
     ) : null,
   };
@@ -414,6 +422,11 @@ interface SketchLayerProps {
    * broadcast.
    */
   drawOnDelay?: number;
+  /**
+   * `STATE_DELTAS[state].strokeDasharray`, forwarded from the hook rather
+   * than looked up here — only `disabled` sets it today. See engine/state.ts.
+   */
+  strokeDasharray?: string;
 }
 
 /**
@@ -429,6 +442,7 @@ function SketchLayer({
   drawOn,
   drawOnDuration,
   drawOnDelay,
+  strokeDasharray,
 }: SketchLayerProps) {
   return (
     <svg
@@ -457,6 +471,18 @@ function SketchLayer({
         // unless both drawOn and a real delay are set, so an undelayed frame
         // computes exactly what it did before this option existed.
         ...(drawOn && drawOnDelay ? { "--hc-draw-delay": `${drawOnDelay}ms` } : {}),
+        // `stroke-dasharray` is an inherited SVG presentation property, so
+        // setting it here reaches every path that does not declare its own —
+        // the under, ink and dust passes dash, while the fill pass and the
+        // pool dots (which carry stroke: "none") are unaffected, which is
+        // the correct split: the drawn outline dashes, the texture does not.
+        // Disabled is the only state that sets it (engine/state.ts). It does
+        // not compose with drawOn: handicraft.css's own keyframe rule sets
+        // `stroke-dasharray: 1` on the animated path and a CSS declaration
+        // beats this inherited one, so a disabled frame under an entrance
+        // animation loses its dash — drawOn is off by default and the two
+        // do not ship together, routed to ROADMAP.md §6.8.
+        ...(strokeDasharray ? { strokeDasharray } : {}),
       }}
     >
       {paths.map((p, i) => (

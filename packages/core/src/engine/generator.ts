@@ -296,11 +296,20 @@ export function generateSketchSync(geom: SketchGeometry, style: SketchStyle): Sk
   const h = quantize(geom.height);
   if (w <= 0 || h <= 0) return [];
 
+  // Checked before the cache lookup, not after — a cache entry can only
+  // exist once a generation has already succeeded, so any entry implies a
+  // loaded generator, and __resetSketchEngine clears both together. Moved
+  // above cache.get because probing a cache that could never have been
+  // filled still counted as a real miss (cache.ts's get() increments misses
+  // unconditionally), which made every cold page's first frame log two
+  // misses — this sync probe and the async fallback that follows on the same
+  // key — regardless of whether roughjs was actually warm. §3.11's cache-hit
+  // readout printed 0% on every load as a result. FB-4, cycle 009 iteration 2.
+  if (!loadedGenerator) return null;
+
   const key = cacheKey(geom, style, w, h);
   const cached = cache.get(key);
   if (cached) return cached;
-
-  if (!loadedGenerator) return null;
 
   const paths = compose(loadedGenerator, geom, style, w, h);
   cache.set(key, paths);

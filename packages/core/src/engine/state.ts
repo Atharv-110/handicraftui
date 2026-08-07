@@ -18,7 +18,7 @@
  * translation is faithful rather than convenient.
  */
 
-import type { SketchFillStyle } from "./generator";
+import { BASE_STROKE_WIDTH, type SketchFillStyle } from "./generator";
 
 export type SketchState = "default" | "hover" | "press" | "focus" | "disabled" | "error";
 
@@ -45,6 +45,25 @@ export const BOWING_CAP = 2.0;
  */
 export const PRESS_STROKE_RATIO = 2.5 / 2.4;
 
+/**
+ * `error`'s stroke-width multiplier. Fix-brief FB-1, cycle 009 iteration 2.
+ *
+ * The shipped value of `1` left tier 2 saying nothing about weight while
+ * tier 1's `::before`/`::after` already draw `--hc-stroke-w-strong` — a tier
+ * disagreement discovered only after the pseudo-element layer that carries
+ * every other error signal (the 3px border, the 0.3deg skew) turned out to
+ * compute `display: none` at tier 2, leaving colour as the sole remaining
+ * cue and PRINCIPLES.md's "colour alone is a defect" rule broken on merge.
+ * `3 / BASE_STROKE_WIDTH` reuses the same two tokens tier 1's own error rule
+ * already pairs (`--hc-stroke-w-strong: 3px` over `--hc-stroke-w: 2.4px`,
+ * handicraft.css:119-120), so `natural` (2.4) lands on tier 1's 3px exactly:
+ * `2.4 * 1.25 = 3.0`. Dark composes this ratio with the chalk boost —
+ * `2.4 * 1.25 * (2.6 / 2.4) = 3.25` against tier 1's dark `3.2px` — a stated
+ * 1.6% residual, the same class of gap CHALK_STROKE_WIDTH already accepts
+ * rather than a defect to chase.
+ */
+export const ERROR_STROKE_RATIO = 3 / BASE_STROKE_WIDTH;
+
 interface StateDelta {
   /** Added to the hand's roughness. */
   roughnessDelta: number;
@@ -56,6 +75,17 @@ interface StateDelta {
   fillStyle?: SketchFillStyle;
   /** Overrides the component's own stroke colour when set. */
   stroke?: string;
+  /**
+   * SVG `stroke-dasharray`, applied to the sketch layer's `<svg>` rather than
+   * folded into a path's own style — see useSketchFrame.tsx's SketchLayer.
+   * Deliberately absent from StateableStyle/StatedStyle below: it never
+   * reaches generateSketch's style argument, so it carries no cache-key term
+   * and disabled shares geometry with default. Only `disabled` sets it,
+   * because it is the one state whose tier-1 expression (the dashed
+   * pseudo-border) had no tier-2 counterpart at all — F-2, cycle 009
+   * iteration 2.
+   */
+  strokeDasharray?: string;
 }
 
 /**
@@ -71,22 +101,41 @@ interface StateDelta {
  * `&state=` vocabulary from day one so that cycle adds behaviour rather than
  * widening a public union.
  *
- * `disabled` changes only `fillStyle`. §5.1's other half — "ink at 45%" — is
- * a single opacity token the component applies (`--hc-opacity-disabled`).
- * Adding an ink-opacity field here too would multiply the two together on
- * every disabled frame: cycle 008's doubling defect, in a new medium. One
- * home, one number.
+ * `disabled` changes `fillStyle` and, as of FB-2, `strokeDasharray`. §5.1's
+ * other half — "ink at 45%" — is still a single opacity token the component
+ * applies (`--hc-opacity-disabled`); adding an ink-opacity field here too
+ * would multiply the two together on every disabled frame, cycle 008's
+ * doubling defect in a new medium. One home per number, not one home per
+ * state.
+ *
+ * `strokeDasharray: "4.5 4.5"` is `FILL_LEVELS.low.hachureGap / 2 = 9 / 2 =
+ * 4.5` — the same pitch the disabled dots already draw at both tiers
+ * (T-DOTS), so the dash and the dots read as one texture rather than two
+ * unrelated numbers. Tier 1's `border-style: dashed` has no dash-pitch
+ * control to match against; the tiers agree on *dashed*, not on rhythm,
+ * which is the same class of residual DESIGN-SYSTEM.md already records for
+ * the drawn mark's weight. It also does not compose with `drawOn`:
+ * handicraft.css's own `stroke-dasharray: 1` on the draw-on keyframe path is
+ * a CSS rule and beats this inherited presentation value, so a disabled
+ * frame under an entrance animation loses its dash. `drawOn` is off by
+ * default and the two do not ship together; routed to ROADMAP.md §6.8.
  */
 export const STATE_DELTAS: Record<SketchState, StateDelta> = {
   default: { roughnessDelta: 0, bowingDelta: 0, strokeWidthRatio: 1 },
   hover: { roughnessDelta: 0.4, bowingDelta: 0, strokeWidthRatio: 1 },
   press: { roughnessDelta: 0.4, bowingDelta: 0, strokeWidthRatio: PRESS_STROKE_RATIO },
   focus: { roughnessDelta: 0, bowingDelta: 0, strokeWidthRatio: 1 },
-  disabled: { roughnessDelta: 0, bowingDelta: 0, strokeWidthRatio: 1, fillStyle: "dots" },
+  disabled: {
+    roughnessDelta: 0,
+    bowingDelta: 0,
+    strokeWidthRatio: 1,
+    fillStyle: "dots",
+    strokeDasharray: "4.5 4.5",
+  },
   error: {
     roughnessDelta: 0.2,
     bowingDelta: 0.6,
-    strokeWidthRatio: 1,
+    strokeWidthRatio: ERROR_STROKE_RATIO,
     stroke: "var(--hc-danger-ink)",
   },
 };
