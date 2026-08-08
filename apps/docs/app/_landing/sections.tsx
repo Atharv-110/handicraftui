@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { HandicraftProvider, type Hand } from "@handicraft/core";
 import { Badge } from "@/ui/badge/badge";
 import { Button } from "@/ui/button/button";
@@ -225,52 +225,69 @@ export function ComponentsAtWork() {
  * `Badge`, same one `Card` — zero frame change again.
  */
 // `minmax(0,1fr)`, not bare `1fr` — a bare `1fr` track carries an implicit
-// `auto` (min-content) floor, so at 375px the longest label
+// `auto` (min-content) floor, so at narrow widths the longest label
 // ("500 frames, from the pool (110ms without)") forces its own column wider
 // than a plain fifth of the row, and the value row's short text never hits
-// that floor. The two grids then compute different column widths at narrow
-// viewports even though 1280px, with room to spare, looked identical.
+// that floor. The two grids then compute different column widths even
+// though at 1280px, with room to spare, they looked identical.
 // `minmax(0, 1fr)` removes the floor so every column is a pure fraction of
-// the fixed available space, independent of what text sits inside it —
-// which is the actual guarantee this fix needs.
+// the fixed available space, independent of what text sits inside it.
+//
+// F-10, QA iteration 3, cycle 012 §11.3. `[H]`. The five-column layout
+// below is `sm:`-only. `getBoundingClientRect`/`clientWidth` on the track
+// reported clean at every width, including 375px — the finding is that the
+// glyphs, not the boxes, do not fit: `text-3xl` hand-bold needs up to 95px
+// ("34.3ms") against a 375px track stride of 61px, and three values
+// overprinted each other by 10 to 34px, unreadable in a screenshot even
+// though every mechanical check (overflow, box alignment) read green. Below
+// `sm` the value grid and label grid both collapse to one column — the
+// same breakpoint the four `Separator`s already gate on, so this follows a
+// line the layout draws already rather than inventing a second one. Each
+// figure gets its own full-width row at both mobile widths this was
+// measured at (375, 640-adjacent), with no glyph competing for horizontal
+// space, and the reading order is value-block-then-label-block exactly as
+// it was after the F-9 fix, before the five-column grid existed — a Medium
+// pairing cost iteration 2 already accepted at that width, never an H.
 const FIGURE_COLS =
-  "grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)]";
+  "grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)] sm:gap-x-3";
 
 export function TheNumbers() {
   return (
     <section className={`${SECTION} hc-ruled`}>
       <SectionChrome kicker="The numbers" heading="Measured, not adjectived" />
       <Card>
-        <div className={`grid gap-x-3 gap-y-4 ${FIGURE_COLS}`}>
+        <div className={`${FIGURE_COLS} sm:gap-y-4`}>
           <FigureValue>12</FigureValue>
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="hidden sm:block" />
           <FigureValue>1.6ms</FigureValue>
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="hidden sm:block" />
           <div>
             <FigureValue>34.3ms</FigureValue>
             <Badge variant="marked" className="mt-2">
               budget: 110ms
             </Badge>
           </div>
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="hidden sm:block" />
           <FigureValue>13.81px</FigureValue>
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="hidden sm:block" />
           <FigureValue>44px</FigureValue>
         </div>
       </Card>
-      {/* `px-6` matches `Card`'s own `p-6` horizontal inset exactly — without
-          it this row's grid spans the section's full content width while
-          the value row's grid spans that width minus Card's 48px of
-          padding, and two grids of different overall widths do not
-          produce equal column edges even with an identical template. */}
-      <div className={`mt-3 grid gap-x-3 px-6 ${FIGURE_COLS}`}>
-        <FigureLabel style={{ gridColumn: 1 }}>seeds in the pool</FigureLabel>
-        <FigureLabel style={{ gridColumn: 3 }}>
+      {/* `px-6` matches `Card`'s own `p-6` horizontal inset exactly at
+          `sm:` and above — without it this row's grid spans the section's
+          full content width while the value row's grid spans that width
+          minus Card's 48px of padding, and two grids of different overall
+          widths do not produce equal column edges even with an identical
+          template. Harmless at the single-column mobile layout, where each
+          row is already full width and centred. */}
+      <div className={`mt-3 ${FIGURE_COLS} px-6`}>
+        <FigureLabel className="sm:col-start-1">seeds in the pool</FigureLabel>
+        <FigureLabel className="sm:col-start-3">
           500 frames, from the pool (110ms without)
         </FigureLabel>
-        <FigureLabel style={{ gridColumn: 5 }}>handover</FigureLabel>
-        <FigureLabel style={{ gridColumn: 7 }}>worst-case stroke excursion</FigureLabel>
-        <FigureLabel style={{ gridColumn: 9 }}>minimum touch target</FigureLabel>
+        <FigureLabel className="sm:col-start-5">handover</FigureLabel>
+        <FigureLabel className="sm:col-start-7">worst-case stroke excursion</FigureLabel>
+        <FigureLabel className="sm:col-start-9">minimum touch target</FigureLabel>
       </div>
       <div className="mt-4">
         <Marginalia>
@@ -287,12 +304,12 @@ function FigureValue({ children }: { children: ReactNode }) {
   return <p className="font-hand font-bold text-hc-ink text-center text-3xl">{children}</p>;
 }
 
-/** `style` carries only `gridColumn` — the explicit placement `FIGURE_COLS`'
- * shared template needs, since this row has no separators to auto-flow
- * around. */
-function FigureLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+/** `col-start-N` (`sm:`-only, passed in per call site as a literal class so
+ * Tailwind's source scan can see it) is what places each label onto the
+ * same track its value occupies once the grid is no longer one column. */
+function FigureLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className="font-body text-hc-ink-soft text-center text-sm" style={style}>
+    <p className={`font-body text-hc-ink-soft text-center text-sm ${className ?? ""}`}>
       {children}
     </p>
   );
