@@ -101,3 +101,78 @@ it("S2 — `as` renders the requested tag, and the caller's className and style 
   );
   expect(el.style.color, "overriding one declaration dropped the other").toBe("var(--hc-ink)");
 });
+
+/**
+ * TH8 — cycle 013. The DOM half of the theme slot.
+ *
+ * `data-hc-theme` is the selector every theme block after blackboard declares
+ * under, so a surface that stops emitting it makes every such block
+ * unreachable — with nothing else red, because the tokens still resolve at
+ * `:root` and the page still paints. That is the same silent-inheritance shape
+ * E5 guards one level down, arriving through the DOM instead of the cascade.
+ *
+ * Whole-token class matching here too, for the reason S1's header gives.
+ */
+it('TH8 — the surface emits data-hc-theme, and theme="blackboard" emits the identical class as dark', () => {
+  // The attribute is emitted unconditionally, including for the default. That
+  // is deliberate rather than incidental: no selector anywhere matches
+  // `[data-hc-theme="notebook"]` — handicraft.css declares only
+  // `[data-hc-theme="blackboard"]`, and a theme file declares its own name —
+  // so the default value is inert in the cascade and exists to be addressable
+  // from a test and from a consumer's own CSS.
+  const notebook = render(<HandicraftSurface />);
+  const notebookEl = surfaceOf(notebook.container);
+  expect(
+    notebookEl.getAttribute("data-hc-theme"),
+    "the default surface emits no data-hc-theme, so no theme block is addressable",
+  ).toBe("notebook");
+  expect(classTokens(notebookEl), "the default surface carries a `dark` class token").not.toContain(
+    "dark",
+  );
+  notebook.unmount();
+
+  // The alias claim, and the reason `dark` did not need retiring: two spellings
+  // of one intent must produce the same element. Compared as whole attribute
+  // and class sets rather than as two separate `toContain` checks, because
+  // "both carry `dark`" is satisfied by markup that also differs somewhere
+  // else — which is precisely how a baseline moves under a green test.
+  const viaDark = render(<HandicraftSurface dark />);
+  const viaDarkEl = surfaceOf(viaDark.container);
+  const darkClasses = classTokens(viaDarkEl).sort();
+  const darkTheme = viaDarkEl.getAttribute("data-hc-theme");
+  viaDark.unmount();
+
+  const viaTheme = render(<HandicraftSurface theme="blackboard" />);
+  const viaThemeEl = surfaceOf(viaTheme.container);
+
+  expect(
+    classTokens(viaThemeEl).sort(),
+    'theme="blackboard" and dark no longer emit the identical class list, so the boolean alias and the named theme have drifted apart',
+  ).toEqual(darkClasses);
+  expect(darkClasses, "the dark surface carries no `dark` class token").toContain("dark");
+  expect(
+    viaThemeEl.getAttribute("data-hc-theme"),
+    'theme="blackboard" and dark no longer emit the identical data-hc-theme',
+  ).toBe(darkTheme);
+  expect(darkTheme, "the dark surface no longer identifies itself as blackboard").toBe(
+    "blackboard",
+  );
+  viaTheme.unmount();
+
+  // Both signals on one element, independently controlled. This is the
+  // configuration `[data-hc-theme="<name>"]:not(.dark)` exists to resolve and
+  // the one M18 drives in a real browser: `dark` still decides the class while
+  // `theme` decides the attribute, so a caller can put a foreign theme's name
+  // on a blackboard element and let the cascade pick the winner.
+  const both = render(<HandicraftSurface dark theme="fixture" />);
+  const bothEl = surfaceOf(both.container);
+  expect(
+    classTokens(bothEl),
+    "dark no longer emits its class when an explicit theme is also passed, so the two signals cannot be driven at once and M18's subject cannot be built",
+  ).toContain("dark");
+  expect(
+    bothEl.getAttribute("data-hc-theme"),
+    "an explicit theme no longer wins for the attribute when dark is also set",
+  ).toBe("fixture");
+  both.unmount();
+});

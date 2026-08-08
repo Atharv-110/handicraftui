@@ -1,0 +1,98 @@
+/*
+ * A synthetic third theme block — cycle 013, test-only, ships to nobody.
+ *
+ * Same device as cycle 005's `tripwire-fixture.tsx`: exists so the
+ * generalised 2->N contrast gate (design-tokens.test.ts's D2 through D8,
+ * TH1 through TH4) has a real subject before a real second theme exists.
+ * Not under registry/default/**, so build-registry.ts cannot see it and no
+ * `shadcn add` can reach it; not imported by index.ts or handicraft.css, so
+ * tsup never bundles it (packages/core/tsup.config.ts's two entry points
+ * are src/index.ts and src/utils.ts — this file is reachable from neither).
+ * apps/playground/app/globals.css imports it by relative path so the
+ * playground harness can render it for M17 and M18's computed reads; the
+ * playground is published nowhere.
+ *
+ * Every value below is chosen to be easy, and that is a named limitation,
+ * not an oversight — see 013-theme-system.md's own §10. Grounds move
+ * lighter, inks move darker, the three composed tokens are redeclared
+ * textually identical to :root. Contrast is
+ * (Y_light + 0.05) / (Y_dark + 0.05): lighter grounds and darker inks raise
+ * every ratio this file's constraints put a *lower* bound on, so the whole
+ * block is compliant by construction, with no solver required — which is
+ * the only reason a synthetic block can stand in for a real palette here.
+ * 013a's real palette is the first adversarial input this machinery sees.
+ */
+
+@layer base {
+  /*
+   * (0,2,0) — beats :root and .dark by specificity, not source order. See
+   * handicraft.css's own theme-slot comment above the .dark block for the
+   * full derivation; repeating it per theme file would just be a second
+   * home for the same argument to drift from.
+   */
+  [data-hc-theme="fixture"]:not(.dark) {
+    /*
+     * Paper triad, +0.4% lightness on every step over :root's own
+     * 97.8 / 99.2 / 95.4. A flat offset rather than three independent
+     * numbers is what keeps the deltas (raised - paper = 1.4, paper -
+     * sunken = 2.4) identical to :root's — D2 through D5 and D8 get the
+     * headroom a lighter ground gives them, and E2's upper bound (raised
+     * and sunken must both stay under 3:1 against paper) stays exactly as
+     * true as it already was at :root, since nothing here changed the
+     * ratio between the three, only their common baseline.
+     */
+    --hc-paper: oklch(98.2% 0.006 90);
+    --hc-paper-raised: oklch(99.6% 0.004 90);
+    --hc-paper-sunken: oklch(95.8% 0.008 90);
+
+    /*
+     * Ink, 4% darker than :root's 24 / 46. Every D-series floor this file
+     * has to clear is a *lower* bound with --hc-ink or --hc-ink-soft as the
+     * dark term, so darkening only ever raises the margin. Declared at all
+     * (rather than omitted, like the role inks below) so E5 has a live
+     * --hc-ink override to check the three composed shadow tokens against —
+     * the whole reason this fixture is a stronger E5 subject than 013a's
+     * real pastel palette will be, which declares no ink override at all.
+     */
+    --hc-ink: oklch(20% 0.03 265);
+    --hc-ink-soft: oklch(42% 0.025 265);
+
+    /*
+     * Lighter, not darker — the one token in this block moving the
+     * opposite direction from --hc-ink, on purpose. Doctrine declares
+     * ink-faint fill-only, never text (DESIGN-SYSTEM.md), so it has to move
+     * with the fills it is one of: D4's "ink over ink-faint@high" reads
+     * --hc-ink as the dark term and --hc-ink-faint as the light one, so
+     * darkening ink-faint here would *lower* that cell instead of raising
+     * it, the one place in this file where copying --hc-ink's direction
+     * would have been wrong rather than merely unnecessary.
+     */
+    --hc-ink-faint: oklch(70% 0.018 265);
+
+    /*
+     * The three composed tokens, byte-for-byte the same declaration text
+     * as :root's own (handicraft.css). This is what E5 exists to check:
+     * a custom property's var() references resolve where the property
+     * is *declared*, so a token that reads --hc-ink has to be redeclared
+     * at every level whose own --hc-ink differs, never merely inherited —
+     * exactly the defect that shipped --hc-shadow at 1.0054:1 on the
+     * blackboard before cycle 002c's fix. Re-running the same composition
+     * here (rather than hard-coding what it currently resolves to) is the
+     * whole point; a literal color here would pass today and rot the
+     * moment --hc-ink above ever changes.
+     */
+    --hc-shadow: var(--hc-shadow-offset) var(--hc-shadow-offset) 0 var(--hc-ink);
+    --hc-shadow-sm: 2px 2px 0 var(--hc-ink);
+    --hc-shadow-hover: calc(var(--hc-shadow-offset) + 1px) calc(var(--hc-shadow-offset) + 1px) 0
+      var(--hc-ink);
+
+    /*
+     * Deliberately not declared here: the five role tokens' ink and fill
+     * halves, --hc-highlighter, --hc-biro and --hc-focus. Falling back to
+     * :root for every one of them is what makes this a *partial* theme —
+     * the normal case, since a real theme declares what it changes and
+     * inherits the rest — and gives TH2 a live subject for the fallback
+     * it exists to prove actually fired.
+     */
+  }
+}

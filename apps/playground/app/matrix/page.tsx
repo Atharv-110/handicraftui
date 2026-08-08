@@ -57,10 +57,25 @@ export default async function MatrixPage({
   const stateRaw = typeof params.state === "string" ? params.state : "";
   const state = STATES.find((s) => s === stateRaw);
 
+  // Cycle 013. A fourth matrix-only key, exactly on `state`'s own pattern
+  // above — not in hc-params.ts, whose own header calls itself the
+  // nine-key vocabulary `/` and `/matrix` both share. No closed list to
+  // validate against: an unrecognised name is exactly what HandicraftSurface
+  // already falls back to "notebook" for (theme/surface.tsx), the same
+  // "wrong input degrades" posture HandicraftProvider takes for its own
+  // `theme` prop. M17 and M18 (tests/e2e/matrix.spec.ts) are this key's only
+  // consumers — no MATRIX_CELLS block reads it (§8.4 of
+  // 013-theme-system.md: the only new theme block this cycle ships is a
+  // test-only fixture, so the screenshot grid has nothing new to capture).
+  const themeRaw = typeof params.theme === "string" ? params.theme : "";
+
   return (
     <HandicraftSurface
       as="main"
       dark={hc.dark}
+      // Independent of `dark` on purpose — see HandicraftSurfaceProps'
+      // own comment. M18 relies on being able to set both at once.
+      {...(themeRaw ? { theme: themeRaw } : {})}
       // Fix F1, cycle 004 iteration 2, made structural in cycle 005.
       // `.dark` sits on this element, so the themed paint has to sit here
       // too — `body { background-color: var(--hc-paper) }`

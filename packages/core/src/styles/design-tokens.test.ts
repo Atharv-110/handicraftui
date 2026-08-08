@@ -157,54 +157,209 @@ const HIGH_ALPHA = FILL_LEVELS.high!.opacity;
 // ---------------------------------------------------------------------------
 
 /**
- * Slices to one selector's block before matching, the same technique as
- * `cssNumberInBlock` in `tier-agreement.test.ts:44` — duplicated here rather
- * than shared, per that file's own note that a token block genuinely needs
- * a real parser only once it nests braces, which neither `:root` nor
- * `.dark` does today. A plain `css.match` with no global flag would
- * silently return `:root`'s value even when the caller means `.dark`; that
- * blindness is exactly `QA-CONTRACT.md` Rule V3 — a test passing for the
- * wrong reason.
+ * The synthetic third theme block — cycle 013, test-only, ships to nobody.
+ * Read from this package's own tree rather than from `registry/default/**`,
+ * which is what keeps it inside `@handicraft/core#test`'s hashed inputs with
+ * nothing to re-prove: measured on turbo 2.10.8, that task hashes 58 inputs
+ * and `src/styles/__fixtures__/theme-fixture.css` is one of them. That
+ * measurement is `QA-CONTRACT.md` Rule V1b's precondition for adding a
+ * filesystem read to a test, and it is recorded here rather than in a
+ * changelog because this line is what it licenses.
  */
-function oklchInBlock(selector: string, tokenName: string): [number, number, number] {
-  const start = css.indexOf(selector);
-  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
-  const braceOpen = css.indexOf("{", start);
-  const braceClose = css.indexOf("}", braceOpen);
-  const block = css.slice(braceOpen, braceClose);
-  const pattern = new RegExp(
-    `--hc-${tokenName}:\\s*oklch\\(([\\d.]+)%\\s+([\\d.]+)\\s+([\\d.]+)\\)`,
-  );
-  const match = block.match(pattern);
-  expect(match, `no oklch match for --hc-${tokenName} inside ${selector}`).not.toBeNull();
-  return [Number(match![1]) / 100, Number(match![2]), Number(match![3])];
+const fixtureCss = readFileSync(
+  resolve(process.cwd(), "src/styles/__fixtures__/theme-fixture.css"),
+  "utf8",
+);
+
+/**
+ * Every `/* … *\/` block comment removed. CSS has no other comment form, so
+ * this is the whole job.
+ *
+ * Deliberately not the `stripComments` this file already has further down.
+ * That one is for TypeScript source and also strips `//` to end of line,
+ * which in a stylesheet is a rule that can only ever do harm — CSS has no
+ * line comments, so every `//` it could match is inside a value.
+ */
+function stripCssComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
 /**
- * The same block-slicing technique as `oklchInBlock`, for a plain declaration
- * value rather than an oklch triple. Hoisted to module scope in cycle 002c so
- * R5 and E1 share one reader: duplicating it would put the same slicing
- * blindness in two places, which is the one thing `oklchInBlock`'s own note
- * says it did deliberately once and would not do twice.
+ * `handicraft.css` with every block comment removed.
  *
- * Block-scoped for the reason that note gives — a global `css.match` returns
- * `:root`'s value whatever selector the caller meant, and a test that cannot
- * tell the two apart passes for the wrong reason.
+ * Hoisted here in cycle 013 from the bottom of this file, where E5 had it to
+ * itself. E5 *enumerates* declarations where every other reader looks one up
+ * by name, and for a while that difference was taken to mean only E5 needed
+ * the stripped text. It was not: `css.indexOf(":root")` lands on the literal
+ * `:root` in the file header comment at `:6`, so the readers below used to
+ * slice from `@layer base {` rather than from the selector — a superset that
+ * happened to contain the real block whole. `css.indexOf(".dark")` was worse
+ * and is the reason this moved: it landed on the prose `.dark` inside the
+ * comment at `handicraft.css:201`, twenty-two lines above the selector, and
+ * resolved to the right block only because no `{` happened to sit between the
+ * two. Cycle 013 added twenty-six lines of theme-slot documentation into
+ * exactly that gap, so the margin that reading survived on is now the
+ * property under test rather than an incidental one.
+ */
+const bareCss = stripCssComments(css);
+
+/**
+ * One selector's declaration block, comment-stripped and proven unambiguous.
+ *
+ * The uniqueness guard is the half that makes this a fix rather than a wider
+ * slice. Stripping comments alone would still leave a second *code*
+ * occurrence of a selector silently deciding which block the reader gets, so
+ * the ambiguity is asserted away instead of hoped away — the same clause
+ * `declarationsIn` has carried since cycle 002c, now shared by every reader
+ * in the file rather than by one.
+ */
+function blockOf(bareSource: string, selector: string): string {
+  const start = bareSource.indexOf(selector);
+  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
+
+  // Ambiguity is the one failure this cannot absorb: a second occurrence would
+  // silently make the slice below depend on which one the file happens to
+  // reach first, which is the Rule V3 shape these readers used to carry.
+  expect(
+    bareSource.lastIndexOf(selector),
+    `${selector} appears more than once outside comments — the slice below is no longer unambiguous`,
+  ).toBe(start);
+
+  const braceOpen = bareSource.indexOf("{", start);
+  const braceClose = bareSource.indexOf("}", braceOpen);
+  const block = bareSource.slice(braceOpen, braceClose);
+  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+  return block;
+}
+
+/** The oklch triple for one token inside an already-sliced block, or `null`
+ *  when the block does not declare it. Returning `null` rather than asserting
+ *  is what lets `renderToken` tell "this theme inherits the token" apart from
+ *  "the slice went wrong", which are the same symptom to a reader that throws. */
+function oklchIn(block: string, tokenName: string): [number, number, number] | null {
+  const match = block.match(
+    new RegExp(`--hc-${tokenName}:\\s*oklch\\(([\\d.]+)%\\s+([\\d.]+)\\s+([\\d.]+)\\)`),
+  );
+  if (!match) return null;
+  return [Number(match[1]) / 100, Number(match[2]), Number(match[3])];
+}
+
+function oklchInBlock(selector: string, tokenName: string): [number, number, number] {
+  const triple = oklchIn(blockOf(bareCss, selector), tokenName);
+  expect(triple, `no oklch match for --hc-${tokenName} inside ${selector}`).not.toBeNull();
+  return triple!;
+}
+
+/**
+ * The same reader for a plain declaration value rather than an oklch triple.
+ * Hoisted to module scope in cycle 002c so R5 and E1 share one reader;
+ * repointed onto `blockOf` in cycle 013 so it shares the comment-stripping
+ * and the uniqueness guard too, rather than carrying a second copy of the
+ * slicing blindness both were written against.
  */
 function pxInBlock(selector: string, tokenName: string): string {
-  const start = css.indexOf(selector);
-  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
-  const braceOpen = css.indexOf("{", start);
-  const braceClose = css.indexOf("}", braceOpen);
-  const block = css.slice(braceOpen, braceClose);
-  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
+  const block = blockOf(bareCss, selector);
   const match = block.match(new RegExp(`--hc-${tokenName}:\\s*([^;]+);`));
   expect(match, `no --hc-${tokenName} declaration inside ${selector}`).not.toBeNull();
   return match![1]!.trim();
 }
 
-function renderToken(selector: ":root" | ".dark", tokenName: string): Rendered {
-  const [L, C, H] = oklchInBlock(selector, tokenName);
+// ---------------------------------------------------------------------------
+// THEME_BLOCKS — the registered list the 2 -> N gate iterates
+// ---------------------------------------------------------------------------
+
+interface ThemeBlock {
+  /** The label every assertion message is keyed by. */
+  name: string;
+  /** Comment-stripped source. Each block carries its own: concatenating them
+   *  would put the literal `.dark` on screen twice — once as `.dark` itself,
+   *  once inside the fixture's `:not(.dark)` — and trip `blockOf`'s uniqueness
+   *  guard on a self-inflicted ambiguity. */
+  bare: string;
+  selector: string;
+  /**
+   * The `data-hc-theme` names this block declares, which TH1's discovery scan
+   * checks its findings against.
+   *
+   * Separate from `selector` because the two genuinely differ for blackboard:
+   * that block is selected by `.dark, [data-hc-theme="blackboard"]` — one
+   * block, two selectors — so the name a scan finds in the stylesheet is not
+   * a substring of the selector this list slices on. Deriving the names from
+   * the selector text instead would make blackboard look unregistered and
+   * TH1 would fail on correct source.
+   */
+  covers: readonly string[];
+}
+
+const LIGHT_BLOCK: ThemeBlock = { name: "light", bare: bareCss, selector: ":root", covers: [] };
+
+/**
+ * Every theme block this file gates, `:root` included as the base every other
+ * block resolves against.
+ *
+ * The list is the mechanism cycle 013 exists to build: D2 through D8, E2 and
+ * E5 all used to name `[":root", ".dark"]` inline, so the day a third theme
+ * landed it would have been silently ungated — every assertion passing, over
+ * the two themes it already knew. TH1 is what makes registration mandatory
+ * rather than customary.
+ */
+const THEME_BLOCKS: readonly ThemeBlock[] = [
+  LIGHT_BLOCK,
+  { name: "dark", bare: bareCss, selector: ".dark", covers: ["blackboard"] },
+  {
+    name: "fixture",
+    // The bare attribute, deliberately *not* the full
+    // `[data-hc-theme="fixture"]:not(.dark)`. Slicing on the exclusion too
+    // would make every contrast assertion in this file depend on it, and
+    // dropping `:not(.dark)` would then fail eleven tests instead of one.
+    // The exclusion is a cascade claim about which block wins on an element
+    // matching two — TH4 asserts it as text, M18 in a browser — and it has
+    // nothing to do with what this block *declares*, which is all a contrast
+    // constraint reads. Keeping the two apart is what lets each mutation
+    // isolate the assertion it is aimed at.
+    bare: stripCssComments(fixtureCss),
+    selector: '[data-hc-theme="fixture"]',
+    covers: ["fixture"],
+  },
+];
+
+/** The blocks a per-theme constraint actually loops. `:root` is the fallback
+ *  target rather than a theme, but it is also the light theme, so it stays in
+ *  the sweep — every D assertion measured it before this cycle and must keep
+ *  measuring it. */
+const THEMED_BLOCKS = THEME_BLOCKS.filter((b) => b.selector !== ":root");
+
+function declaresToken(block: ThemeBlock, tokenName: string): boolean {
+  return oklchIn(blockOf(block.bare, block.selector), tokenName) !== null;
+}
+
+/**
+ * One token's oklch triple as CSS would resolve it for this block: the
+ * block's own declaration, or `:root`'s when it declares none. The single
+ * place the `:root` fallback is implemented — `renderToken` and D6 both go
+ * through it, so "what does this theme inherit" has one answer rather than
+ * two that can disagree.
+ */
+function resolveTriple(block: ThemeBlock, tokenName: string): [number, number, number] {
+  return (
+    oklchIn(blockOf(block.bare, block.selector), tokenName) ?? oklchInBlock(":root", tokenName)
+  );
+}
+
+/**
+ * A token's rendered colour for one theme block, resolving the way CSS itself
+ * does: the block's own declaration if it has one, otherwise `:root`'s.
+ *
+ * A theme declares what it changes and inherits the rest, so a partial block
+ * is the normal case rather than an error — the fixture omits the role inks,
+ * the role fills, `--hc-highlighter`, `--hc-biro` and `--hc-focus` on purpose.
+ * TH2 is what stops this fallback from covering for a mis-slice: a reader that
+ * resolved to the wrong block would also return nothing and would also fall
+ * back, silently, to a full set of `:root` values that pass every constraint
+ * below.
+ */
+function renderToken(block: ThemeBlock, tokenName: string): Rendered {
+  const [L, C, H] = resolveTriple(block, tokenName);
   return render(L, C, H);
 }
 
@@ -287,11 +442,11 @@ it("D2 — every role ink clears 4.5:1 as text on plain paper, both themes", () 
   // dropped light warning's cell to 5.2412, still comfortably legal, but a
   // `Math.min` version read that as the baseline moving and failed anyway.
   const cells: Record<string, number> = {};
-  for (const selector of [":root", ".dark"] as const) {
-    const theme = selector === ":root" ? "light" : "dark";
-    const paper = renderToken(selector, "paper");
+  for (const block of THEME_BLOCKS) {
+    const theme = block.name;
+    const paper = renderToken(block, "paper");
     for (const role of ROLES) {
-      const ink = renderToken(selector, `${role}-ink`);
+      const ink = renderToken(block, `${role}-ink`);
       const ratio = contrastRatio(ink.rgb8, paper.rgb8);
       expect(ratio, `${theme} ${role} ink on paper`).toBeGreaterThanOrEqual(4.5);
       cells[`${theme}-${role}`] = ratio;
@@ -307,12 +462,12 @@ it("D2 — every role ink clears 4.5:1 as text on plain paper, both themes", () 
 
 it("D3 — every role ink clears 4.5:1 over its own fill's hachure at low, over paper", () => {
   const cells: Record<string, number> = {};
-  for (const selector of [":root", ".dark"] as const) {
-    const theme = selector === ":root" ? "light" : "dark";
-    const paper = renderToken(selector, "paper");
+  for (const block of THEME_BLOCKS) {
+    const theme = block.name;
+    const paper = renderToken(block, "paper");
     for (const role of ROLES) {
-      const ink = renderToken(selector, `${role}-ink`);
-      const fill = renderToken(selector, `${role}-fill`);
+      const ink = renderToken(block, `${role}-ink`);
+      const fill = renderToken(block, `${role}-fill`);
       const hatch = compositeHachure(fill.rgb8, paper.rgb8, LOW_ALPHA);
       const ratio = contrastRatio(ink.rgb8, hatch);
       expect(ratio, `${theme} ${role} ink over own low fill`).toBeGreaterThanOrEqual(4.5);
@@ -337,13 +492,13 @@ it("D3 — every role ink clears 4.5:1 over its own fill's hachure at low, over 
 it("D4 — --hc-ink clears 4.5:1 over role fills@med, ink-faint@high and highlighter@low, over paper", () => {
   const cells: Record<string, number> = {};
   let count = 0;
-  for (const selector of [":root", ".dark"] as const) {
-    const theme = selector === ":root" ? "light" : "dark";
-    const paper = renderToken(selector, "paper");
-    const ink = renderToken(selector, "ink");
+  for (const block of THEME_BLOCKS) {
+    const theme = block.name;
+    const paper = renderToken(block, "paper");
+    const ink = renderToken(block, "ink");
 
     for (const role of ROLES) {
-      const fill = renderToken(selector, `${role}-fill`);
+      const fill = renderToken(block, `${role}-fill`);
       const hatch = compositeHachure(fill.rgb8, paper.rgb8, MED_ALPHA);
       const ratio = contrastRatio(ink.rgb8, hatch);
       expect(ratio, `${theme} ink over ${role} fill@med`).toBeGreaterThanOrEqual(4.5);
@@ -351,14 +506,14 @@ it("D4 — --hc-ink clears 4.5:1 over role fills@med, ink-faint@high and highlig
       count++;
     }
 
-    const inkFaint = renderToken(selector, "ink-faint");
+    const inkFaint = renderToken(block, "ink-faint");
     const hatchFaintHigh = compositeHachure(inkFaint.rgb8, paper.rgb8, HIGH_ALPHA);
     const ratioFaint = contrastRatio(ink.rgb8, hatchFaintHigh);
     expect(ratioFaint, `${theme} ink over ink-faint@high`).toBeGreaterThanOrEqual(4.5);
     cells[`${theme}-ink-faint-high`] = ratioFaint;
     count++;
 
-    const highlighter = renderToken(selector, "highlighter");
+    const highlighter = renderToken(block, "highlighter");
     const hatchHighlighterLow = compositeHachure(highlighter.rgb8, paper.rgb8, LOW_ALPHA);
     const ratioHighlighter = contrastRatio(ink.rgb8, hatchHighlighterLow);
     expect(ratioHighlighter, `${theme} ink over highlighter@low`).toBeGreaterThanOrEqual(4.5);
@@ -366,7 +521,11 @@ it("D4 — --hc-ink clears 4.5:1 over role fills@med, ink-faint@high and highlig
     count++;
   }
 
-  expect(count).toBe(14);
+  // Seven cells per block — five role fills, ink-faint, highlighter — over
+  // three registered blocks. Written as its addends because a bare 21 carries
+  // no record of which term went missing when a block stops being swept.
+  expect(count, "not every ink-over-fill cell was measured").toBe(7 * THEME_BLOCKS.length);
+  expect(THEME_BLOCKS.length, "a theme block was added or dropped without re-deriving D4").toBe(3);
   // Baseline worst cell.
   expect(cells["dark-ink-faint-high"]).toBeCloseTo(5.038862, 4);
   // Button primary's actual numbers — verified here rather than by eye.
@@ -384,11 +543,11 @@ it("D4 — --hc-ink clears 4.5:1 over role fills@med, ink-faint@high and highlig
 
 it("D5 — house design guideline, not WCAG: role fills >= 3.0 against paper, success dark the named exception", () => {
   const cells: Record<string, number> = {};
-  for (const selector of [":root", ".dark"] as const) {
-    const theme = selector === ":root" ? "light" : "dark";
-    const paper = renderToken(selector, "paper");
+  for (const block of THEME_BLOCKS) {
+    const theme = block.name;
+    const paper = renderToken(block, "paper");
     for (const role of ROLES) {
-      const fill = renderToken(selector, `${role}-fill`);
+      const fill = renderToken(block, `${role}-fill`);
       cells[`${theme}-${role}`] = contrastRatio(fill.rgb8, paper.rgb8);
     }
   }
@@ -439,9 +598,9 @@ it("D6 — every colour token renders in gamut, no channel clips before rounding
   // range is the tolerance for float error in the conversion itself.
   const TOLERANCE = 0.5 / 255;
   let checked = 0;
-  for (const selector of [":root", ".dark"] as const) {
+  for (const block of THEME_BLOCKS) {
     for (const name of tokenNames) {
-      const [L, C, H] = oklchInBlock(selector, name);
+      const [L, C, H] = resolveTriple(block, name);
       const [rLin, gLin, bLin] = oklchToLinearSrgb(L, C, H);
       const channels: [string, number][] = [
         ["r", rLin],
@@ -452,17 +611,20 @@ it("D6 — every colour token renders in gamut, no channel clips before rounding
         const level = gammaEncodeUnclamped(linear);
         expect(
           level,
-          `${selector} --hc-${name} ${channel} excurses out of gamut: ${level}`,
+          `${block.name} --hc-${name} ${channel} excurses out of gamut: ${level}`,
         ).toBeGreaterThanOrEqual(-TOLERANCE);
         expect(
           level,
-          `${selector} --hc-${name} ${channel} excurses out of gamut: ${level}`,
+          `${block.name} --hc-${name} ${channel} excurses out of gamut: ${level}`,
         ).toBeLessThanOrEqual(1 + TOLERANCE);
         checked++;
       }
     }
   }
-  expect(checked).toBe(114);
+  // 19 tokens x 3 channels per block, over three registered blocks. Addends
+  // rather than a bare 171: the term that goes missing when a block stops
+  // being swept is invisible in a total.
+  expect(checked, "not every token/channel pair was measured").toBe(19 * 3 * THEME_BLOCKS.length);
 });
 
 // ---------------------------------------------------------------------------
@@ -511,20 +673,25 @@ function collectSourceFiles(dir: string): string[] {
 // D8 — --hc-focus against plain paper
 // ---------------------------------------------------------------------------
 
-it("D8 — --hc-focus clears 3:1 against plain paper, both themes", () => {
-  const light = contrastRatio(
-    renderToken(":root", "focus").rgb8,
-    renderToken(":root", "paper").rgb8,
-  );
-  const dark = contrastRatio(
-    renderToken(".dark", "focus").rgb8,
-    renderToken(".dark", "paper").rgb8,
-  );
+it("D8 — --hc-focus clears 3:1 against plain paper, every registered theme", () => {
+  const cells: Record<string, number> = {};
+  for (const block of THEME_BLOCKS) {
+    const ratio = contrastRatio(renderToken(block, "focus").rgb8, renderToken(block, "paper").rgb8);
+    expect(ratio, `${block.name} focus ring on paper`).toBeGreaterThanOrEqual(3.0);
+    cells[block.name] = ratio;
+  }
 
-  expect(light).toBeGreaterThanOrEqual(3.0);
-  expect(dark).toBeGreaterThanOrEqual(3.0);
-  expect(light).toBeCloseTo(5.208, 3);
-  expect(dark).toBeCloseTo(7.2146, 3);
+  expect(cells["light"]).toBeCloseTo(5.208, 3);
+  expect(cells["dark"]).toBeCloseTo(7.2146, 3);
+  // The fixture declares no --hc-focus and inherits :root's, over a ground it
+  // *does* declare — so this cell is the fallback and the override meeting,
+  // and it is deliberately not equal to light's. A figure identical to
+  // light's here would mean the fixture's own lighter paper never reached the
+  // measurement, which is the exact way a mis-slice hides inside a pass.
+  expect(cells["fixture"], "the fixture's own paper did not reach D8").not.toBeCloseTo(
+    cells["light"]!,
+    4,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1026,11 +1193,11 @@ it("E2 — paper tokens cannot carry elevation alone: every raised/sunken pair i
   // figures would have made it a tripwire for model precision instead of for
   // the claim.
   let checked = 0;
-  for (const selector of [":root", ".dark"] as const) {
-    const theme = selector === ":root" ? "light" : "dark";
-    const paper = renderToken(selector, "paper");
-    const raised = renderToken(selector, "paper-raised");
-    const sunken = renderToken(selector, "paper-sunken");
+  for (const block of THEME_BLOCKS) {
+    const theme = block.name;
+    const paper = renderToken(block, "paper");
+    const raised = renderToken(block, "paper-raised");
+    const sunken = renderToken(block, "paper-sunken");
 
     const pairs: [string, number][] = [
       [`${theme} raised vs paper`, contrastRatio(raised.rgb8, paper.rgb8)],
@@ -1046,9 +1213,9 @@ it("E2 — paper tokens cannot carry elevation alone: every raised/sunken pair i
       checked++;
     }
   }
-  // Three pairs in two themes. A loop that measured fewer would pass the bound
-  // over whatever it happened to reach.
-  expect(checked, "not every raised/sunken pair was measured").toBe(6);
+  // Three pairs per registered block. A loop that measured fewer would pass
+  // the bound over whatever it happened to reach.
+  expect(checked, "not every raised/sunken pair was measured").toBe(3 * THEME_BLOCKS.length);
 });
 
 it("E3 — Button's press offset is the shadow offset, read from the stylesheet rather than pinned", () => {
@@ -1128,64 +1295,26 @@ it("E4 — CardFooter ships the gap that SPACING.gapFrame decodes to, not the 8p
 // ---------------------------------------------------------------------------
 
 /**
- * `handicraft.css` with every block comment removed.
+ * Every `--hc-<name>` declared directly inside one block, mapped to its
+ * trimmed value text.
  *
- * E5 *enumerates* declarations where every other reader in this file looks one
- * up by name, and that difference is what makes the shared readers unusable
- * here. `css.indexOf(":root")` lands on the literal `:root` inside the file
- * header comment at `:6`, so `oklchInBlock` and `pxInBlock` slice from
- * `@layer base {` rather than from the selector — a superset that happens to
- * contain the real block whole. Harmless when the caller names its token,
- * wrong when the caller is counting.
- *
- * Stripping first also deletes the two false `:root` hits in the header and the
- * one inside `.dark`'s own comment at `:190`, which is what lets the uniqueness
- * guard in `declarationsIn` be an assertion rather than a hope.
- *
- * The shared readers are deliberately left alone. Teaching them to strip
- * comments would close three filed traps at once, and it would also change a
- * reader fifteen existing assertions depend on, so it needs its own mutation
- * pass over all of them rather than a ride-along here.
+ * The hard-coded two-block limit this carried until cycle 013 is gone: it now
+ * takes any registered `ThemeBlock` and shares `blockOf`'s comment-stripping
+ * and uniqueness guard with every other reader in the file, rather than being
+ * the one reader that had them.
  */
-const bareCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
-
-/**
- * Every `--hc-<name>` declared directly inside one selector's block, mapped to
- * its trimmed value text.
- *
- * Known limit, marked rather than hidden: the two block names are hard-coded by
- * the caller. A third theme block would have to be added to E5's list by hand.
- * There is exactly one theme block today and adding one is a deliberate act,
- * where a general block enumerator is how this file's slicing bugs arrived in
- * the first place.
- */
-function declarationsIn(selector: ":root" | ".dark"): Map<string, string> {
-  const start = bareCss.indexOf(selector);
-  expect(start, `no ${selector} block found`).toBeGreaterThanOrEqual(0);
-
-  // Ambiguity is the one failure this cannot absorb: a second occurrence would
-  // silently make the slice below depend on which one the file happens to
-  // reach first, which is the Rule V3 shape the readers above already carry.
-  expect(
-    bareCss.lastIndexOf(selector),
-    `${selector} appears more than once outside comments — the slice below is no longer unambiguous`,
-  ).toBe(start);
-
-  const braceOpen = bareCss.indexOf("{", start);
-  const braceClose = bareCss.indexOf("}", braceOpen);
-  const block = bareCss.slice(braceOpen, braceClose);
-  expect(block.length, `${selector} block read empty`).toBeGreaterThan(0);
-
+function declarationsIn(block: ThemeBlock): Map<string, string> {
+  const text = blockOf(block.bare, block.selector);
   const out = new Map<string, string>();
-  for (const m of block.matchAll(/--hc-([a-z0-9-]+):\s*([^;]+);/g)) {
+  for (const m of text.matchAll(/--hc-([a-z0-9-]+):\s*([^;]+);/g)) {
     out.set(m[1]!, m[2]!.trim());
   }
   return out;
 }
 
 it("E5 — a composed token is redeclared, identically, in every theme block whose tokens it reads", () => {
-  const root = declarationsIn(":root");
-  const dark = declarationsIn(".dark");
+  const root = declarationsIn(LIGHT_BLOCK);
+  const dark = declarationsIn(THEME_BLOCKS.find((b) => b.name === "dark")!);
 
   // A slice that resolved to the wrong block returns an empty map, and every
   // check below then passes over nothing. Counted at cycle 002c iteration 2:
@@ -1224,47 +1353,198 @@ it("E5 — a composed token is redeclared, identically, in every theme block who
     if (deps.length > 0) composed.set(name, deps);
   }
 
-  // Measured, not guessed: :root carries exactly two composed declarations,
-  // handicraft.css:148 and :149, and both read --hc-ink. Written as a lower
-  // bound and two names rather than as an exact count, because a third composed
-  // token should join the covered set instead of tripping the floor.
+  // Corrected in cycle 013. The comment here read "exactly two composed
+  // declarations, handicraft.css:148 and :149" and had been stale since cycle
+  // 009 added --hc-shadow-hover at :204, which composes --hc-shadow-offset and
+  // --hc-ink exactly as the other two do. The `>= 2` floor is why nobody
+  // noticed: a third composed token joined the covered set and the assertion
+  // describing the set stayed at two.
+  //
+  // Measured 2026-08-08, by enumeration rather than by reading: three, named
+  // below. Still a floor rather than an equality, for the reason it always
+  // was — a fourth composed token should join the covered set instead of
+  // tripping this — but the floor now moves with the names beside it.
   expect(
     composed.size,
     "no composed declarations found in :root — the scan resolved to the wrong block",
-  ).toBeGreaterThanOrEqual(2);
-  expect(composed.has("shadow"), "--hc-shadow is no longer composed from other tokens").toBe(true);
-  expect(composed.has("shadow-sm"), "--hc-shadow-sm is no longer composed from other tokens").toBe(
-    true,
-  );
-
-  let checked = 0;
-  for (const [name, deps] of composed) {
-    const overridden = deps.filter((dep) => dark.has(dep));
-    if (overridden.length === 0) continue;
-    const reads = overridden.map((dep) => `--hc-${dep}`).join(", ");
-
-    expect(
-      dark.has(name),
-      `--hc-${name} composes ${reads}, which .dark overrides, but .dark does not redeclare --hc-${name}. Its var() references are substituted at :root, so it inherits the light value into the blackboard and this theme's own ink can never reach it`,
-    ).toBe(true);
-
-    // Present is not enough, and this is the clause that matters. A hard-coded
-    // chalk value here would resolve correctly in a browser and look right,
-    // while giving the token a second home to drift from — the fix that
-    // reintroduces, inside the fix, the defect being fixed.
-    expect(
-      dark.get(name),
-      `.dark's --hc-${name} is not textually identical to :root's, so the value now has two homes. Redeclaring must re-run the same composition at this level, never hard-code what it currently resolves to`,
-    ).toBe(root.get(name));
-
-    checked++;
+  ).toBeGreaterThanOrEqual(3);
+  for (const name of ["shadow", "shadow-sm", "shadow-hover"]) {
+    expect(composed.has(name), `--hc-${name} is no longer composed from other tokens`).toBe(true);
   }
 
-  // Both shadow tokens depend on --hc-ink, which .dark overrides, so both must
-  // have been reached. A loop that reached neither would satisfy every
-  // assertion above it.
+  // Generalised from the hard-coded :root-versus-.dark pair. Every non-:root
+  // registered block is checked against every composed :root declaration whose
+  // dependency set intersects that block's *declared* names — which is the
+  // condition under which inheritance freezes the light value, whatever the
+  // block is called.
+  let checked = 0;
+  const perBlock: Record<string, number> = {};
+  for (const block of THEMED_BLOCKS) {
+    const decls = declarationsIn(block);
+    perBlock[block.name] = 0;
+
+    for (const [name, deps] of composed) {
+      const overridden = deps.filter((dep) => decls.has(dep));
+      if (overridden.length === 0) continue;
+      const reads = overridden.map((dep) => `--hc-${dep}`).join(", ");
+
+      expect(
+        decls.has(name),
+        `--hc-${name} composes ${reads}, which ${block.selector} overrides, but ${block.selector} does not redeclare --hc-${name}. Its var() references are substituted at :root, so it inherits the light value into this theme and the theme's own ink can never reach it`,
+      ).toBe(true);
+
+      // Present is not enough, and this is the clause that matters. A
+      // hard-coded value here would resolve correctly in a browser and look
+      // right, while giving the token a second home to drift from — the fix
+      // that reintroduces, inside the fix, the defect being fixed.
+      expect(
+        decls.get(name),
+        `${block.selector}'s --hc-${name} is not textually identical to :root's, so the value now has two homes. Redeclaring must re-run the same composition at this level, never hard-code what it currently resolves to`,
+      ).toBe(root.get(name));
+
+      checked++;
+      perBlock[block.name]!++;
+    }
+  }
+
+  // 3 (dark: shadow + shadow-sm + shadow-hover) + 3 (fixture: the same three,
+  // reached because the fixture declares --hc-ink deliberately) = 6. Addends
+  // rather than a bare 6: a block that stops contributing is invisible in a
+  // total, and the fixture contributing 0 is the specific way this
+  // generalisation would look green while proving nothing beyond what the
+  // hard-coded pair already proved.
+  expect(perBlock["dark"], "no composed token was checked against .dark").toBe(3);
   expect(
-    checked,
-    "no composed token was actually checked against .dark — the dependency intersection came back empty",
-  ).toBeGreaterThanOrEqual(2);
+    perBlock["fixture"],
+    "no composed token was checked against the fixture — its --hc-ink override did not reach the dependency intersection, which is the whole reason the fixture declares one",
+  ).toBe(3);
+  expect(checked, "the composed-token sweep did not reach every block").toBeGreaterThanOrEqual(6);
+});
+
+// ---------------------------------------------------------------------------
+// TH0 through TH2 — cycle 013. The theme slot's own guards.
+// ---------------------------------------------------------------------------
+
+it("TH0 — the block readers strip comments, and every registered selector is unique outside them", () => {
+  // The strip itself. CSS has no line-comment form, so `/*` is the whole
+  // surface and its absence is the whole claim.
+  expect(bareCss.includes("/*"), "bareCss still contains a comment opener").toBe(false);
+  expect(bareCss.includes("*/"), "bareCss still contains a comment closer").toBe(false);
+
+  // The trap this fix exists for, asserted live rather than described. An
+  // unstripped `css.indexOf(sel)` lands *inside a comment* for both selectors
+  // this file slices on: the proof is that the next `*/` arrives before the
+  // next `{`, so a reader slicing from that hit is starting in prose and
+  // walking out of it. That is not a hypothetical — `.dark`'s first raw hit is
+  // handicraft.css:201's "the same `.dark` redeclaration", twenty-two lines
+  // above the selector, and the old reader resolved to the right block only
+  // because no `{` happened to sit in the gap. Cycle 013 then wrote
+  // twenty-six lines of theme-slot documentation into that gap.
+  //
+  // If this assertion ever fails it means the comments moved and the readers
+  // would now be correct unstripped — which is not a reason to stop stripping,
+  // it is a reason to re-read this comment before deleting anything.
+  for (const selector of [":root", ".dark"]) {
+    const rawHit = css.indexOf(selector);
+    expect(rawHit, `${selector} not found in the raw stylesheet at all`).toBeGreaterThanOrEqual(0);
+    expect(
+      css.indexOf("*/", rawHit),
+      `${selector}'s first raw occurrence is no longer inside a comment — the unstripped readers this cycle replaced would now land correctly, and this test's premise needs re-deriving rather than deleting`,
+    ).toBeLessThan(css.indexOf("{", rawHit));
+  }
+
+  // Uniqueness outside comments, per block and against its own source. This is
+  // the half stripping alone does not buy: a second *code* occurrence would
+  // still silently decide which block every reader gets.
+  for (const block of THEME_BLOCKS) {
+    const first = block.bare.indexOf(block.selector);
+    expect(first, `${block.selector} not found in ${block.name}'s source`).toBeGreaterThanOrEqual(
+      0,
+    );
+    expect(
+      block.bare.lastIndexOf(block.selector),
+      `${block.selector} appears more than once outside comments in ${block.name}'s source`,
+    ).toBe(first);
+  }
+
+  // And the readers really do reach a declaration block rather than an empty
+  // slice — the failure mode every count-based floor in this file exists to
+  // catch, asserted once here at its source.
+  for (const block of THEME_BLOCKS) {
+    expect(
+      declarationsIn(block).size,
+      `${block.name} sliced to a block declaring nothing`,
+    ).toBeGreaterThan(0);
+  }
+});
+
+it("TH1 — every theme block in the stylesheets is registered in THEME_BLOCKS", () => {
+  // Scanned from the same comment-stripped text the readers use, so a theme
+  // named only in prose is not mistaken for one that ships. handicraft.css's
+  // own theme-slot comment writes `[data-hc-theme="<name>"]` as a template,
+  // and an unstripped scan would register `<name>` as a real theme.
+  const found = new Set<string>();
+  for (const source of [bareCss, stripCssComments(fixtureCss)]) {
+    for (const m of source.matchAll(/\[data-hc-theme="([^"]+)"\]/g)) found.add(m[1]!);
+  }
+
+  // Anti-vacuity, and it is the clause that carries this test. A scan that
+  // resolved to nothing — a renamed attribute, a regex that stopped matching —
+  // satisfies the registration loop below over an empty set and reports green
+  // while gating no theme at all.
+  expect(
+    found.size,
+    "no [data-hc-theme] block was found in either stylesheet — the scan matched nothing and the loop below would pass vacuously",
+  ).toBeGreaterThan(0);
+
+  const registered = new Set(THEME_BLOCKS.flatMap((b) => b.covers));
+  for (const name of found) {
+    expect(
+      registered.has(name),
+      `[data-hc-theme="${name}"] declares a theme block that THEME_BLOCKS does not register, so no contrast constraint in this file is being applied to it. Every D and E assertion here would keep passing over the themes it already knew — which is the exact failure this test exists to make impossible`,
+    ).toBe(true);
+  }
+
+  // The other direction: a registered name that no longer has a block would
+  // make its entry in THEME_BLOCKS slice something else, or nothing.
+  for (const name of registered) {
+    expect(
+      found.has(name),
+      `THEME_BLOCKS registers "${name}" but no [data-hc-theme="${name}"] selector exists in either stylesheet`,
+    ).toBe(true);
+  }
+});
+
+it("TH2 — a token the fixture omits resolves :root's value, and the fallback is proven to have fired", () => {
+  const fixture = THEME_BLOCKS.find((b) => b.name === "fixture")!;
+
+  // The precondition, asserted rather than assumed. If the fixture ever starts
+  // declaring --hc-focus this test would compare :root against :root and pass
+  // over nothing, which is the vacuity shape the whole file is written against.
+  expect(
+    declaresToken(fixture, "focus"),
+    "the fixture now declares --hc-focus, so it is no longer a subject for the inheritance fallback — pick another omitted token",
+  ).toBe(false);
+
+  // The fallback itself: an omitted token resolves to :root's value.
+  expect(
+    renderToken(fixture, "focus").hex,
+    "the fixture's omitted --hc-focus did not resolve to :root's value",
+  ).toBe(renderToken(LIGHT_BLOCK, "focus").hex);
+
+  // And the clause that makes the line above mean something. A reader that
+  // mis-sliced — landing on the wrong block, or on an empty one — would also
+  // find no declarations and would also fall back, returning a complete set of
+  // :root values that satisfies every constraint in this file. So the fallback
+  // is only trustworthy alongside proof that the fixture's *own* declarations
+  // are being read: --hc-paper is declared here, and its value must differ
+  // from :root's.
+  expect(
+    declaresToken(fixture, "paper"),
+    "the fixture no longer declares --hc-paper, so nothing proves its block is being read at all",
+  ).toBe(true);
+  expect(
+    renderToken(fixture, "paper").hex,
+    "the fixture's own --hc-paper resolved to :root's value — the block was not read, and every fallback above is masking a mis-slice rather than proving inheritance",
+  ).not.toBe(renderToken(LIGHT_BLOCK, "paper").hex);
 });

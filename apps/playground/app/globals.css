@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "@handicraft/core/styles.css";
 
+/* Cycle 013's synthetic third theme block. Test-only — not under
+   registry/default/**, so no `shadcn add` can reach it, and not on
+   @handicraft/core's own entry points, so tsup never bundles it into dist.
+   Imported here by relative path so /matrix can render it for M17 and
+   M18's computed reads; this app is a harness and is published nowhere. */
+@import "../../../packages/core/src/styles/__fixtures__/theme-fixture.css";
+
 /* Tailwind v4 only generates classes it can see. The registry components live
    outside this app, so their class names have to be pointed at explicitly. */
 @source "../../../registry/default";

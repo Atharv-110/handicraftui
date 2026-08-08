@@ -207,8 +207,30 @@
 
   /* Dark mode is a blackboard, not a dimmed version of the light theme:
      chalk on slate, with the stroke weight raised because chalk on a dark
-     ground reads thinner than ink on paper. */
-  .dark {
+     ground reads thinner than ink on paper.
+
+     The theme slot, cycle 013. [data-hc-theme="blackboard"] joins .dark as
+     of this cycle — one block, two selectors, so .dark keeps working
+     byte-for-byte and gains an addressable alias. Every *other* registered
+     theme declares its own block instead, at
+     [data-hc-theme="<name>"]:not(.dark), which is (0,2,0) — beats both
+     :root (0,1,0) and .dark (0,1,0) by specificity, not by which file a
+     bundler happens to concatenate last. That matters because a theme
+     ships as a file a consumer installs and imports *after* this
+     stylesheet: a bare class selector (the alternative this cycle rejected)
+     would tie .dark at (0,1,0) and then win on source order alone, in
+     whichever direction import order happens to land — cycle 008's
+     specificity-tie defect, one file over. Blackboard itself does not need
+     :not(.dark), because it is the one theme .dark already carries at
+     (0,1,0): the two selectors above declare identical values, so nothing
+     about how they interact needs deciding, only asserting (TH4).
+
+     :not(.dark) is also a real behavioural choice, not only a specificity
+     device: on an element carrying both .dark and some other theme's
+     attribute, blackboard wins, because blackboard is the one locked
+     aesthetic in the set and every other theme is additive. */
+  .dark,
+  [data-hc-theme="blackboard"] {
     --hc-paper: oklch(24% 0.014 255);
     --hc-paper-raised: oklch(28% 0.016 255);
     --hc-paper-sunken: oklch(20% 0.012 255);
