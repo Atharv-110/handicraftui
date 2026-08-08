@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { HandicraftProvider, type Hand } from "@handicraft/core";
 import { Badge } from "@/ui/badge/badge";
 import { Button } from "@/ui/button/button";
@@ -208,35 +208,69 @@ export function ComponentsAtWork() {
  * still holds exactly what it held before (itself, four vertical
  * `Separator`s, one `Badge`): zero frame change, only where the label text
  * sits in the DOM.
+ *
+ * F-9, QA iteration 2, cycle 012 §10.3. The FB-2 fix above moved the labels
+ * off the hachure but left them paired by ordinal position across two rows
+ * that never aligned — measured at 344px apart vertically at 375px, and at
+ * horizontally different x-offsets at 1280px, since each row sized its own
+ * flex-wrap columns from its own content. `FIGURE_COLS` is one grid
+ * template, applied as the same literal string to both rows rather than
+ * letting each size independently. The four gap tracks are a fixed `2px`,
+ * not `auto` — an explicit length track reserves the same width whether a
+ * real `Separator` sits in it (the value row) or nothing does (the label
+ * row), which is what makes the two rows' column edges identical rather
+ * than approximately close. Labels carry an explicit `gridColumn` (their
+ * row has no separators to auto-place around); values rely on DOM order
+ * matching the nine tracks one-for-one. Same four `Separator`s, same one
+ * `Badge`, same one `Card` — zero frame change again.
  */
+// `minmax(0,1fr)`, not bare `1fr` — a bare `1fr` track carries an implicit
+// `auto` (min-content) floor, so at 375px the longest label
+// ("500 frames, from the pool (110ms without)") forces its own column wider
+// than a plain fifth of the row, and the value row's short text never hits
+// that floor. The two grids then compute different column widths at narrow
+// viewports even though 1280px, with room to spare, looked identical.
+// `minmax(0, 1fr)` removes the floor so every column is a pure fraction of
+// the fixed available space, independent of what text sits inside it —
+// which is the actual guarantee this fix needs.
+const FIGURE_COLS =
+  "grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)]";
+
 export function TheNumbers() {
   return (
     <section className={`${SECTION} hc-ruled`}>
       <SectionChrome kicker="The numbers" heading="Measured, not adjectived" />
       <Card>
-        <div className="flex flex-col gap-6 sm:flex-row sm:flex-wrap">
+        <div className={`grid gap-x-3 gap-y-4 ${FIGURE_COLS}`}>
           <FigureValue>12</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
+          <Separator orientation="vertical" />
           <FigureValue>1.6ms</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
+          <Separator orientation="vertical" />
           <div>
             <FigureValue>34.3ms</FigureValue>
             <Badge variant="marked" className="mt-2">
               budget: 110ms
             </Badge>
           </div>
-          <Separator orientation="vertical" className="hidden sm:block" />
+          <Separator orientation="vertical" />
           <FigureValue>13.81px</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
+          <Separator orientation="vertical" />
           <FigureValue>44px</FigureValue>
         </div>
       </Card>
-      <div className="mt-3 flex flex-wrap gap-6">
-        <FigureLabel>seeds in the pool</FigureLabel>
-        <FigureLabel>500 frames, from the pool (110ms without)</FigureLabel>
-        <FigureLabel>handover</FigureLabel>
-        <FigureLabel>worst-case stroke excursion</FigureLabel>
-        <FigureLabel>minimum touch target</FigureLabel>
+      {/* `px-6` matches `Card`'s own `p-6` horizontal inset exactly — without
+          it this row's grid spans the section's full content width while
+          the value row's grid spans that width minus Card's 48px of
+          padding, and two grids of different overall widths do not
+          produce equal column edges even with an identical template. */}
+      <div className={`mt-3 grid gap-x-3 px-6 ${FIGURE_COLS}`}>
+        <FigureLabel style={{ gridColumn: 1 }}>seeds in the pool</FigureLabel>
+        <FigureLabel style={{ gridColumn: 3 }}>
+          500 frames, from the pool (110ms without)
+        </FigureLabel>
+        <FigureLabel style={{ gridColumn: 5 }}>handover</FigureLabel>
+        <FigureLabel style={{ gridColumn: 7 }}>worst-case stroke excursion</FigureLabel>
+        <FigureLabel style={{ gridColumn: 9 }}>minimum touch target</FigureLabel>
       </div>
       <div className="mt-4">
         <Marginalia>
@@ -250,11 +284,18 @@ export function TheNumbers() {
 }
 
 function FigureValue({ children }: { children: ReactNode }) {
-  return <p className="font-hand font-bold text-hc-ink text-3xl">{children}</p>;
+  return <p className="font-hand font-bold text-hc-ink text-center text-3xl">{children}</p>;
 }
 
-function FigureLabel({ children }: { children: ReactNode }) {
-  return <p className="font-body text-hc-ink-soft text-sm">{children}</p>;
+/** `style` carries only `gridColumn` — the explicit placement `FIGURE_COLS`'
+ * shared template needs, since this row has no separators to auto-flow
+ * around. */
+function FigureLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <p className="font-body text-hc-ink-soft text-center text-sm" style={style}>
+      {children}
+    </p>
+  );
 }
 
 /** Every planned component, Badge and Wave order from `ROADMAP.md` §7 to
