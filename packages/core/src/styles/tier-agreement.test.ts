@@ -553,9 +553,7 @@ describe("TH4 — the theme slot's selectors", () => {
     // And the bare form must not appear on its own. An `includes` check alone
     // would pass on a file that declared both spellings, where the bare one
     // would still tie .dark wherever it matched.
-    const bare = [
-      ...fixtureCode.matchAll(/\[data-hc-theme="fixture"\](?!:not\(\.dark\))/g),
-    ];
+    const bare = [...fixtureCode.matchAll(/\[data-hc-theme="fixture"\](?!:not\(\.dark\))/g)];
     expect(
       bare,
       'the fixture declares a bare [data-hc-theme="fixture"] somewhere without its :not(.dark) exclusion',

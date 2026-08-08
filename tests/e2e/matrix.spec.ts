@@ -495,10 +495,9 @@ test.describe("matrix guards", () => {
     await page.goto("/matrix?c=button");
     const notebookPaper = await paperColor(page);
 
-    expect(
-      fixtureHigh,
-      "?theme=fixture must not resolve notebook's own paper",
-    ).not.toBe(notebookPaper);
+    expect(fixtureHigh, "?theme=fixture must not resolve notebook's own paper").not.toBe(
+      notebookPaper,
+    );
   });
 
   test("M18 — .dark beats a theme attribute on the same element; absent .dark, the attribute resolves", async ({

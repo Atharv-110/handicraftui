@@ -113,7 +113,7 @@ it("S2 — `as` renders the requested tag, and the caller's className and style 
  *
  * Whole-token class matching here too, for the reason S1's header gives.
  */
-it("TH8 — the surface emits data-hc-theme, and theme=\"blackboard\" emits the identical class as dark", () => {
+it('TH8 — the surface emits data-hc-theme, and theme="blackboard" emits the identical class as dark', () => {
   // The attribute is emitted unconditionally, including for the default. That
   // is deliberate rather than incidental: no selector anywhere matches
   // `[data-hc-theme="notebook"]` — handicraft.css declares only

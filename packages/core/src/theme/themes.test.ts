@@ -33,10 +33,7 @@ import { BLACKBOARD_TREATMENT, THEMES, type TextureProfile } from "./themes";
  * carries the half that fails fast and names the constant.
  */
 
-const generatorSrc = readFileSync(
-  resolve(process.cwd(), "src/engine/generator.ts"),
-  "utf8",
-);
+const generatorSrc = readFileSync(resolve(process.cwd(), "src/engine/generator.ts"), "utf8");
 
 /** `generator.ts` with block and line comments removed. The four constants are
  *  named in this file's own prose and in `compose`'s explanatory comments, so a
@@ -142,14 +139,13 @@ function resolvedConfig(props: Partial<HandicraftProviderProps>): HandicraftConf
   return seen!;
 }
 
-it("TH7 — theme=\"blackboard\" resolves chalk and the blackboard treatment", () => {
+it('TH7 — theme="blackboard" resolves chalk and the blackboard treatment', () => {
   const config = resolvedConfig({ theme: "blackboard" });
 
   expect(config.chalk, 'theme="blackboard" no longer supplies chalk').toBe(true);
-  expect(
-    config.treatment,
-    'theme="blackboard" no longer resolves the blackboard treatment',
-  ).toBe(BLACKBOARD_TREATMENT);
+  expect(config.treatment, 'theme="blackboard" no longer resolves the blackboard treatment').toBe(
+    BLACKBOARD_TREATMENT,
+  );
 
   // The default direction, so the assertion above cannot be satisfied by a
   // provider that resolves blackboard for everything.
@@ -174,7 +170,7 @@ it("TH7 — an explicit chalk wins over the theme's own, and keeps blackboard's 
   // Direction one: chalk overrides a theme that disagrees with it.
   expect(
     resolvedConfig({ theme: "blackboard", chalk: false }).chalk,
-    "an explicit chalk={false} no longer wins over theme=\"blackboard\"",
+    'an explicit chalk={false} no longer wins over theme="blackboard"',
   ).toBe(false);
   expect(
     resolvedConfig({ theme: "notebook", chalk: true }).chalk,

@@ -341,7 +341,9 @@ function declaresToken(block: ThemeBlock, tokenName: string): boolean {
  * two that can disagree.
  */
 function resolveTriple(block: ThemeBlock, tokenName: string): [number, number, number] {
-  return oklchIn(blockOf(block.bare, block.selector), tokenName) ?? oklchInBlock(":root", tokenName);
+  return (
+    oklchIn(blockOf(block.bare, block.selector), tokenName) ?? oklchInBlock(":root", tokenName)
+  );
 }
 
 /**
@@ -622,9 +624,7 @@ it("D6 — every colour token renders in gamut, no channel clips before rounding
   // 19 tokens x 3 channels per block, over three registered blocks. Addends
   // rather than a bare 171: the term that goes missing when a block stops
   // being swept is invisible in a total.
-  expect(checked, "not every token/channel pair was measured").toBe(
-    19 * 3 * THEME_BLOCKS.length,
-  );
+  expect(checked, "not every token/channel pair was measured").toBe(19 * 3 * THEME_BLOCKS.length);
 });
 
 // ---------------------------------------------------------------------------
@@ -676,10 +676,7 @@ function collectSourceFiles(dir: string): string[] {
 it("D8 — --hc-focus clears 3:1 against plain paper, every registered theme", () => {
   const cells: Record<string, number> = {};
   for (const block of THEME_BLOCKS) {
-    const ratio = contrastRatio(
-      renderToken(block, "focus").rgb8,
-      renderToken(block, "paper").rgb8,
-    );
+    const ratio = contrastRatio(renderToken(block, "focus").rgb8, renderToken(block, "paper").rgb8);
     expect(ratio, `${block.name} focus ring on paper`).toBeGreaterThanOrEqual(3.0);
     cells[block.name] = ratio;
   }
@@ -1461,7 +1458,9 @@ it("TH0 — the block readers strip comments, and every registered selector is u
   // still silently decide which block every reader gets.
   for (const block of THEME_BLOCKS) {
     const first = block.bare.indexOf(block.selector);
-    expect(first, `${block.selector} not found in ${block.name}'s source`).toBeGreaterThanOrEqual(0);
+    expect(first, `${block.selector} not found in ${block.name}'s source`).toBeGreaterThanOrEqual(
+      0,
+    );
     expect(
       block.bare.lastIndexOf(block.selector),
       `${block.selector} appears more than once outside comments in ${block.name}'s source`,
