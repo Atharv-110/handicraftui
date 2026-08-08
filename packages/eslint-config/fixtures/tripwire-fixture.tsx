@@ -21,8 +21,10 @@
  *                                 useSketchFrame call below with no
  *                                 focusWithin
  *   hc/no-off-scale-class     3   px-5 (size half, 20px is on SIZE_PX and
- *                                 not on PAD_X_PX) + text-4xl (type half,
- *                                 sized-shaped but past text-3xl) +
+ *                                 not on PAD_X_PX) + text-6xl (type half,
+ *                                 60px, past heroLg's 48px and size-shaped
+ *                                 under XL_STEP while sitting on no
+ *                                 TYPE_SCALE step) +
  *                                 font-hand text-sm (hand-face half, outside
  *                                 the three closed exception files)
  *   hc/no-ink-faint-text      1   text-hc-ink-faint in a className
@@ -42,8 +44,13 @@ export function TripwireFixture() {
     <CheckboxRoot {...frameProps}>
       {/* hc/no-off-scale-class, size half: px-5 decodes to 20px, which is
           on SIZE_PX but not on PAD_X_PX. hc/no-off-scale-class, type half:
-          text-4xl is size-shaped but not a TYPE_SCALE step. */}
-      <span className="px-5 text-4xl">Off scale</span>
+          text-6xl is 60px — past cycle 012's heroLg step (48px, text-5xl)
+          and still size-shaped under XL_STEP, but on no TYPE_SCALE step.
+          Cycle 012 extended TYPE_SCALE to text-4xl, which this fixture used
+          to rely on as its off-scale example; text-6xl is chosen so the
+          next scale extension has to reach past 60px before it silently
+          disarms this guard again. */}
+      <span className="px-5 text-6xl">Off scale</span>
       {/* hc/no-off-scale-class, hand-face half: font-hand below 18px outside
           the three closed exception files. */}
       <span className="font-hand text-sm">Hand face too small</span>

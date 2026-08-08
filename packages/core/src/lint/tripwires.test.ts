@@ -147,6 +147,46 @@ function severityOf(entry: Linter.RuleEntry | undefined): number | undefined {
   return value;
 }
 
+/**
+ * One package's real config, checked. Shared by L5 and L6 so the two tests
+ * make the same claim in the same way, and kept as a helper rather than a
+ * fourth entry in L5's array so that a mutation to one package's config file
+ * fails exactly one test. L5 covers the three packages cycle 005 wired;
+ * L6 covers `apps/docs`, and `apps/docs/eslint.config.mjs` resolves through
+ * neither of L5's three.
+ */
+async function expectSeverities(cwd: string, file: string, expected: Record<string, number>) {
+  const packageRoot = join(repoRoot, cwd);
+  const target = join(packageRoot, file);
+  // A path that does not exist still calculates a config, so the real
+  // subject has to be proven present or this test asserts the preset's
+  // opinion about a file nobody ships.
+  expect(existsSync(target), `${target} does not exist`).toBe(true);
+
+  const eslint = new ESLint({ cwd: packageRoot });
+  const config = await eslint.calculateConfigForFile(target);
+
+  expect(
+    Object.keys(config.plugins ?? {}),
+    `${cwd} does not register the hc plugin for ${file}`,
+  ).toContain("hc");
+
+  // A config naming none of the four rules would satisfy an empty loop, so
+  // the floor is asserted before any severity below can mean anything —
+  // QA-CONTRACT.md's "a filter matching nothing still exits 0", in config
+  // form.
+  expect(Object.keys(expected).length, `${cwd}: no rule severities were asserted`).toBeGreaterThan(
+    0,
+  );
+
+  for (const [ruleId, severity] of Object.entries(expected)) {
+    expect(
+      severityOf(config.rules?.[ruleId]),
+      `${cwd}: ${ruleId} is not at severity ${severity} for ${file}`,
+    ).toBe(severity);
+  }
+}
+
 it("L5 — the presets enable the rules on the real packages, at the declared severities", async () => {
   // One ESLint instance per package, each with that package's own cwd, so
   // every path resolves through the `eslint.config.mjs` that actually governs
@@ -193,27 +233,37 @@ it("L5 — the presets enable the rules on the real packages, at the declared se
     },
   ];
 
+  // Asserted rather than assumed: a `cases` array someone empties still
+  // passes every loop written over it.
+  expect(cases.length, "L5's case list is not the three packages cycle 005 wired").toBe(3);
+
   for (const { cwd, file, expected } of cases) {
-    const packageRoot = join(repoRoot, cwd);
-    const target = join(packageRoot, file);
-    // A path that does not exist still calculates a config, so the real
-    // subject has to be proven present or this test asserts the preset's
-    // opinion about a file nobody ships.
-    expect(existsSync(target), `${target} does not exist`).toBe(true);
-
-    const eslint = new ESLint({ cwd: packageRoot });
-    const config = await eslint.calculateConfigForFile(target);
-
-    expect(
-      Object.keys(config.plugins ?? {}),
-      `${cwd} does not register the hc plugin for ${file}`,
-    ).toContain("hc");
-
-    for (const [ruleId, severity] of Object.entries(expected)) {
-      expect(
-        severityOf(config.rules?.[ruleId]),
-        `${cwd}: ${ruleId} is not at severity ${severity} for ${file}`,
-      ).toBe(severity);
-    }
+    await expectSeverities(cwd, file, expected);
   }
+});
+
+it("L6 — apps/docs turns hc/no-off-scale-class on, and the landing is governed by it", async () => {
+  // The fourth package, cycle 012, and the second place in the repository
+  // where the ramps govern source. `apps/docs/eslint.config.mjs` turns
+  // `hc/no-off-scale-class` on at `error` for `**/*.tsx` in the file a reader
+  // of `apps/docs` can see, rather than by flipping the shared preset — which
+  // would also turn it on for `apps/playground`, where cycle 005 §3.4 records
+  // six real sites it would report today.
+  //
+  // A separate test rather than a fourth entry in L5's array on purpose. The
+  // severity here is the whole subject: DESIGN-SYSTEM.md §2's amendment says
+  // a landing shipping `text-5xl` would lint green while fracturing the scale
+  // in the one place nobody watches, and the scale was extended in this same
+  // cycle so the page could stay on it. Extending it and leaving the rule off
+  // delivers exactly the fracture the amendment prevents, and this is the
+  // only thing in the repository that would see that.
+  //
+  // `app/page.tsx` is the subject because it is the landing's entry point and
+  // the file `apps/docs` cannot ship without.
+  await expectSeverities("apps/docs", "app/page.tsx", {
+    "hc/base-ui-focus-within": 2,
+    "hc/no-ink-faint-text": 2,
+    "hc/no-bare-dark-class": 2,
+    "hc/no-off-scale-class": 2,
+  });
 });
