@@ -520,3 +520,63 @@ describe("the state parameter model in CSS", () => {
     expect(all).toHaveLength(withFallback.length);
   });
 });
+
+/**
+ * TH4 — cycle 013. The theme slot's two selectors, asserted as text.
+ *
+ * This is a cascade claim checked at its source. `design-tokens.test.ts`
+ * measures what each block *declares*; nothing there can see which selector
+ * wins when two blocks match one element, because that is resolved by
+ * specificity at paint time and not by any value in either block. M18 checks
+ * the same claim from the other end, in a real browser, on an element carrying
+ * `.dark` and `data-hc-theme="fixture"` at once. Both directions, on cycle
+ * 008's M12 pattern — a specificity argument that is only reasoned about is
+ * the defect cycle 008 shipped.
+ */
+describe("TH4 — the theme slot's selectors", () => {
+  const fixtureCode = stripComments(
+    readFileSync(resolve(process.cwd(), "src/styles/__fixtures__/theme-fixture.css"), "utf8"),
+  );
+
+  it("TH4 — a theme block excludes .dark, and blackboard shares .dark's own block", () => {
+    // The fixture's selector, exact. `:not(.dark)` is what takes it to (0,2,0)
+    // and lets it beat both :root and .dark by specificity rather than by
+    // whichever file a bundler concatenates last — a theme ships as a file the
+    // consumer imports *after* handicraft.css, so source order is not ours to
+    // control. Dropping the exclusion drops it to (0,1,0), a tie with .dark,
+    // which is cycle 008's defect one file over.
+    expect(
+      fixtureCode.includes('[data-hc-theme="fixture"]:not(.dark)'),
+      'the fixture block no longer selects [data-hc-theme="fixture"]:not(.dark) — without the :not(.dark) exclusion it ties .dark at (0,1,0) and the winner is decided by import order',
+    ).toBe(true);
+
+    // And the bare form must not appear on its own. An `includes` check alone
+    // would pass on a file that declared both spellings, where the bare one
+    // would still tie .dark wherever it matched.
+    const bare = [
+      ...fixtureCode.matchAll(/\[data-hc-theme="fixture"\](?!:not\(\.dark\))/g),
+    ];
+    expect(
+      bare,
+      'the fixture declares a bare [data-hc-theme="fixture"] somewhere without its :not(.dark) exclusion',
+    ).toHaveLength(0);
+
+    // Blackboard's half: one block, two selectors. It needs no :not(.dark)
+    // of its own precisely because .dark already selects it — the two spellings
+    // declare identical values, so nothing about their interaction needs
+    // deciding. What does need asserting is that they stayed one block: split
+    // into two, they would be two homes for the same 24 declarations to drift
+    // apart in, which is the shape E5 exists to catch one token at a time.
+    expect(
+      /\.dark,\s*\[data-hc-theme="blackboard"\]\s*\{/.test(CSS_CODE),
+      '.dark and [data-hc-theme="blackboard"] no longer share one selector list — blackboard is either unaddressable by attribute or declared in a second block that can drift from .dark',
+    ).toBe(true);
+
+    // Exactly one blackboard block, so the assertion above cannot be satisfied
+    // by a stray duplicate while a second, divergent block does the real work.
+    expect(
+      [...CSS_CODE.matchAll(/\[data-hc-theme="blackboard"\]/g)],
+      '[data-hc-theme="blackboard"] appears more than once outside comments',
+    ).toHaveLength(1);
+  });
+});
