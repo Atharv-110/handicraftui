@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { HandicraftProvider, type Hand } from "@handicraft/core";
 import { Badge } from "@/ui/badge/badge";
 import { Button } from "@/ui/button/button";
@@ -200,95 +199,71 @@ export function ComponentsAtWork() {
  * "state the condition" rule, so its exact wording is reused for the
  * `Marginalia` note beneath the panel rather than paraphrased.
  *
- * FB-2, cycle 012 architect verdict §9.3 (F-5). The five 14px labels used to
- * sit inside the `Card` beside their values, on the same `low` hachure the
- * `ComposedForm` fix above names. Values stay in the `Card` — `displayLg`
- * 30px, hand-bold, at the interference table's own boundary — and the
- * labels now render in their own row beneath it, on bare paper. The `Card`
- * still holds exactly what it held before (itself, four vertical
- * `Separator`s, one `Badge`): zero frame change, only where the label text
- * sits in the DOM.
+ * Structural fix, founder ruling, cycle 012 iteration 4. FB-2 (F-5), F-9 and
+ * F-10 were each a correct fix for what they targeted, and each one traded
+ * against the last: values inside the `Card`, labels outside it on bare
+ * paper (FB-2, for the hachure); an alignment scheme pairing the two rows
+ * (F-9); a responsive collapse for glyph legibility (F-10) that put the
+ * label block visually below the whole value block again at 375px. The
+ * shared cause QA named is the split itself — once a value and its label
+ * are two rows in two different DOM parents, some viewport width always
+ * separates them.
  *
- * F-9, QA iteration 2, cycle 012 §10.3. The FB-2 fix above moved the labels
- * off the hachure but left them paired by ordinal position across two rows
- * that never aligned — measured at 344px apart vertically at 375px, and at
- * horizontally different x-offsets at 1280px, since each row sized its own
- * flex-wrap columns from its own content. `FIGURE_COLS` is one grid
- * template, applied as the same literal string to both rows rather than
- * letting each size independently. The four gap tracks are a fixed `2px`,
- * not `auto` — an explicit length track reserves the same width whether a
- * real `Separator` sits in it (the value row) or nothing does (the label
- * row), which is what makes the two rows' column edges identical rather
- * than approximately close. Labels carry an explicit `gridColumn` (their
- * row has no separators to auto-place around); values rely on DOM order
- * matching the nine tracks one-for-one. Same four `Separator`s, same one
- * `Badge`, same one `Card` — zero frame change again.
+ * The fix removes the split rather than re-balancing it. `Card`'s own
+ * source hardcodes `fill: "low"` and exposes no prop to override it, and
+ * `registry/default/**` is out of scope for every pass of this cycle, so
+ * lowering it is not a `Card` edit — it is `HandicraftProvider`'s
+ * documented ceiling (`CODE-CONTRACT.md`, `capFill`): the provider's `fill`
+ * caps a descendant's own intent, never raises it. `capFill("low", "no")`
+ * resolves to `"no"` (`FILL_ORDER.indexOf("low") = 1 >
+ * FILL_ORDER.indexOf("no") = 0`, so the ceiling wins), which is the exact
+ * mechanism `Input` already relies on for its own no-hachure requirement,
+ * applied here from the call site instead of from `Card`'s own source. No
+ * hachure fill means the interference-band argument that forced the split
+ * has no mechanism left to apply — the same Card can hold 14px prose again,
+ * legally, because there are no hatch lines for it to cross.
+ *
+ * Each `FigureUnit` is now one DOM unit — value directly above its own
+ * label, both inside `Card` — so no responsive collapse, no shared grid
+ * template and no cross-row alignment math is needed: pairing cannot break
+ * at any width, because there is only one row to read. `Badge`'s own
+ * `marked` intent (`med`) is capped to `"no"` by the same provider, an
+ * accepted side effect — the budget marker keeps its text and colour, only
+ * its texture flattens, which is consistent with the rest of the panel.
+ * Frame count unaffected: `FigureUnit` carries no `useSketchFrame` call,
+ * and `fill="no"` changes what a frame paints, never whether one exists.
  */
-// `minmax(0,1fr)`, not bare `1fr` — a bare `1fr` track carries an implicit
-// `auto` (min-content) floor, so at narrow widths the longest label
-// ("500 frames, from the pool (110ms without)") forces its own column wider
-// than a plain fifth of the row, and the value row's short text never hits
-// that floor. The two grids then compute different column widths even
-// though at 1280px, with room to spare, they looked identical.
-// `minmax(0, 1fr)` removes the floor so every column is a pure fraction of
-// the fixed available space, independent of what text sits inside it.
-//
-// F-10, QA iteration 3, cycle 012 §11.3. `[H]`. The five-column layout
-// below is `sm:`-only. `getBoundingClientRect`/`clientWidth` on the track
-// reported clean at every width, including 375px — the finding is that the
-// glyphs, not the boxes, do not fit: `text-3xl` hand-bold needs up to 95px
-// ("34.3ms") against a 375px track stride of 61px, and three values
-// overprinted each other by 10 to 34px, unreadable in a screenshot even
-// though every mechanical check (overflow, box alignment) read green. Below
-// `sm` the value grid and label grid both collapse to one column — the
-// same breakpoint the four `Separator`s already gate on, so this follows a
-// line the layout draws already rather than inventing a second one. Each
-// figure gets its own full-width row at both mobile widths this was
-// measured at (375, 640-adjacent), with no glyph competing for horizontal
-// space, and the reading order is value-block-then-label-block exactly as
-// it was after the F-9 fix, before the five-column grid existed — a Medium
-// pairing cost iteration 2 already accepted at that width, never an H.
-const FIGURE_COLS =
-  "grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)_2px_minmax(0,1fr)] sm:gap-x-3";
-
 export function TheNumbers() {
   return (
     <section className={`${SECTION} hc-ruled`}>
       <SectionChrome kicker="The numbers" heading="Measured, not adjectived" />
-      <Card>
-        <div className={`${FIGURE_COLS} sm:gap-y-4`}>
-          <FigureValue>12</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
-          <FigureValue>1.6ms</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
-          <div>
-            <FigureValue>34.3ms</FigureValue>
-            <Badge variant="marked" className="mt-2">
-              budget: 110ms
-            </Badge>
+      {/* `HandicraftProvider` wraps `Card` itself, not just its children.
+          `Card`'s own `useSketchFrame` call resolves `fill` from the
+          context surrounding `Card` as an element — a provider nested
+          inside `Card`'s children sits below that call in the tree and
+          never reaches it, which is what the first render of this fix
+          got wrong (screenshot still showed the hachure; `data-hc-fill`
+          on the numbers Card still read "low"). */}
+      <HandicraftProvider fill="no">
+        <Card>
+          <div className="flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-6">
+            <FigureUnit value="12" label="seeds in the pool" />
+            <Separator orientation="vertical" className="hidden self-stretch sm:block" />
+            <FigureUnit value="1.6ms" label="500 frames, from the pool (110ms without)" />
+            <Separator orientation="vertical" className="hidden self-stretch sm:block" />
+            <div>
+              <FigureUnit value="34.3ms" label="handover" />
+              <Badge variant="marked" className="mt-2">
+                budget: 110ms
+              </Badge>
+            </div>
+            <Separator orientation="vertical" className="hidden self-stretch sm:block" />
+            <FigureUnit value="13.81px" label="worst-case stroke excursion" />
+            <Separator orientation="vertical" className="hidden self-stretch sm:block" />
+            <FigureUnit value="44px" label="minimum touch target" />
           </div>
-          <Separator orientation="vertical" className="hidden sm:block" />
-          <FigureValue>13.81px</FigureValue>
-          <Separator orientation="vertical" className="hidden sm:block" />
-          <FigureValue>44px</FigureValue>
-        </div>
-      </Card>
-      {/* `px-6` matches `Card`'s own `p-6` horizontal inset exactly at
-          `sm:` and above — without it this row's grid spans the section's
-          full content width while the value row's grid spans that width
-          minus Card's 48px of padding, and two grids of different overall
-          widths do not produce equal column edges even with an identical
-          template. Harmless at the single-column mobile layout, where each
-          row is already full width and centred. */}
-      <div className={`mt-3 ${FIGURE_COLS} px-6`}>
-        <FigureLabel className="sm:col-start-1">seeds in the pool</FigureLabel>
-        <FigureLabel className="sm:col-start-3">
-          500 frames, from the pool (110ms without)
-        </FigureLabel>
-        <FigureLabel className="sm:col-start-5">handover</FigureLabel>
-        <FigureLabel className="sm:col-start-7">worst-case stroke excursion</FigureLabel>
-        <FigureLabel className="sm:col-start-9">minimum touch target</FigureLabel>
-      </div>
+        </Card>
+      </HandicraftProvider>
       <div className="mt-4">
         <Marginalia>
           The 34.3ms figure is measured against <code>next build &amp;&amp; next start</code>, Fast
@@ -300,18 +275,12 @@ export function TheNumbers() {
   );
 }
 
-function FigureValue({ children }: { children: ReactNode }) {
-  return <p className="font-hand font-bold text-hc-ink text-center text-3xl">{children}</p>;
-}
-
-/** `col-start-N` (`sm:`-only, passed in per call site as a literal class so
- * Tailwind's source scan can see it) is what places each label onto the
- * same track its value occupies once the grid is no longer one column. */
-function FigureLabel({ children, className }: { children: ReactNode; className?: string }) {
+function FigureUnit({ value, label }: { value: string; label: string }) {
   return (
-    <p className={`font-body text-hc-ink-soft text-center text-sm ${className ?? ""}`}>
-      {children}
-    </p>
+    <div className="text-center">
+      <p className="font-hand font-bold text-hc-ink text-3xl">{value}</p>
+      <p className="font-body text-hc-ink-soft text-sm">{label}</p>
+    </div>
   );
 }
 
