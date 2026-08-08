@@ -294,6 +294,39 @@ At each width assert **no horizontal overflow** mechanically, not by eye:
 document.documentElement.scrollWidth <= document.documentElement.clientWidth
 ```
 
+### Rule V6 — a text-fit claim is measured on the glyph, not the box
+
+**The check above cannot see text overflowing inside a fixed container, and neither can
+`getBoundingClientRect()`.** They answer different questions than the one that matters:
+`scrollWidth` is a claim about the **document**, and `getBoundingClientRect()` is a claim about the
+**layout track**. Ink that piles up inside a Card widens neither.
+
+Measured on the landing page, cycle 012, after **three green QA passes**: a numbers panel rendered
+`1.6ms34.3ms13.81px44px` overprinted into an unreadable smear at 375px. Track stride was 61px while
+`34.3ms` needs 95px at `text-3xl` hand-bold — overlaps of 10.0, 33.9 and 28.7px. `scrollWidth` read
+**0 overflow**, correctly, because the page genuinely did not scroll. `getBoundingClientRect()`
+reported the five values and their five labels at **exactly** matching x-coordinates, correctly,
+because the boxes really did align. Every gate was green and axe reported zero violations at every
+impact level throughout.
+
+**So: any assertion that text fits uses `Range.getBoundingClientRect()` over the text node**, and
+reports both numbers — the rendered glyph width and the container it must fit. A screenshot at the
+binding width is required alongside it, because this class is legible to an eye and invisible to the
+instruments above.
+
+**Corollary, and it is the half that generalises furthest: pairing is measured at every breakpoint,
+never assumed from source order.** A single-column collapse re-orders by document position, so a
+label correctly beside its value at 1280 can end up beneath four other values at 375 with nothing
+failing anywhere. Cycle 012 shipped that defect twice — once mis-paired but legible, once legible but
+mis-paired — and no assertion in the suite could see either.
+
+**Rule V6b — when two consecutive iterations trade one defect for another at the same subject, the
+constraint is the defect.** Oscillation is not two bad fixes. It is one over-tight constraint being
+satisfied twice, and the fix is to remove the constraint rather than to attempt a third trade. Cycle
+012's numbers panel took four passes because a rule forbidding prose over a hachure forced values and
+labels into separate containers; the fix was an unfilled Card, after which the rule had no mechanism
+to apply and both defects closed at once.
+
 ### State matrix per component
 
 `fidelity=lite` and `fidelity=high` × light and blackboard dark. The playground is URL-addressable:
