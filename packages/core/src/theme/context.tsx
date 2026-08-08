@@ -2,6 +2,7 @@
 
 import { createContext, use, useEffect, useMemo, type ReactNode } from "react";
 import { preloadSketchEngine, type FillLevel, type InkStyle } from "../engine/generator";
+import { THEMES, type HandicraftTheme, type TextureProfile } from "./themes";
 
 /**
  * `lite`  — CSS-only frame. No JavaScript, no measurement, SSR-exact.
@@ -76,7 +77,22 @@ export interface HandicraftConfig {
    * goal is that the handover never announces itself.
    */
   chalk: boolean;
+  /**
+   * The active theme's texture treatment, resolved once here rather than
+   * left for every frame to re-resolve the theme registry itself — see
+   * `HandicraftProviderProps.theme`. Threaded to `SketchStyle.texture`
+   * (`useSketchFrame.tsx`), which is what lets the four chalk constants
+   * live per theme instead of as literals inside `generator.ts`.
+   */
+  treatment: TextureProfile;
 }
+
+/** The theme a provider resolves to when its `theme` prop is omitted, or
+ *  names something `THEMES` does not recognise. Kept as a name rather than
+ *  a direct `THEMES.notebook` reference so the "unrecognised name" branch
+ *  below reads as a lookup falling back to the same default, not a special
+ *  case with its own literal. */
+const DEFAULT_THEME_NAME = "notebook";
 
 const DEFAULTS: HandicraftConfig = {
   fidelity: "high",
@@ -93,6 +109,7 @@ const DEFAULTS: HandicraftConfig = {
   // pass at 520ms was over before the eye could follow it.
   drawOnDuration: 1100,
   chalk: false,
+  treatment: THEMES[DEFAULT_THEME_NAME]!.treatment,
 };
 
 const HandicraftContext = createContext<HandicraftConfig>(DEFAULTS);
@@ -106,8 +123,22 @@ export function useHandProfile(): HandProfile {
   return HANDS[useHandicraft().hand];
 }
 
-export interface HandicraftProviderProps extends Partial<HandicraftConfig> {
+export interface HandicraftProviderProps extends Partial<Omit<HandicraftConfig, "treatment">> {
   children: ReactNode;
+  /**
+   * "notebook" (default) or "blackboard" by name, resolved through the
+   * built-in registry above, or a `HandicraftTheme` object for a theme
+   * this library never registered — the extension seam
+   * `generator.ts`'s cache key exists for: it serialises the four texture
+   * numbers themselves, not a name, so an unregistered profile still gets
+   * its own cache entries rather than colliding with blackboard's.
+   *
+   * Only supplies a *default* for `chalk` and the resolved `treatment`; an
+   * explicit `chalk` prop below still wins, which is what keeps
+   * `matrix/page.tsx`'s `chalk={hc.dark}` correct with no edit to that call
+   * site even though it never passes `theme` at all.
+   */
+  theme?: string | HandicraftTheme;
 }
 
 export function HandicraftProvider({
@@ -120,7 +151,12 @@ export function HandicraftProvider({
   texture = DEFAULTS.texture,
   drawOn = DEFAULTS.drawOn,
   drawOnDuration = DEFAULTS.drawOnDuration,
-  chalk = DEFAULTS.chalk,
+  theme = DEFAULT_THEME_NAME,
+  // No default value here on purpose — chalk stays `undefined` unless a
+  // caller actually passed it, which is the only way "explicit wins" below
+  // can tell that case apart from "the caller never mentioned chalk and it
+  // happens to equal the theme's own default".
+  chalk,
 }: HandicraftProviderProps) {
   // Start fetching roughjs immediately rather than waiting for the first
   // component to ask for it. Combined with the sync generate path, this is what
@@ -130,9 +166,59 @@ export function HandicraftProvider({
     if (fidelity === "high") preloadSketchEngine();
   }, [fidelity]);
 
+  // A string resolves through the registry, falling back to notebook for a
+  // name nobody registered rather than throwing — the same "wrong input
+  // degrades, does not crash" posture generator.ts already takes for a
+  // missing roughjs peer dependency. An object (the extension seam) is used
+  // directly.
+  const resolvedTheme: HandicraftTheme =
+    typeof theme === "string" ? (THEMES[theme] ?? THEMES[DEFAULT_THEME_NAME]!) : theme;
+
+  const effectiveChalk = chalk !== undefined ? chalk : resolvedTheme.chalk;
+
+  // Theme and the *effective* chalk can disagree once chalk is overridden —
+  // matrix/page.tsx passes chalk={hc.dark} with no theme prop at all, so
+  // resolvedTheme is always notebook (chalk: false, an inert treatment)
+  // regardless of what the URL's &dark= asks for. Reading
+  // resolvedTheme.treatment unconditionally there would hand a chalk-true
+  // frame the notebook profile's zeros — no dust pass, no hachure widening,
+  // full-opacity ink — and move every one of the 26 committed dark matrix
+  // baselines. Falling back to the built-in profile that matches the
+  // *effective* chalk value is what keeps that call site correct with no
+  // edit: the fallback only fires on a mismatch, so a theme whose own chalk
+  // already agrees with the resolved value — blackboard picked directly, or
+  // a self-consistent custom theme object — still gets its own treatment
+  // untouched.
+  const treatment: TextureProfile =
+    effectiveChalk === resolvedTheme.chalk
+      ? resolvedTheme.treatment
+      : THEMES[effectiveChalk ? "blackboard" : DEFAULT_THEME_NAME]!.treatment;
+
   const value = useMemo<HandicraftConfig>(
-    () => ({ fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration, chalk }),
-    [fidelity, hand, ink, fill, handOffset, texture, drawOn, drawOnDuration, chalk],
+    () => ({
+      fidelity,
+      hand,
+      ink,
+      fill,
+      handOffset,
+      texture,
+      drawOn,
+      drawOnDuration,
+      chalk: effectiveChalk,
+      treatment,
+    }),
+    [
+      fidelity,
+      hand,
+      ink,
+      fill,
+      handOffset,
+      texture,
+      drawOn,
+      drawOnDuration,
+      effectiveChalk,
+      treatment,
+    ],
   );
 
   return (

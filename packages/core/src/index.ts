@@ -16,6 +16,12 @@ export {
 export { HandicraftSurface, type HandicraftSurfaceProps } from "./theme/surface";
 
 export {
+  THEMES,
+  type HandicraftTheme,
+  type TextureProfile,
+} from "./theme/themes";
+
+export {
   useSketchFrame,
   useSketchSeed,
   type SketchFrameProps,

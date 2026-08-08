@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures";
 import { MATRIX_CELLS, nameFor, type Component } from "./matrix-grid";
 import { isSnapshotEnv, SNAPSHOT_ARCH, SNAPSHOT_PLATFORM } from "./snapshot-env";
@@ -463,6 +463,71 @@ test.describe("matrix guards", () => {
       }));
     expect(before.style, "tier 1 disabled must dash").toBe("dashed");
     expect(before.display, "tier 1 disabled pseudo-element must paint").toBe("block");
+  });
+
+  /**
+   * M17 and M18 — cycle 013. Read through `background-color` on `main`
+   * (`HandicraftSurface`'s own inline `backgroundColor: "var(--hc-paper)"`)
+   * rather than the raw `--hc-paper` custom-property text, the same
+   * resolved-colour-over-token-reference posture `degraded.spec.ts`'s
+   * D-STATE already takes: the browser hands back an actual computed
+   * `rgb()` this way, so the assertion never depends on how a particular
+   * engine happens to serialise an unparsed custom property's author text.
+   */
+  const paperColor = (page: Page) =>
+    page.locator("main").evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  test("M17 — ?theme=fixture resolves the fixture's paper at both tiers; omitting it resolves notebook's", async ({
+    page,
+  }) => {
+    await page.goto("/matrix?c=button&theme=fixture");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="high"])')).toHaveCount(0);
+    const fixtureHigh = await paperColor(page);
+
+    await page.goto("/matrix?c=button&theme=fixture&fidelity=lite");
+    await expect(page.locator('.hc-frame:not([data-hc-fidelity="lite"])')).toHaveCount(0);
+    const fixtureLite = await paperColor(page);
+
+    // The theme resolves on the element HandicraftSurface paints, entirely
+    // independent of which tier is rendering the frames inside it.
+    expect(fixtureLite, "the fixture's paper must not depend on tier").toBe(fixtureHigh);
+
+    await page.goto("/matrix?c=button");
+    const notebookPaper = await paperColor(page);
+
+    expect(
+      fixtureHigh,
+      "?theme=fixture must not resolve notebook's own paper",
+    ).not.toBe(notebookPaper);
+  });
+
+  test("M18 — .dark beats a theme attribute on the same element; absent .dark, the attribute resolves", async ({
+    page,
+  }) => {
+    // Both signals at once: dark=1 sets the class, theme=fixture sets the
+    // attribute, independently (HandicraftSurfaceProps' own comment). This
+    // is the exact DOM state the fixture's own selector,
+    // [data-hc-theme="fixture"]:not(.dark), has to resolve: .dark present
+    // means the fixture block does not match at all, so blackboard's own
+    // .dark, [data-hc-theme="blackboard"] block wins instead.
+    await page.goto("/matrix?c=button&dark=1&theme=fixture");
+    const darkPlusFixture = await paperColor(page);
+
+    await page.goto("/matrix?c=button&dark=1");
+    const darkAlone = await paperColor(page);
+
+    expect(
+      darkPlusFixture,
+      "with .dark present, the element's paper must be blackboard's regardless of data-hc-theme",
+    ).toBe(darkAlone);
+
+    await page.goto("/matrix?c=button&theme=fixture");
+    const fixtureAlone = await paperColor(page);
+
+    expect(
+      darkPlusFixture,
+      "dark+fixture together must not read as the fixture's own paper",
+    ).not.toBe(fixtureAlone);
   });
 });
 

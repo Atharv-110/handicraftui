@@ -294,6 +294,13 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
       hachureAngle,
       ink,
       chalk,
+      // The active theme's texture treatment (cycle 013), resolved once by
+      // the provider rather than re-resolved per frame — see
+      // HandicraftConfig.treatment's own comment in theme/context.tsx for
+      // why it already agrees with `chalk` by the time it reaches here.
+      // Always a concrete object, never undefined, so a plain assignment is
+      // correct rather than the conditional-spread idiom optional props use.
+      texture: config.treatment,
     };
 
     // Fast path: if roughjs is already warm (the provider preloads it), the
@@ -330,6 +337,7 @@ export function useSketchFrame(options: UseSketchFrameOptions = {}): UseSketchFr
     hachureAngle,
     ink,
     chalk,
+    config.treatment,
   ]);
 
   const active = paths.length > 0;

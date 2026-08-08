@@ -13,6 +13,7 @@
 
 import { createCache, quantize } from "./cache";
 import { FILLED_MARKS, MARK_STROKES, type MarkName } from "./marks";
+import { BLACKBOARD_TREATMENT, type TextureProfile } from "../theme/themes";
 
 export type SketchShape = "rect" | "rounded" | "pill" | "circle" | "underline";
 
@@ -93,6 +94,16 @@ export interface SketchStyle {
   ink?: InkStyle;
   /** Chalk needs a wide faint dust pass; ink on paper does not. */
   chalk?: boolean;
+  /**
+   * The active theme's texture treatment — cycle 013. Falls back to
+   * BLACKBOARD_TREATMENT (theme/themes.ts) when omitted, which is exactly
+   * what every caller before this cycle got: the four numbers below were
+   * literals inside `compose` with no theme attached to them at all, so a
+   * caller passing `chalk: true` with no opinion on `texture` draws
+   * identically to how it always has. Read only when `chalk` is true —
+   * see `compose`'s own gates below, unchanged from before this cycle.
+   */
+  texture?: TextureProfile;
 }
 
 /**
@@ -238,7 +249,18 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number):
   ].join(" ");
 }
 
+/**
+ * The style's own texture treatment, or the pre-cycle-013 constant when
+ * omitted — see SketchStyle.texture's own comment. Shared by cacheKey and
+ * compose so "no texture supplied" has exactly one meaning instead of two
+ * copies of the fallback that could disagree about it.
+ */
+function resolveTexture(style: SketchStyle): TextureProfile {
+  return style.texture ?? BLACKBOARD_TREATMENT;
+}
+
 function cacheKey(geom: SketchGeometry, style: SketchStyle, w: number, h: number): string {
+  const texture = resolveTexture(style);
   return [
     geom.shape,
     w,
@@ -255,6 +277,18 @@ function cacheKey(geom: SketchGeometry, style: SketchStyle, w: number, h: number
     style.ink ?? "",
     style.chalk ? "chalk" : "",
     style.fillStyle ?? "",
+    // A non-chalk frame keys to "", identical to every key before this
+    // cycle. Chalk is the only state the four texture numbers can affect —
+    // compose() gates every read on style.chalk below — so a frame that
+    // never reaches them gets no new cache dimension either.
+    style.chalk
+      ? [
+          texture.dustStrokeBoost,
+          texture.dustOpacity,
+          texture.hachureGapScale,
+          texture.inkOpacity,
+        ].join(",")
+      : "",
   ].join("|");
 }
 
@@ -376,6 +410,11 @@ function compose(
   h: number,
 ): SketchPath[] {
   const taper = taperForSize(w, h);
+  // The four theme-owned texture numbers, resolved once. Cycle 013 moved
+  // them out of this function as inline literals and into a per-theme
+  // TextureProfile; resolveTexture's own comment is what documents the
+  // fallback these compose reads inherit for a caller with no opinion.
+  const texture = resolveTexture(style);
   // Chalk raises the *input* to the taper, not its output. `scaleStroke` floors
   // its result at 1.1px so a hairline never reads as unfinished — multiplying
   // after the taper would lift an already-floored value back above its own
@@ -437,13 +476,24 @@ function compose(
 
   // Chalk on slate reads thin and hard next to ink on paper. A wide, very faint
   // pass underneath restores the dusty edge. Straight colour inversion does not.
+  // Both numbers below are the theme's, not this function's — dustStrokeBoost
+  // and dustOpacity are two of the four DESIGN-SYSTEM.md Known-limits names.
   if (style.chalk) {
     push(
       gen.toPaths(
-        drawShape(gen, geom, { ...base, strokeWidth: strokeWidth + 2.6 }, w, h, pad, iw, ih),
+        drawShape(
+          gen,
+          geom,
+          { ...base, strokeWidth: strokeWidth + texture.dustStrokeBoost },
+          w,
+          h,
+          pad,
+          iw,
+          ih,
+        ),
       ),
       "dust",
-      0.13,
+      texture.dustOpacity,
     );
   }
 
@@ -483,8 +533,11 @@ function compose(
             // level, never from the override.
             fillStyle: style.fillStyle ?? fillConfig.fillStyle,
             fillWeight: fillConfig.fillWeight,
-            // Chalk does not hatch finely.
-            hachureGap: style.chalk ? fillConfig.hachureGap * 1.3 : fillConfig.hachureGap,
+            // Chalk does not hatch finely — hachureGapScale is the theme's,
+            // the third of the four Known-limits constants.
+            hachureGap: style.chalk
+              ? fillConfig.hachureGap * texture.hachureGapScale
+              : fillConfig.hachureGap,
             // Suppress this pass's own outline; the ink pass below draws it.
             strokeWidth: 0.001,
             stroke: "none",
@@ -504,7 +557,9 @@ function compose(
   push(
     gen.toPaths(drawShape(gen, geom, base, w, h, pad, iw, ih)),
     "ink",
-    style.chalk ? 0.92 : undefined,
+    // inkOpacity, the fourth Known-limits constant: chalk on slate reads
+    // harder than ink on paper at full opacity.
+    style.chalk ? texture.inkOpacity : undefined,
   );
 
   // A pen dwelling at a direction change leaves a heavier mark. Only on closed
